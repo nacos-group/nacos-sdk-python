@@ -558,7 +558,7 @@ class NacosClient:
     def _get_common_headers(self, params, data):
         return {}
 
-    def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
+    def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata='{}',
                             enable=True, healthy=True):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
@@ -623,7 +623,7 @@ class NacosClient:
             logger.exception("[remove-naming-instance] exception %s occur" % str(e))
             raise
 
-    def modify_naming_instance(self, service_name, ip, port, cluster_name=None, weight=None, metadata=None,
+    def modify_naming_instance(self, service_name, ip, port, cluster_name=None, weight=None, metadata='{}',
                                enable=None):
         logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
@@ -724,7 +724,7 @@ class NacosClient:
             logger.exception("[get-naming-instance] exception %s occur" % str(e))
             raise
 
-    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None):
+    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata='{}'):
         logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
                                                                                         self.namespace))
         beat_data = {
