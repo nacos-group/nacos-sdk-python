@@ -33,7 +33,7 @@ from .files import read_file_str, save_file, delete_file
 from .exception import NacosException, NacosRequestException
 
 logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 DEBUG = False
 VERSION = "0.1.1"
