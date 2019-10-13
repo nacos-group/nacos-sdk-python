@@ -559,7 +559,7 @@ class NacosClient:
         return {}
 
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
-                            enable=True, healthy=True):
+                            enable=True, healthy=True, ephemeral=False):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -571,7 +571,8 @@ class NacosClient:
             "enable": enable,
             "healthy": healthy,
             "metadata": metadata,
-            "clusterName": cluster_name
+            "clusterName": cluster_name,
+            "ephemeral":ephemeral
         }
 
         if self.namespace:
