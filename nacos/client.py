@@ -3,6 +3,7 @@ import hashlib
 import logging
 import socket
 import json
+import platform
 
 try:
     import ssl
@@ -362,8 +363,13 @@ class NacosClient:
             logger.debug("[add-watcher] no puller available, new one and add key:%s" % cache_key)
             key_list = self.process_mgr.list()
             key_list.append(cache_key)
-            puller = Process(target=self._do_pulling, args=(key_list, self.notify_queue))
-            puller.daemon = True
+            sys_os = platform.system()
+            if sys_os == 'Windows':
+                puller = Thread(target=self._do_pulling, args=(key_list, self.notify_queue))
+                puller.setDaemon(True)
+            else:
+                puller = Process(target=self._do_pulling, args=(key_list, self.notify_queue))
+                puller.daemon = True
             puller.start()
             self.puller_mapping[cache_key] = (puller, key_list)
 
