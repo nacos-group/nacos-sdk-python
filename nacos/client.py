@@ -89,9 +89,9 @@ def parse_pulling_result(result):
 
 
 class WatcherWrap:
-    def __init__(self, key, callback):
+    def __init__(self, key, callback, last_md5=None):
         self.callback = callback
-        self.last_md5 = None
+        self.last_md5 = last_md5
         self.watch_key = key
 
 
@@ -125,6 +125,10 @@ class NacosClient:
             logger.addHandler(handler)
             logger.setLevel(logging.DEBUG)
             NacosClient.debug = True
+
+    @staticmethod
+    def get_md5(content):
+        return hashlib.md5(content.encode("UTF-8")).hexdigest() if content is not None else None
 
     def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None):
         self.server_list = list()
@@ -340,8 +344,9 @@ class NacosClient:
         if not wl:
             wl = list()
             self.watcher_mapping[cache_key] = wl
+        last_md5 = NacosClient.get_md5(self.get_config(data_id, group))
         for cb in cb_list:
-            wl.append(WatcherWrap(cache_key, cb))
+            wl.append(WatcherWrap(cache_key, cb, last_md5))
             logger.info("[add-watcher] watcher has been added for key:%s, new callback is:%s, callback number is:%s" % (
                 cache_key, cb.__name__, len(wl)))
 
@@ -512,8 +517,7 @@ class NacosClient:
                 if cache_key in changed_keys:
                     data_id, group, namespace = parse_key(cache_key)
                     content = self.get_config(data_id, group)
-                    md5 = hashlib.md5(content.encode("UTF-8")).hexdigest() if content is not None else None
-                    cache_data.md5 = md5
+                    cache_data.md5 = NacosClient.get_md5(content)
                     cache_data.content = content
                 queue.put((cache_key, cache_data.content, cache_data.md5))
 
