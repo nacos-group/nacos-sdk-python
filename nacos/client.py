@@ -34,7 +34,7 @@ from .files import read_file_str, save_file, delete_file
 from .exception import NacosException, NacosRequestException
 
 logging.basicConfig()
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 
 DEBUG = False
 VERSION = "0.1.1"
@@ -130,7 +130,7 @@ class NacosClient:
     def get_md5(content):
         return hashlib.md5(content.encode("UTF-8")).hexdigest() if content is not None else None
 
-    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None):
+    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None, username=None, password=None):
         self.server_list = list()
 
         try:
@@ -146,6 +146,8 @@ class NacosClient:
         self.namespace = namespace or DEFAULT_NAMESPACE or ""
         self.ak = ak
         self.sk = sk
+        self.username = username
+        self.password = password
 
         self.server_list_lock = RLock()
         self.server_offset = 0
@@ -219,7 +221,7 @@ class NacosClient:
             logger.exception("[remove] exception %s occur" % str(e))
             raise
 
-    def publish_config(self, data_id, group, content, timeout=None):
+    def publish_config(self, data_id, group, content, app_name=None, timeout=None):
         if content is None:
             raise NacosException("Can not publish none content, use remove instead.")
 
@@ -238,6 +240,9 @@ class NacosClient:
 
         if self.namespace:
             params["tenant"] = self.namespace
+
+        if app_name:
+            params["appName"] = app_name
 
         try:
             resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
@@ -329,12 +334,85 @@ class NacosClient:
             logger.debug("[get-config] get %s from snapshot directory, content is %s" % (cache_key, truncate(content)))
             return content
 
-    @synchronized_with_attr("pulling_lock")
-    def add_config_watcher(self, data_id, group, cb):
-        self.add_config_watchers(data_id, group, [cb])
+    def get_configs(self, timeout=None, no_snapshot=None, group="", page_no=1, page_size=1000):
+        no_snapshot = self.no_snapshot if no_snapshot is None else no_snapshot
+        logger.info("[get-configs] namespace:%s, timeout:%s, group:%s, page_no:%s, page_size:%s" % (
+            self.namespace, timeout, group, page_no, page_size))
+
+        params = {
+            "dataId": "",
+            "group": group,
+            "search": "accurate",
+            "pageNo": page_no,
+            "pageSize": page_size,
+        }
+        if self.namespace:
+            params["tenant"] = self.namespace
+
+        cache_key = group_key("", "", self.namespace)
+        # get from failover
+        content = read_file_str(self.failover_base, cache_key)
+        if content is None:
+            logger.debug("[get-config] failover config is not exist for %s, try to get from server" % cache_key)
+        else:
+            logger.debug("[get-config] get %s from failover directory, content is %s" % (cache_key, truncate(content)))
+            return json.loads(content)
+
+        # get from server
+        try:
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, params, None, timeout or self.default_timeout)
+            content = resp.read().decode("UTF-8")
+        except HTTPError as e:
+            if e.code == HTTPStatus.CONFLICT:
+                logger.error(
+                    "[get-configs] configs being modified concurrently for namespace:%s" % (self.namespace))
+            elif e.code == HTTPStatus.FORBIDDEN:
+                logger.error("[get-configs] no right for namespace:%s" % (self.namespace))
+                raise NacosException("Insufficient privilege.")
+            else:
+                logger.error("[get-configs] error code [:%s] for namespace:%s" % (e.code, self.namespace))
+                if no_snapshot:
+                    raise
+        except Exception as e:
+            logger.exception("[get-config] exception %s occur" % str(e))
+            if no_snapshot:
+                raise
+
+        if no_snapshot:
+            return json.loads(content)
+
+        if content is not None:
+            logger.info(
+                "[get-configs] content from server:%s, namespace:%s, try to save snapshot" % (
+                    truncate(content), self.namespace))
+            try:
+                save_file(self.snapshot_base, cache_key, content)
+
+                for item in json.loads(content).get("pageItems"):
+                    data_id = item.get('dataId')
+                    group = item.get('group')
+                    item_content = item.get('content')
+                    item_cache_key = group_key(data_id, group, self.namespace)
+                    save_file(self.snapshot_base, item_cache_key, item_content)
+            except Exception as e:
+                logger.exception("[get-configs] save snapshot failed for %s, namespace:%s" % (
+                    str(e), self.namespace))
+            return json.loads(content)
+
+        logger.error("[get-configs] get config from server failed, try snapshot, namespace:%s" % (self.namespace))
+        content = read_file_str(self.snapshot_base, cache_key)
+        if content is None:
+            logger.warning("[get-configs] snapshot is not exist for %s." % cache_key)
+        else:
+            logger.debug("[get-configs] get %s from snapshot directory, content is %s" % (cache_key, truncate(content)))
+            return json.loads(content)
 
     @synchronized_with_attr("pulling_lock")
-    def add_config_watchers(self, data_id, group, cb_list):
+    def add_config_watcher(self, data_id, group, cb, content=None):
+        self.add_config_watchers(data_id, group, [cb], content)
+
+    @synchronized_with_attr("pulling_lock")
+    def add_config_watchers(self, data_id, group, cb_list, content=None):
         if not cb_list:
             raise NacosException("A callback function is needed.")
         data_id, group = process_common_config_params(data_id, group)
@@ -344,7 +422,9 @@ class NacosClient:
         if not wl:
             wl = list()
             self.watcher_mapping[cache_key] = wl
-        last_md5 = NacosClient.get_md5(self.get_config(data_id, group))
+        if not content:
+            content = self.get_config(data_id, group)
+        last_md5 = NacosClient.get_md5(content)
         for cb in cb_list:
             wl.append(WatcherWrap(cache_key, cb, last_md5))
             logger.info("[add-watcher] watcher has been added for key:%s, new callback is:%s, callback number is:%s" % (
@@ -414,6 +494,10 @@ class NacosClient:
                 puller_info[0].terminate()
 
     def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET"):
+        if self.username and self.password:
+            if not params:
+                params = {}
+            params.update({"username": self.username, "password": self.password})
         url = "?".join([url, urlencode(params)]) if params else url
         all_headers = self._get_common_headers(params, data)
         if headers:
@@ -557,7 +641,8 @@ class NacosClient:
             for watcher in wl:
                 if not watcher.last_md5 == md5:
                     logger.debug(
-                        "[process-polling-result] md5 changed since last call, calling %s" % watcher.callback.__name__)
+                        "[process-polling-result] md5 changed since last call, calling %s with changed params: %s"
+                        % (watcher.callback.__name__,params))
                     try:
                         self.callback_tread_pool.apply(watcher.callback, (params,))
                     except Exception as e:
