@@ -29,7 +29,10 @@ import nacos
 SERVER_ADDRESSES = "server addresses split by comma"
 NAMESPACE = "***"
 
+# no auth mode
 client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
+# auth mode
+#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username="nacos", password="nacos")
 
 # get config
 data_id = "config.nacos"
