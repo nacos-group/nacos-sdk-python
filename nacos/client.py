@@ -665,9 +665,13 @@ class NacosClient:
             "weight": weight,
             "enable": enable,
             "healthy": healthy,
-            "metadata": metadata,
             "clusterName": cluster_name
         }
+        if metadata:
+            if isinstance(metadata, dict):
+                params["metadata"] = json.dumps(metadata)
+            else:
+                params["metadata"] = metadata
 
         if self.namespace:
             params["namespaceId"] = self.namespace

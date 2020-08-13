@@ -14,7 +14,7 @@ Python 3.6
 Python 3.7
 
 ### Supported Nacos version
-Nacos 0.8.0
+Nacos 0.8.0 ~ 1.3.1
 
 
 ## Installation
@@ -142,7 +142,7 @@ Remove one data item from Nacos.
 * `param` *port* **required** Port of the instance.
 * `param` *cluster_name* Cluster to register to.
 * `param` *weight* A float number for load balancing weight.
-* `param` *metadata* Extra info in JSON string format.
+* `param` *metadata* Extra info in JSON string format or dict format
 * `param` *enable* A bool value to determine whether instance is enabled or not.
 * `param` *healthy* A bool value to determine whether instance is healthy or not.
 * `return` True if success or an exception will be raised.
