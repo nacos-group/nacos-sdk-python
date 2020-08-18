@@ -491,7 +491,9 @@ class NacosClient:
             if not puller_info[1]:
                 logger.debug("[remove-watcher] there is no pulling keys for puller:%s, stop it" % puller_info[0])
                 self.puller_mapping.pop(cache_key)
-                puller_info[0].terminate()
+                if isinstance(puller_info[0], Process):
+                    puller_info[0].terminate()
+
 
     def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET"):
         if self.username and self.password:
@@ -653,6 +655,13 @@ class NacosClient:
     def _get_common_headers(self, params, data):
         return {}
 
+    def _build_metadata(self, metadata, params):
+        if metadata:
+            if isinstance(metadata, dict):
+                params["metadata"] = json.dumps(metadata)
+            else:
+                params["metadata"] = metadata
+
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
                             enable=True, healthy=True):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
@@ -667,11 +676,7 @@ class NacosClient:
             "healthy": healthy,
             "clusterName": cluster_name
         }
-        if metadata:
-            if isinstance(metadata, dict):
-                params["metadata"] = json.dumps(metadata)
-            else:
-                params["metadata"] = metadata
+        self._build_metadata(metadata, params)
 
         if self.namespace:
             params["namespaceId"] = self.namespace
@@ -742,8 +747,7 @@ class NacosClient:
         if weight is not None:
             params["weight"] = weight
 
-        if metadata is not None:
-            params["metadata"] = metadata
+        self._build_metadata(metadata, params)
 
         if self.namespace:
             params["namespaceId"] = self.namespace
@@ -804,6 +808,7 @@ class NacosClient:
 
         if cluster_name is not None:
             params["cluster"] = cluster_name
+            params["clusterName"] = cluster_name
 
         if self.namespace:
             params["namespaceId"] = self.namespace

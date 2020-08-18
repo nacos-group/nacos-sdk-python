@@ -7,16 +7,20 @@ from nacos import files
 import time
 import shutil
 
-SERVER_ADDRESSES = "100.69.207.65:8848, 100.69.207.66:8848"
+SERVER_1 = "100.69.207.65"
+SERVER_ADDRESSES = "%s:8848, 100.69.207.66:8848" % SERVER_1
 NAMESPACE = "6cface1f-2f1b-4744-a59d-fd818b91a799"
-# NAMESPACE = ""
 
-client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
+# Set the following values if authentication mode is enabled on the server
+USERNAME = None
+PASSWORD = None
+
+client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
 
 
 class TestClient(unittest.TestCase):
     def test_get_server(self):
-        self.assertEqual(client.get_server(), ("100.69.207.65", 8848))
+        self.assertEqual(client.get_server(), (SERVER_1, 8848))
 
     def test_set_get_remove_config(self):
         d = "test"
@@ -30,7 +34,7 @@ class TestClient(unittest.TestCase):
         self.assertEqual(client.get_config(d, g), None)
 
     def test_server_failover(self):
-        client2 = nacos.NacosClient("100.69.207.66:8848, 100.69.207.65:8848", namespace=NAMESPACE)
+        client2 = nacos.NacosClient("100.69.207.66:8848, %s:8848" %SERVER_1, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
         d = "test"
         g = "DEFAULT_GROUP"
         content = u"test中文"
@@ -94,7 +98,7 @@ class TestClient(unittest.TestCase):
         self.assertEqual(Share.count, 0)
 
     def test_long_pulling(self):
-        client2 = nacos.NacosClient(SERVER_ADDRESSES)
+        client2 = nacos.NacosClient(SERVER_ADDRESSES, username=USERNAME, password=PASSWORD)
         d = "test1_pulling"
         g = "Group1"
         g2 = "Group2"
@@ -131,7 +135,7 @@ class TestClient(unittest.TestCase):
         shutil.rmtree(client.failover_base)
 
     def test_get_from_snapshot(self):
-        client2 = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
+        client2 = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
         client2.current_server = ("1.100.84.215", 8080)
         d = "test_snap"
         g = "group"
@@ -144,16 +148,30 @@ class TestClient(unittest.TestCase):
         self.assertEqual(
             client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}", False, True), True)
 
+    def test_add_naming_instance_with_dict_metadata(self):
+        self.assertEqual(
+            client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"}, False, True),
+            True)
+
     def test_remove_naming_instance(self):
         print(client.remove_naming_instance("test.service", "1.0.0.1", 8080))
 
     def test_modify_naming_instance(self):
         self.assertEqual(
             client.modify_naming_instance("test.service", "1.0.0.1", 8080, cluster_name="testCluster", enable=False,
-                                          metadata="{a:'a'}"), True)
+                                          metadata='{"a":"a"}'), True)
 
-    def test_list_naming_instance(self):
+    def test_modify_naming_instance_with_dict_metadata(self):
+        self.assertEqual(
+            client.modify_naming_instance("test.service", "1.0.0.1", 8080, cluster_name="testCluster", enable=False,
+                                          metadata={"a":"b"}), True)
+
+    def test_list_naming_instance_offline(self):
         client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}", False, True)
+        self.assertEqual(len(client.list_naming_instance("test.service")["hosts"]), 0)
+
+    def test_list_naming_instance_online(self):
+        client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}", True, True)
         self.assertEqual(len(client.list_naming_instance("test.service")["hosts"]), 1)
 
     def test_get_naming_instance(self):
