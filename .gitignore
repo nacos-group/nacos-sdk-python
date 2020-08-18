@@ -105,3 +105,6 @@ venv.bak/
 
 # nacos data
 test/nacos-data
+
+# idea and pycharm settings
+.idea/
