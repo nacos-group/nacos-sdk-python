@@ -65,6 +65,7 @@ setup(
     cmdclass={
       'upload': UploadCommand,
     },
+    # python_requires='>=3.6',
     project_urls={
       'Documentation': 'https://github.com/nacos-group/nacos-sdk-python',
       'Source': 'https://github.com/nacos-group/nacos-sdk-python',
