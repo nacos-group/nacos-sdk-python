@@ -14,7 +14,7 @@ Python 3.6
 Python 3.7
 
 ### Supported Nacos version
-Nacos 0.8.0 ~ 1.3.1
+Nacos 0.8.0 ~ 1.3.2
 
 
 ## Installation
@@ -145,6 +145,7 @@ Remove one data item from Nacos.
 * `param` *metadata* Extra info in JSON string format or dict format
 * `param` *enable* A bool value to determine whether instance is enabled or not.
 * `param` *healthy* A bool value to determine whether instance is healthy or not.
+* `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
 * `return` True if success or an exception will be raised.
 
 ### Deregister Instance
@@ -153,6 +154,7 @@ Remove one data item from Nacos.
 * `param` *ip*  **required** IP of the instance.
 * `param` *port* **required** Port of the instance.
 * `param` *cluster_name* Cluster to deregister from.
+* `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
 * `return` True if success or an exception will be raised.
 
 ### Modify Instance
@@ -162,8 +164,9 @@ Remove one data item from Nacos.
 * `param` *port* **required** Port of the instance.
 * `param` *cluster_name* Cluster name.
 * `param` *weight* A float number for load balancing weight.
-* `param` *metadata* Extra info in JSON string format.
+* `param` *metadata* Extra info in JSON string format or dict format.
 * `param` *enable* A bool value to determine whether instance is enabled or not.
+* `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
 * `return` True if success or an exception will be raised.
 
 ### Query Instances
@@ -188,7 +191,8 @@ Remove one data item from Nacos.
 * `param` *port* **required** Port of the instance.
 * `param` *cluster_name* Cluster to register to.
 * `param` *weight* A float number for load balancing weight.
-* `param` *metadata* Extra info in JSON string format.
+* `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
+* `param` *metadata* Extra info in JSON string format or dict format.
 * `return` A JSON object include server recommended beat interval if success or an exception will be raised.
 
 ## Debugging Mode

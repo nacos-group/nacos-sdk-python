@@ -53,7 +53,11 @@ setup(
         exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
     url="https://github.com/nacos-group/nacos-sdk-python",
     license="Apache License 2.0",
-    classifiers=[],
+    classifiers=[
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python"
+    ],
     keywords=['nacos', 'nacos-sdk-python'],
     author="nacos",
     author_email="755063194@qq.com",
