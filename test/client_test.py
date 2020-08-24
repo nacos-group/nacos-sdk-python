@@ -184,6 +184,12 @@ class TestClient(unittest.TestCase):
             client.send_heartbeat("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}")["clientBeatInterval"] > 0,
             True)
 
+    def test_send_heartbeat_with_dict_metadata(self):
+        client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"}, False, True)
+        self.assertEqual(
+            client.send_heartbeat("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"})["clientBeatInterval"] > 0,
+            True)
+
 
 if __name__ == '__main__':
     unittest.main()
