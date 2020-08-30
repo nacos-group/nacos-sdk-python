@@ -12,8 +12,6 @@
 """
 
 import threading
-import time
-from typing import Callable
 
 
 class NacosTimer(object):
@@ -21,9 +19,9 @@ class NacosTimer(object):
                  '_args', '_kwargs']
 
     def __init__(self,
-                 name: str,
-                 fn: Callable,
-                 interval: int = 7,
+                 name,
+                 fn,
+                 interval=7,
                  *args,
                  **kwargs):
         # timer name
@@ -44,50 +42,50 @@ class NacosTimer(object):
         self._kwargs = kwargs
 
     @property
-    def name(self) -> str:
+    def name(self):
         return self._name
 
-    def set_name(self, name: str):
+    def set_name(self, name):
         self._name = name
         return self
 
     @property
-    def fn(self) -> Callable:
+    def fn(self):
         return self._fn
 
-    def set_fn(self, fn: Callable):
+    def set_fn(self, fn):
         self._fn = fn
         return self
 
     @property
-    def interval(self, ) -> int:
+    def interval(self, ):
         return self._interval
 
-    def set_interval(self, interval: int):
+    def set_interval(self, interval):
         self._interval = interval
         return self
 
     @property
-    def ignore_ex(self) -> bool:
+    def ignore_ex(self):
         return self._ignore_ex
 
-    def set_ignore_ex(self, ignore_ex: bool):
+    def set_ignore_ex(self, ignore_ex):
         self._ignore_ex = ignore_ex
         return self
 
     @property
-    def on_result(self) -> Callable:
+    def on_result(self):
         return self._on_result
 
-    def set_on_result(self, fn: Callable):
+    def set_on_result(self, fn):
         self._on_result = fn
         return self
 
     @property
-    def on_exception(self) -> Callable:
+    def on_exception(self):
         return self._on_exception
 
-    def set_on_exception(self, fn: Callable):
+    def set_on_exception(self, fn):
         self._on_exception = fn
         return self
 
@@ -120,7 +118,7 @@ class NacosTimerManager(object):
     def all_timers(self):
         return self._timers_container
 
-    def add_timer(self, timer: NacosTimer):
+    def add_timer(self, timer):
         self._timers_container[timer.name] = timer
         return self
 
@@ -131,7 +129,7 @@ class NacosTimerManager(object):
             timer.scheduler()
         self._executed = True
 
-    def cancel_timer(self, timer_name: str = None, ):
+    def cancel_timer(self, timer_name=None, ):
         """
         cancel timer , and  nacos timer still in container
         it can execute again.
@@ -150,7 +148,7 @@ class NacosTimerManager(object):
         for _, timer in self._timers_container.items():
             timer.cancel()
 
-    def stop_timer(self, timer_name: str):
+    def stop_timer(self, timer_name):
         """
         cancel nacos timer and remove it from timer container
         :param timer_name:
@@ -165,32 +163,3 @@ class NacosTimerManager(object):
         """
         self.cancel()
         self._timers_container.clear()
-
-
-def print_time(host, port):
-    if port == 80:
-        pass
-    print(time.time(), host, port)
-    return "OK"
-
-
-def timer_on_result(res):
-    print(res)
-
-
-def timer_on_exception(ex):
-    print(ex)
-
-# sample1
-# s1 = NacosTimer("s1", print_time, 2, "localhost", 8080)
-# .set_on_result(timer_on_result)
-# s2 = NacosTimer("s2", print_time, 2, "127.0.0.1", 80)
-# .set_on_exception(timer_on_exception).set_ignore_ex(True)
-# s1.scheduler()
-# s2.scheduler()
-# sm = NacosTimerManager()
-# sm.add_timer(s1)
-# sm.add_timer(s2)
-# sm.execute()
-# sm.execute()
-# print("final")

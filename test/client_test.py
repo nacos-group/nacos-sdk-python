@@ -4,6 +4,7 @@ from __future__ import print_function
 import unittest
 import nacos
 from nacos import files
+from nacos.timer import NacosTimer,NacosTimerManager
 import time
 import shutil
 
@@ -189,6 +190,67 @@ class TestClient(unittest.TestCase):
         self.assertEqual(
             client.send_heartbeat("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"})["clientBeatInterval"] > 0,
             True)
+
+    # nacos timer test
+    def print_hello(self, name):
+        #  模拟调度方法中异常
+        if name == 'exception':
+            print("{name} enter exception".format(name=name))
+            1 / 0
+        tip = "{name} say Hello at {time}".format(name=name, time=time.time())
+        print(tip)
+        return tip
+
+    def test_nacos_timer(self):
+        # sample
+        nt1 = NacosTimer("test_timer1", self.print_hello, 3, "nacos1")
+        nt1.scheduler()
+        nt2 = NacosTimer("test_timer2", self.print_hello, 3, "nacos2")
+        nt2.scheduler()
+        pass
+
+    def timer_on_result_callback(self, res):
+        print("timer_on_result_callback :" + res)
+
+    def timer_on_exception_callback(self, ex):
+        print("timer_on_exception_callback :{ex}".format(ex=ex))
+
+    def test_nacos_timer_on_callback(self):
+        # simple timer scheduler
+        nt1 = NacosTimer("test_timer1", self.print_hello, 3, "nacos1")
+        nt1.set_on_result(self.timer_on_result_callback)
+        nt1.scheduler()
+
+        # execute timer with exception ignored
+        nt2 = NacosTimer("test_timer2", self.print_hello, 3, "exception")
+        nt2.set_on_exception(self.timer_on_exception_callback).set_ignore_ex(True)
+        nt2.scheduler()
+
+        time.sleep(10)
+        nt1.cancel()
+        nt2.cancel()
+
+    def test_nacos_timer_manager(self):
+        nt1 = NacosTimer("test_timer1", self.print_hello, 3, "nacos1")
+        nt2 = NacosTimer("test_timer2", self.print_hello, 3, "nacos2")
+
+        ntm = NacosTimerManager()
+        ntm.add_timer(nt1).add_timer(nt2)
+        ntm.execute()
+
+        # show all timers in manager
+        for name, timer in ntm.all_timers().items():
+            print("current timer in manager: {name}".format(name=name))
+
+        # block
+        time.sleep(5)
+        # cancel timer in manager
+        ntm.cancel_timer(nt1.name)
+        for name, timer in ntm.all_timers().items():
+            print("current timer in manager: {name} after canceled".format(name=name))
+
+        # stop timer
+        ntm.stop()
 
 
 if __name__ == '__main__':
