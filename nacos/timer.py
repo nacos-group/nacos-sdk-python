@@ -24,7 +24,15 @@ class NacosTimer(object):
                  interval=7,
                  *args,
                  **kwargs):
-        # timer name
+        """
+        NacosTimer
+        :param name:  timer name
+        :param fn:    function which scheduler
+        :param interval:  scheduler interval, default 7s
+        :param args:      args in function
+        :param kwargs:    kwargs in function
+        """
+        #
         self._name = name
         # Thread.Timer
         self._timer = None
@@ -89,7 +97,7 @@ class NacosTimer(object):
         self._on_exception = fn
         return self
 
-    # ....
+    # todo ....
 
     def scheduler(self):
         try:
@@ -123,6 +131,10 @@ class NacosTimerManager(object):
         return self
 
     def execute(self):
+        """
+        scheduler all timer in manager
+        :return: None
+        """
         if self._executed:
             return
         for name, timer in self._timers_container.items():
@@ -134,7 +146,7 @@ class NacosTimerManager(object):
         cancel timer , and  nacos timer still in container
         it can execute again.
         :param timer_name:
-        :return:
+        :return: None
         """
         timer = self._timers_container.get(timer_name)
         if timer:
@@ -143,7 +155,7 @@ class NacosTimerManager(object):
     def cancel(self):
         """
         cancel all timer in container
-        :return:
+        :return: None
         """
         for _, timer in self._timers_container.items():
             timer.cancel()
@@ -152,7 +164,7 @@ class NacosTimerManager(object):
         """
         cancel nacos timer and remove it from timer container
         :param timer_name:
-        :return:
+        :return: None
         """
         self.cancel_timer(timer_name)
         self._timers_container.pop(timer_name)

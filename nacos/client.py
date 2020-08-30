@@ -1,3 +1,4 @@
+# -*- coding=utf-8 -*-
 import base64
 import hashlib
 import logging
@@ -873,6 +874,18 @@ class NacosClient:
         except Exception as e:
             logger.exception("[send-heartbeat] exception %s occur" % str(e))
             raise
+
+    # todo
+    def get_service_info(self,service_name,clusters):
+        pass
+    # service 服务
+    def subscribe(self,service_name,listener_fn,group_name="DEFAULT_GROUP",):
+        # reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
+        #  com.alibaba.nacos.client.naming.NacosNamingService#subscribe
+        # com.alibaba.nacos.client.naming.core.HostReactor  # getServiceInfo
+
+
+        pass
 
 
 if DEBUG:
