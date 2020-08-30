@@ -10,7 +10,9 @@ import shutil
 
 SERVER_1 = "100.69.207.65"
 SERVER_ADDRESSES = "%s:8848, 100.69.207.66:8848" % SERVER_1
+SERVER_ADDRESSES = "127.0.0.1:8848"
 NAMESPACE = "6cface1f-2f1b-4744-a59d-fd818b91a799"
+NAMESPACE = ""
 
 # Set the following values if authentication mode is enabled on the server
 USERNAME = None
