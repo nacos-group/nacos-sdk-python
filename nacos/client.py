@@ -6,6 +6,8 @@ import socket
 import json
 import platform
 
+from .compatible.naming_service import NacosNamingService, ListInstanceRequest
+
 try:
     import ssl
 except ImportError:
@@ -881,15 +883,18 @@ class NacosClient:
             raise
 
     # todo
-    def get_service_info(self,service_name,clusters):
+    def get_service_info(self, service_name, clusters):
         pass
+
     # service 服务
-    def subscribe(self,service_name,listener_fn,group_name="DEFAULT_GROUP",):
+    def subscribe(self, service_name, listener_fn, group_name="DEFAULT_GROUP", ):
         # reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
         #  com.alibaba.nacos.client.naming.NacosNamingService#subscribe
         # com.alibaba.nacos.client.naming.core.HostReactor  # getServiceInfo
-
-
+        request = ListInstanceRequest(
+            service_name, self.current_server, group_name, self.namespace, clusters=None, healthy_only=False)
+        service = NacosNamingService()
+        res = service.list_instances(request)
         pass
 
 
