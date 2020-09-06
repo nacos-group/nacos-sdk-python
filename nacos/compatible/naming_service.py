@@ -155,3 +155,6 @@ class NacosNamingService(object):
                            params=request.to_payload())
 
         return res.json()
+
+    def subscribe(self, ):
+        pass

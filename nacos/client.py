@@ -7,6 +7,7 @@ import json
 import platform
 
 from .compatible.naming_service import NacosNamingService, ListInstanceRequest
+from .timer import NacosTimer
 
 try:
     import ssl
@@ -778,7 +779,7 @@ class NacosClient:
             logger.exception("[modify-naming-instance] exception %s occur" % str(e))
             raise
 
-    def list_naming_instance(self, service_name, clusters=None, healthy_only=False):
+    def list_naming_instance(self, service_name, clusters=None,namespace_id=None,group_name=None,healthy_only=False):
         logger.info("[list-naming-instance] service_name:%s, namespace:%s" % (service_name, self.namespace))
 
         params = {
@@ -789,8 +790,13 @@ class NacosClient:
         if clusters is not None:
             params["clusters"] = clusters
 
-        if self.namespace:
-            params["namespaceId"] = self.namespace
+        namespace_id = namespace_id or self.namespace
+        if namespace_id:
+            params["namespaceId"] = namespace_id
+
+        group_name = group_name or 'DEFAULT_GROUP'
+        if group_name:
+            params['groupName'] = group_name
 
         try:
             resp = self._do_sync_req("/nacos/v1/ns/instance/list", None, params, None, self.default_timeout, "GET")
@@ -883,18 +889,32 @@ class NacosClient:
             raise
 
     # todo
-    def get_service_info(self, service_name, clusters):
+    def get_service_info(self,service_name,clusters):
         pass
 
     # service 服务
-    def subscribe(self, service_name, listener_fn, group_name="DEFAULT_GROUP", ):
-        # reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
-        #  com.alibaba.nacos.client.naming.NacosNamingService#subscribe
-        # com.alibaba.nacos.client.naming.core.HostReactor  # getServiceInfo
-        request = ListInstanceRequest(
-            service_name, self.current_server, group_name, self.namespace, clusters=None, healthy_only=False)
-        service = NacosNamingService()
-        res = service.list_instances(request)
+    def subscribe(self,
+                  listener_fn,*args,**kwargs):
+        """
+        reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
+        :param service_name:        服务名
+        :param listener_fn:         订阅方法
+        :param clusters:            集群名称            字符串，多个集群用逗号分隔
+        :param namespace_id:        命名空间ID
+        :param group_name:          分组名
+        :param healthyOnly:         是否只返回健康实例   否，默认为false
+        :return:
+        """
+        # namespace_id = namespace_id or self.namespace
+        # request = ListInstanceRequest(
+        #     service_name, self.current_server, group_name, self.namespace, clusters=clusters, healthy_only=healthyOnly)
+        # service = NacosNamingService()
+        # service.list_instances(request)
+
+        def _a():
+            pass
+        nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
+                                 fn=self.list_naming_instance)
         pass
 
 
