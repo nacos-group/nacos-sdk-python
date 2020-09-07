@@ -843,8 +843,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "weight": weight,
-            "ephemeral": ephemeral,
-            "groupName": group_name
+            "ephemeral": ephemeral
+
         }
 
         if cluster_name is not None:
@@ -859,6 +859,7 @@ class NacosClient:
         params = {
             "serviceName": service_name,
             "beat": json.dumps(beat_data),
+            "groupName": group_name
         }
 
         if self.namespace:
