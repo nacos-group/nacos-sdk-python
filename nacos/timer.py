@@ -21,7 +21,7 @@ class NacosTimer(object):
     def __init__(self,
                  name,
                  fn,
-                 interval=7,
+                 interval=2,
                  *args,
                  **kwargs):
         """

@@ -10,6 +10,8 @@
  
  Add New Functional nacos-sdk-python
 """
+from time import time, sleep
+
 import requests
 
 NACOS_SERVE = "127.0.0.1:8848"
@@ -19,19 +21,8 @@ payload = {
     "serviceName": "test.service"
 }
 
-# res = requests.get(url=API.format(server=NACOS_SERVE, api_name="/nacos/v1/ns/instance/list"),
-#                    params=payload)
-# print(res.text)
-
-#  test
-
-d = dict()
-
-
-def dd(a, b):
-    a[b] = b
-
-
-dd(d, "name")
-
-print(d)
+while True:
+    res = requests.get(url=API.format(server=NACOS_SERVE, api_name="/nacos/v1/ns/instance/list"),
+                   params=payload)
+    print(res.text)
+    sleep(2)

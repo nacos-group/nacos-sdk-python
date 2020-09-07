@@ -150,7 +150,7 @@ class TestClient(unittest.TestCase):
 
     def test_add_naming_instance(self):
         self.assertEqual(
-            client.add_naming_instance("test.service", "1.0.0.2", 8080, "testCluster2", 0.1, "{}", False, True), True)
+            client.add_naming_instance("test.service", "1.0.0.7", 8080, "testCluster2", 0.2, "{}", False, True), True)
 
     def test_add_naming_instance_with_dict_metadata(self):
         self.assertEqual(
@@ -258,10 +258,11 @@ class TestClient(unittest.TestCase):
 
     def test_service_subscribe(self):
         def fn_listener(event, instance):
-            print(event,instance)
+            print(event, instance)
             pass
 
-        client.subscribe(fn_listener,"test.service",)
+        client.subscribe(fn_listener, "test.service", )
+        print("subscribe finished")
 
 
 if __name__ == '__main__':

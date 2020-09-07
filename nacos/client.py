@@ -6,7 +6,6 @@ import socket
 import json
 import platform
 
-from .compatible.naming_service import NacosNamingService, ListInstanceRequest
 from .timer import NacosTimer
 
 try:
@@ -888,7 +887,6 @@ class NacosClient:
             logger.exception("[send-heartbeat] exception %s occur" % str(e))
             raise
 
-    # service 服务
     def subscribe(self,
                   listener_fn, *args, **kwargs):
         """
@@ -902,7 +900,8 @@ class NacosClient:
         :return:
         """
 
-        def _request_and_compare(_=None):
+        def _compare_and_trigger_listener():
+            tmp_service_subscribe_mapping = self.naming_service_subscribe_mapping.copy()
             latest_res = self.list_naming_instance(*args, **kwargs)
             latest_instance = latest_res['hosts']
             for instance in latest_instance:
@@ -910,24 +909,27 @@ class NacosClient:
                 instance['md5'] = latest_md5
                 #  do compare with local
                 instance_id = instance.get('instanceId')
-                local_instance = self.naming_service_subscribe_mapping.pop(instance_id)
+                local_instance = self.naming_service_subscribe_mapping.get(instance_id)
                 #  not exist
                 if not local_instance:
                     listener_fn("add", instance)
                     self.naming_service_subscribe_mapping[instance_id] = instance
                 # exist
                 else:
+                    tmp_service_subscribe_mapping.pop(instance_id)
                     # compare with md5
                     local_instance_md5 = local_instance.get('md5')
                     if latest_md5 != local_instance_md5:
                         listener_fn("modify", instance)
                         self.naming_service_subscribe_mapping[instance_id] = instance
-                if len(self.naming_service_subscribe_mapping) > 0:
-                    for instance_id, local_instance in self.naming_service_subscribe_mapping.items():
-                        listener_fn("deleted", local_instance)
+            #  still have instances in local
+            if len(tmp_service_subscribe_mapping) > 0:
+                for instance_id, local_instance in tmp_service_subscribe_mapping.items():
+                    self.naming_service_subscribe_mapping.pop(instance_id)
+                    listener_fn("deleted", local_instance)
 
         nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
-                                 fn=_request_and_compare)
+                                 fn=_compare_and_trigger_listener)
         nacos_timer.scheduler()
 
 
