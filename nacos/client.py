@@ -911,10 +911,15 @@ class NacosClient:
         # service = NacosNamingService()
         # service.list_instances(request)
 
-        def _a():
+        def _request_and_compare():
+            latest_res = self.list_naming_instance(*args,**kwargs)
+            latest_instance = latest_res['hosts']
+            for instance in latest_instance:
+                #  do compare with local
+                yield instance
             pass
         nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
-                                 fn=self.list_naming_instance)
+                                 fn=_request_and_compare,)
         pass
 
 

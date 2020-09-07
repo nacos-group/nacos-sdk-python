@@ -97,8 +97,6 @@ class NacosTimer(object):
         self._on_exception = fn
         return self
 
-    # todo ....
-
     def scheduler(self):
         try:
             res = self._fn(*self._args, **self._kwargs)
