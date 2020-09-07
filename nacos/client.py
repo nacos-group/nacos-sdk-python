@@ -662,8 +662,9 @@ class NacosClient:
             else:
                 params["metadata"] = metadata
 
+
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
-                            enable=True, healthy=True, ephemeral=True,group_name="DEFAULT_GROUP"):
+                            enable=True, healthy=True, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -698,7 +699,7 @@ class NacosClient:
             logger.exception("[add-naming-instance] exception %s occur" % str(e))
             raise
 
-    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True,group_name="DEFAULT_GROUP"):
+    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -732,7 +733,7 @@ class NacosClient:
             raise
 
     def modify_naming_instance(self, service_name, ip, port, cluster_name=None, weight=None, metadata=None,
-                               enable=None, ephemeral=True,group_name="DEFAULT_GROUP"):
+                               enable=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -834,7 +835,7 @@ class NacosClient:
             logger.exception("[get-naming-instance] exception %s occur" % str(e))
             raise
 
-    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None, ephemeral=True):
+    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
                                                                                         self.namespace))
         beat_data = {
@@ -842,7 +843,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "weight": weight,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName": group_name
         }
 
         if cluster_name is not None:
