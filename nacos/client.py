@@ -6,6 +6,7 @@ import socket
 import json
 import platform
 
+from .listener import Event
 from .timer import NacosTimer
 
 try:
@@ -888,7 +889,7 @@ class NacosClient:
             raise
 
     def subscribe(self,
-                  listener_fn, *args, **kwargs):
+                  listener_manager, *args, **kwargs):
         """
         reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
         :param service_name:        服务名
@@ -912,7 +913,7 @@ class NacosClient:
                 local_instance = self.naming_service_subscribe_mapping.get(instance_id)
                 #  not exist
                 if not local_instance:
-                    listener_fn("add", instance)
+                    listener_manager.do_launch(Event.ADDED, instance)
                     self.naming_service_subscribe_mapping[instance_id] = instance
                 # exist
                 else:
@@ -920,13 +921,13 @@ class NacosClient:
                     # compare with md5
                     local_instance_md5 = local_instance.get('md5')
                     if latest_md5 != local_instance_md5:
-                        listener_fn("modify", instance)
+                        listener_manager.do_launch(Event.MODIFIED, instance)
                         self.naming_service_subscribe_mapping[instance_id] = instance
             #  still have instances in local
             if len(tmp_service_subscribe_mapping) > 0:
                 for instance_id, local_instance in tmp_service_subscribe_mapping.items():
                     self.naming_service_subscribe_mapping.pop(instance_id)
-                    listener_fn("deleted", local_instance)
+                    listener_manager.do_launch(Event.DELETED, instance)
 
         nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
                                  fn=_compare_and_trigger_listener)
