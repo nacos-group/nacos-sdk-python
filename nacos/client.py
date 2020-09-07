@@ -663,7 +663,7 @@ class NacosClient:
                 params["metadata"] = metadata
 
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
-                            enable=True, healthy=True, ephemeral=True):
+                            enable=True, healthy=True, ephemeral=True,group_name="DEFAULT_GROUP"):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -675,7 +675,8 @@ class NacosClient:
             "enable": enable,
             "healthy": healthy,
             "clusterName": cluster_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName": group_name
         }
         self._build_metadata(metadata, params)
 
@@ -697,7 +698,7 @@ class NacosClient:
             logger.exception("[add-naming-instance] exception %s occur" % str(e))
             raise
 
-    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True):
+    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True,group_name="DEFAULT_GROUP"):
         logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -705,7 +706,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "serviceName": service_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName":group_name
         }
 
         if cluster_name is not None:
@@ -730,7 +732,7 @@ class NacosClient:
             raise
 
     def modify_naming_instance(self, service_name, ip, port, cluster_name=None, weight=None, metadata=None,
-                               enable=None, ephemeral=True):
+                               enable=None, ephemeral=True,group_name="DEFAULT_GROUP"):
         logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -738,7 +740,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "serviceName": service_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName": group_name
         }
 
         if cluster_name is not None:
