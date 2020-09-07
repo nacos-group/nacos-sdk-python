@@ -157,6 +157,7 @@ class NacosClient:
         self.server_offset = 0
 
         self.watcher_mapping = dict()
+        self.naming_service_subscribe_mapping = dict()
         self.pulling_lock = RLock()
         self.puller_mapping = None
         self.notify_queue = None
@@ -498,7 +499,6 @@ class NacosClient:
                 if isinstance(puller_info[0], Process):
                     puller_info[0].terminate()
 
-
     def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET"):
         if self.username and self.password:
             if not params:
@@ -648,7 +648,7 @@ class NacosClient:
                 if not watcher.last_md5 == md5:
                     logger.debug(
                         "[process-polling-result] md5 changed since last call, calling %s with changed params: %s"
-                        % (watcher.callback.__name__,params))
+                        % (watcher.callback.__name__, params))
                     try:
                         self.callback_tread_pool.apply(watcher.callback, (params,))
                     except Exception as e:
@@ -703,7 +703,7 @@ class NacosClient:
         finally:
             # todo
             from .timer import NacosTimer
-            ns = NacosTimer("t1",self.send_heartbeat,5,service_name,ip,port)
+            ns = NacosTimer("t1", self.send_heartbeat, 5, service_name, ip, port)
             ns.scheduler()
 
     def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True):
@@ -779,7 +779,7 @@ class NacosClient:
             logger.exception("[modify-naming-instance] exception %s occur" % str(e))
             raise
 
-    def list_naming_instance(self, service_name, clusters=None,namespace_id=None,group_name=None,healthy_only=False):
+    def list_naming_instance(self, service_name, clusters=None, namespace_id=None, group_name=None, healthy_only=False):
         logger.info("[list-naming-instance] service_name:%s, namespace:%s" % (service_name, self.namespace))
 
         params = {
@@ -888,13 +888,9 @@ class NacosClient:
             logger.exception("[send-heartbeat] exception %s occur" % str(e))
             raise
 
-    # todo
-    def get_service_info(self,service_name,clusters):
-        pass
-
     # service 服务
     def subscribe(self,
-                  listener_fn,*args,**kwargs):
+                  listener_fn, *args, **kwargs):
         """
         reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
         :param service_name:        服务名
@@ -905,22 +901,34 @@ class NacosClient:
         :param healthyOnly:         是否只返回健康实例   否，默认为false
         :return:
         """
-        # namespace_id = namespace_id or self.namespace
-        # request = ListInstanceRequest(
-        #     service_name, self.current_server, group_name, self.namespace, clusters=clusters, healthy_only=healthyOnly)
-        # service = NacosNamingService()
-        # service.list_instances(request)
 
-        def _request_and_compare():
-            latest_res = self.list_naming_instance(*args,**kwargs)
+        def _request_and_compare(_=None):
+            latest_res = self.list_naming_instance(*args, **kwargs)
             latest_instance = latest_res['hosts']
             for instance in latest_instance:
+                latest_md5 = NacosClient.get_md5(str(instance))
+                instance['md5'] = latest_md5
                 #  do compare with local
-                yield instance
-            pass
+                instance_id = instance.get('instanceId')
+                local_instance = self.naming_service_subscribe_mapping.pop(instance_id)
+                #  not exist
+                if not local_instance:
+                    listener_fn("add", instance)
+                    self.naming_service_subscribe_mapping[instance_id] = instance
+                # exist
+                else:
+                    # compare with md5
+                    local_instance_md5 = local_instance.get('md5')
+                    if latest_md5 != local_instance_md5:
+                        listener_fn("modify", instance)
+                        self.naming_service_subscribe_mapping[instance_id] = instance
+                if len(self.naming_service_subscribe_mapping) > 0:
+                    for instance_id, local_instance in self.naming_service_subscribe_mapping.items():
+                        listener_fn("deleted", local_instance)
+
         nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
-                                 fn=_request_and_compare,)
-        pass
+                                 fn=_request_and_compare)
+        nacos_timer.scheduler()
 
 
 if DEBUG:

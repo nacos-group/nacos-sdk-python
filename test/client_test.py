@@ -4,7 +4,7 @@ from __future__ import print_function
 import unittest
 import nacos
 from nacos import files
-from nacos.timer import NacosTimer,NacosTimerManager
+from nacos.timer import NacosTimer, NacosTimerManager
 import time
 import shutil
 
@@ -37,7 +37,8 @@ class TestClient(unittest.TestCase):
         self.assertEqual(client.get_config(d, g), None)
 
     def test_server_failover(self):
-        client2 = nacos.NacosClient("100.69.207.66:8848, %s:8848" %SERVER_1, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
+        client2 = nacos.NacosClient("100.69.207.66:8848, %s:8848" % SERVER_1, namespace=NAMESPACE, username=USERNAME,
+                                    password=PASSWORD)
         d = "test"
         g = "DEFAULT_GROUP"
         content = u"test中文"
@@ -149,11 +150,11 @@ class TestClient(unittest.TestCase):
 
     def test_add_naming_instance(self):
         self.assertEqual(
-            client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}", False, True), True)
+            client.add_naming_instance("test.service", "1.0.0.2", 8080, "testCluster2", 0.1, "{}", False, True), True)
 
     def test_add_naming_instance_with_dict_metadata(self):
         self.assertEqual(
-            client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"}, False, True),
+            client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a": "c"}, False, True),
             True)
 
     def test_remove_naming_instance(self):
@@ -167,7 +168,7 @@ class TestClient(unittest.TestCase):
     def test_modify_naming_instance_with_dict_metadata(self):
         self.assertEqual(
             client.modify_naming_instance("test.service", "1.0.0.1", 8080, cluster_name="testCluster", enable=False,
-                                          metadata={"a":"b"}), True)
+                                          metadata={"a": "b"}), True)
 
     def test_list_naming_instance_offline(self):
         client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, "{}", False, True)
@@ -188,9 +189,10 @@ class TestClient(unittest.TestCase):
             True)
 
     def test_send_heartbeat_with_dict_metadata(self):
-        client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"}, False, True)
+        client.add_naming_instance("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a": "c"}, False, True)
         self.assertEqual(
-            client.send_heartbeat("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a":"c"})["clientBeatInterval"] > 0,
+            client.send_heartbeat("test.service", "1.0.0.1", 8080, "testCluster2", 0.1, {"a": "c"})[
+                "clientBeatInterval"] > 0,
             True)
 
     # nacos timer test
@@ -253,6 +255,13 @@ class TestClient(unittest.TestCase):
 
         # stop timer
         ntm.stop()
+
+    def test_service_subscribe(self):
+        def fn_listener(event, instance):
+            print(event,instance)
+            pass
+
+        client.subscribe(fn_listener,"test.service",)
 
 
 if __name__ == '__main__':
