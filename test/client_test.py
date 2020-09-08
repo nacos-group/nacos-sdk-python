@@ -4,6 +4,7 @@ from __future__ import print_function
 import unittest
 import nacos
 from nacos import files
+from nacos.listener import SubscribeListener, SimpleListenerManager
 from nacos.timer import NacosTimer, NacosTimerManager
 import time
 import shutil
@@ -257,12 +258,35 @@ class TestClient(unittest.TestCase):
         ntm.stop()
 
     def test_service_subscribe(self):
-        def fn_listener(event, instance):
-            print(event, instance)
+        def fn_listener1(event, instance):
+            print("fn_listener1 is listening ==> ", event, instance)
             pass
 
-        client.subscribe(fn_listener, "test.service", )
+        def fn_listener2(event, instance):
+            print("fn_listener2 is listening ==> ", event, instance)
+            pass
+
+        slm = SimpleListenerManager()
+        fn1 = SubscribeListener(fn=fn_listener1, listener_name="fn_listener1")
+        fn2 = SubscribeListener(fn=fn_listener2, listener_name="fn_listener2")
+        slm.add_listener(fn1)
+        slm.add_listener(fn2)
+
+        # tuple
+        # client.subscribe((fn1, fn2), "test.service", )
+        # list
+        # client.subscribe([fn1,fn2],"test.service")
+        # single function
+        client.subscribe(fn1, 2, "test.service", )
         print("subscribe finished")
+
+        # unsubscribe
+        # time.sleep(10)
+        # client.unsubscribe(listener_name="fn_listener1")
+
+        #  stop subscribe
+        # time.sleep(10)
+        # client.stop_subscribe()
 
 
 if __name__ == '__main__':

@@ -6,7 +6,7 @@ import socket
 import json
 import platform
 
-from .listener import Event
+from .listener import Event, SimpleListenerManager
 from .timer import NacosTimer
 
 try:
@@ -157,7 +157,9 @@ class NacosClient:
         self.server_offset = 0
 
         self.watcher_mapping = dict()
-        self.naming_service_subscribe_mapping = dict()
+        self.subscribe_instances_mapping = dict()
+        self.subscribe_listener_manager = SimpleListenerManager()
+        self.subscribe_timer = None
         self.pulling_lock = RLock()
         self.puller_mapping = None
         self.notify_queue = None
@@ -889,9 +891,11 @@ class NacosClient:
             raise
 
     def subscribe(self,
-                  listener_manager, *args, **kwargs):
+                  listener_fn, listener_interval=7, *args, **kwargs):
         """
         reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
+        :param listener_fn           监听方法，可以是元组，列表，单个监听方法
+        :param listener_interval     监听间隔，在 HTTP 请求 OpenAPI 时间间隔
         :param service_name:        服务名
         :param listener_fn:         订阅方法
         :param clusters:            集群名称            字符串，多个集群用逗号分隔
@@ -900,38 +904,55 @@ class NacosClient:
         :param healthyOnly:         是否只返回健康实例   否，默认为false
         :return:
         """
+        if isinstance(listener_fn, list):
+            listener_fn = tuple(listener_fn)
+            self.subscribe_listener_manager.add_listeners(*listener_fn)
+        if isinstance(listener_fn, tuple):
+            self.subscribe_listener_manager.add_listeners(*listener_fn)
+        #  just single listener function
+        else:
+            self.subscribe_listener_manager.add_listener(listener_fn)
 
         def _compare_and_trigger_listener():
-            tmp_service_subscribe_mapping = self.naming_service_subscribe_mapping.copy()
+            service_subscribe_mapping_copy = self.subscribe_instances_mapping.copy()
+            #  invoke `list_naming_instance`
             latest_res = self.list_naming_instance(*args, **kwargs)
-            latest_instance = latest_res['hosts']
-            for instance in latest_instance:
+            latest_instances = latest_res['hosts']
+            for instance in latest_instances:
                 latest_md5 = NacosClient.get_md5(str(instance))
                 instance['md5'] = latest_md5
-                #  do compare with local
+                #  compared with local
                 instance_id = instance.get('instanceId')
-                local_instance = self.naming_service_subscribe_mapping.get(instance_id)
+                local_instance = self.subscribe_instances_mapping.get(instance_id)
                 #  not exist
                 if not local_instance:
-                    listener_manager.do_launch(Event.ADDED, instance)
-                    self.naming_service_subscribe_mapping[instance_id] = instance
-                # exist
+                    self.subscribe_listener_manager.do_launch(Event.ADDED, instance)
+                    self.subscribe_instances_mapping[instance_id] = instance
                 else:
-                    tmp_service_subscribe_mapping.pop(instance_id)
-                    # compare with md5
+                    service_subscribe_mapping_copy.pop(instance_id)
+                    # compared with md5
                     local_instance_md5 = local_instance.get('md5')
-                    if latest_md5 != local_instance_md5:
-                        listener_manager.do_launch(Event.MODIFIED, instance)
-                        self.naming_service_subscribe_mapping[instance_id] = instance
-            #  still have instances in local
-            if len(tmp_service_subscribe_mapping) > 0:
-                for instance_id, local_instance in tmp_service_subscribe_mapping.items():
-                    self.naming_service_subscribe_mapping.pop(instance_id)
-                    listener_manager.do_launch(Event.DELETED, instance)
+                    if not latest_md5 == local_instance_md5:
+                        self.subscribe_listener_manager.do_launch(Event.MODIFIED, instance)
+                        self.subscribe_instances_mapping[instance_id] = instance
+            #  still have instances in local marked deleted
+            if len(service_subscribe_mapping_copy) > 0:
+                for instance_id, instance in service_subscribe_mapping_copy.items():
+                    self.subscribe_instances_mapping.pop(instance_id)
+                    self.subscribe_listener_manager.do_launch(Event.DELETED, instance)
 
-        nacos_timer = NacosTimer(name='nacos-service-subscribe-timer',
-                                 fn=_compare_and_trigger_listener)
-        nacos_timer.scheduler()
+        self.subscribe_timer = NacosTimer(name='service-subscribe-timer',
+                                          interval=listener_interval,
+                                          fn=_compare_and_trigger_listener)
+        self.subscribe_timer.scheduler()
+
+    def unsubscribe(self, listener_name):
+        """
+        remove listener from subscribed  listener manager
+        :param listener_name:   listener name
+        :return: 
+        """
+        self.subscribe_listener_manager.remove_listener(listener_name)
 
 
 if DEBUG:
