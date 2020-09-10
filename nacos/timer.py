@@ -150,7 +150,7 @@ class NacosTimerManager(object):
         if timer:
             timer.cancel()
 
-    def cancel(self):
+    def     cancel(self):
         """
         cancel all timer in container
         :return: None

@@ -110,6 +110,102 @@ class CacheData:
             logger.debug("[init-cache] cache for %s does not have local value" % key)
 
 
+class SubscribedLocalInstance(object):
+    def __init__(self, key, instance):
+        self.key = key
+        self.instance_id = instance["instanceId"]
+        self.md5 = NacosClient.get_md5(str(instance))
+        self.instance = instance
+
+
+class SubscribedLocalManager(object):
+    def __init__(self):
+        self.manager = {
+            # "key1": {
+            #     "LOCAL_INSTANCES": {
+            #         "instanceId1": None,
+            #         "instanceId2": None,
+            #         "instanceId3": None,
+            #         "instanceId4": None
+            #     },
+            #     "LISTENER_MANAGER": None
+            # },
+            # "key2": {
+            #     "LOCAL_INSTANCES": {
+            #         "instanceId1": "",
+            #         "instanceId2": "",
+            #         "instanceId3": "",
+            #         "instanceId4": ""
+            #     },
+            #     "LISTENER_MANAGER": None
+            # }
+        }
+
+    def do_listener_launch(self, key, event, slc):
+        listener_manager = self.get_local_listener_manager(key)
+        if listener_manager and isinstance(listener_manager, SimpleListenerManager):
+            listener_manager.do_launch(event, slc)
+
+    def get_local_listener_manager(self, key):
+        key_node = self.manager.get(key)
+        if not key_node:
+            return None
+        return key_node.get("LISTENER_MANAGER")
+
+    def add_local_listener(self, key, listener_fn):
+        if not self.manager.get(key):
+            self.manager[key] = {}
+        local_listener_manager = self.manager.get(key).get("LISTENER_MANAGER")
+
+        if not local_listener_manager or not isinstance(local_listener_manager, SimpleListenerManager):
+            self.manager.get(key)["LISTENER_MANAGER"] = SimpleListenerManager()
+        local_listener_manager = self.manager.get(key).get("LISTENER_MANAGER")
+        if not local_listener_manager:
+            return self
+        if isinstance(listener_fn, list):
+            listener_fn = tuple(listener_fn)
+            local_listener_manager.add_listeners(*listener_fn)
+        if isinstance(listener_fn, tuple):
+            local_listener_manager.add_listeners(*listener_fn)
+        #  just single listener function
+        else:
+            local_listener_manager.add_listener(listener_fn)
+        return self
+
+    def add_local_listener_manager(self, key, listener_manager):
+        key_node = self.manager.get(key)
+        if key_node is None:
+            key_node = {}
+        key_node["LISTENER_MANAGER"] = listener_manager
+        return self
+
+    def get_local_instances(self, key):
+        if not self.manager.get(key):
+            return None
+        return self.manager.get(key).get("LOCAL_INSTANCES")
+
+    def add_local_instance(self, slc):
+        if not self.manager.get(slc.key):
+            self.manager[slc.key] = {}
+        if not self.manager.get(slc.key).get('LOCAL_INSTANCES'):
+            self.manager.get(slc.key)['LOCAL_INSTANCES'] = {}
+        self.manager.get(slc.key)['LOCAL_INSTANCES'][slc.instance_id] = slc
+        return self
+
+    def remove_local_instance(self, slc):
+        key_node = self.manager.get(slc.key)
+        if not key_node:
+            return self
+        local_instances_node = key_node.get("LOCAL_INSTANCES")
+        if not local_instances_node:
+            return self
+        local_instance = local_instances_node.get(slc.instance_id)
+        if not local_instance:
+            return self
+        local_instances_node.pop(slc.instance_id)
+        return self
+
+
 def parse_nacos_server_addr(server_addr):
     sp = server_addr.split(":")
     port = int(sp[1]) if len(sp) > 1 else 8848
@@ -157,8 +253,7 @@ class NacosClient:
         self.server_offset = 0
 
         self.watcher_mapping = dict()
-        self.subscribe_instances_mapping = dict()
-        self.subscribe_listener_manager = SimpleListenerManager()
+        self.subscribed_local_manager = SubscribedLocalManager()
         self.subscribe_timer = None
         self.pulling_lock = RLock()
         self.puller_mapping = None
@@ -899,55 +994,72 @@ class NacosClient:
         :param healthyOnly:         是否只返回健康实例   否，默认为false
         :return:
         """
-        if isinstance(listener_fn, list):
-            listener_fn = tuple(listener_fn)
-            self.subscribe_listener_manager.add_listeners(*listener_fn)
-        if isinstance(listener_fn, tuple):
-            self.subscribe_listener_manager.add_listeners(*listener_fn)
-        #  just single listener function
-        else:
-            self.subscribe_listener_manager.add_listener(listener_fn)
+        service_name = kwargs.get("service_name")
+        if not service_name:
+            if len(args) > 0:
+                service_name = args[0]
+            else:
+                raise
+        self.subscribed_local_manager.add_local_listener(key=service_name, listener_fn=listener_fn)
 
         def _compare_and_trigger_listener():
-            service_subscribe_mapping_copy = self.subscribe_instances_mapping.copy()
             #  invoke `list_naming_instance`
             latest_res = self.list_naming_instance(*args, **kwargs)
             latest_instances = latest_res['hosts']
-            for instance in latest_instances:
-                latest_md5 = NacosClient.get_md5(str(instance))
-                instance['md5'] = latest_md5
-                #  compared with local
-                instance_id = instance.get('instanceId')
-                local_instance = self.subscribe_instances_mapping.get(instance_id)
-                #  not exist
-                if not local_instance:
-                    self.subscribe_listener_manager.do_launch(Event.ADDED, instance)
-                    self.subscribe_instances_mapping[instance_id] = instance
-                else:
-                    service_subscribe_mapping_copy.pop(instance_id)
-                    # compared with md5
-                    local_instance_md5 = local_instance.get('md5')
-                    if not latest_md5 == local_instance_md5:
-                        self.subscribe_listener_manager.do_launch(Event.MODIFIED, instance)
-                        self.subscribe_instances_mapping[instance_id] = instance
-            #  still have instances in local marked deleted
-            if len(service_subscribe_mapping_copy) > 0:
-                for instance_id, instance in service_subscribe_mapping_copy.items():
-                    self.subscribe_instances_mapping.pop(instance_id)
-                    self.subscribe_listener_manager.do_launch(Event.DELETED, instance)
+            #  获取本地缓存实例
+            local_service_instances_dict = self.subscribed_local_manager.get_local_instances(service_name)
+            #  当前本地没有缓存，所有都是新的实例
+            if not local_service_instances_dict:
+                for instance in latest_instances:
+                    slc = SubscribedLocalInstance(key=service_name, instance=instance)
+                    self.subscribed_local_manager.add_local_instance(slc)
+                    self.subscribed_local_manager.do_listener_launch(service_name, Event.ADDED, slc)
+            else:
+                local_service_instances_dict_copy = local_service_instances_dict.copy()
+                for instance in latest_instances:
+                    slc = SubscribedLocalInstance(key=service_name, instance=instance)
+                    local_slc = local_service_instances_dict.get(slc.instance_id)
+                    # 本地不存在实例缓存
+                    if local_slc is None:
+                        self.subscribed_local_manager.add_local_instance(slc)
+                        self.subscribed_local_manager.do_listener_launch(service_name, Event.ADDED, slc)
+                    # 本地存在实例缓存
+                    else:
+                        local_slc_md5 = local_slc.md5
+                        local_slc_id = local_slc.instance_id
+                        local_service_instances_dict_copy.pop(local_slc_id)
+                        # 比较md5,存在实例变更
+                        if local_slc_md5 != slc.md5:
+                            self.subscribed_local_manager.remove_local_instance(local_slc).add_local_instance(slc)
+                            self.subscribed_local_manager.do_listener_launch(service_name, Event.MODIFIED, slc)
+                #  still have instances in local marked deleted
+                if len(local_service_instances_dict_copy) > 0:
+                    for local_slc_id, slc in local_service_instances_dict_copy.items():
+                        self.subscribed_local_manager.remove_local_instance(slc)
+                        self.subscribed_local_manager.do_listener_launch(service_name, Event.DELETED, slc)
 
         self.subscribe_timer = NacosTimer(name='service-subscribe-timer',
                                           interval=listener_interval,
                                           fn=_compare_and_trigger_listener)
         self.subscribe_timer.scheduler()
 
-    def unsubscribe(self, listener_name):
+    def unsubscribe(self, service_name, listener_name=None):
         """
         remove listener from subscribed  listener manager
+        :param service_name:    service_name
         :param listener_name:   listener name
         :return: 
         """
-        self.subscribe_listener_manager.remove_listener(listener_name)
+        listener_manager = self.subscribed_local_manager.get_local_listener_manager(key=service_name)
+        if not listener_manager:
+            return
+        if listener_name:
+            listener_manager.remove_listener(listener_name)
+            return
+        listener_manager.empty_listeners()
+
+    def stop_subscribe(self):
+        self.subscribe_timer.cancel()
 
 
 if DEBUG:

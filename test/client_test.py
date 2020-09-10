@@ -151,7 +151,7 @@ class TestClient(unittest.TestCase):
 
     def test_add_naming_instance(self):
         self.assertEqual(
-            client.add_naming_instance("test.service", "1.0.0.7", 8080, "testCluster2", 0.2, "{}", False, True), True)
+            client.add_naming_instance("test.service1", "1.0.0.7", 8080, "testCluster2", 0.2, "{}", False, True), True)
 
     def test_add_naming_instance_with_dict_metadata(self):
         self.assertEqual(
@@ -259,34 +259,34 @@ class TestClient(unittest.TestCase):
 
     def test_service_subscribe(self):
         def fn_listener1(event, instance):
-            print("fn_listener1 is listening ==> ", event, instance)
+            print("fn_listener1 is listening ==> ", event, instance.instance)
             pass
 
         def fn_listener2(event, instance):
-            print("fn_listener2 is listening ==> ", event, instance)
+            print("fn_listener2 is listening ==> ", event, instance.instance)
             pass
 
-        slm = SimpleListenerManager()
         fn1 = SubscribeListener(fn=fn_listener1, listener_name="fn_listener1")
         fn2 = SubscribeListener(fn=fn_listener2, listener_name="fn_listener2")
-        slm.add_listener(fn1)
-        slm.add_listener(fn2)
 
         # tuple
-        # client.subscribe((fn1, fn2), "test.service", )
+        # client.subscribe((fn1, fn2), 3, "test.service", )
         # list
-        # client.subscribe([fn1,fn2],"test.service")
+        # client.subscribe([fn1, fn2], 3, "test.service")
         # single function
-        client.subscribe(fn1, 2, "test.service", )
+        client.subscribe(fn1, 2, "test.service1", )
+        client.subscribe(fn2, 2, "test.service")
         print("subscribe finished")
 
         # unsubscribe
-        # time.sleep(10)
-        # client.unsubscribe(listener_name="fn_listener1")
+        time.sleep(10)
+        client.unsubscribe(service_name="test.service1", listener_name="fn_listener1")
+        print("test.service1 has unsubscribed")
 
         #  stop subscribe
-        # time.sleep(10)
-        # client.stop_subscribe()
+        time.sleep(10)
+        client.stop_subscribe()
+        print("subscribe has stopped")
 
 
 if __name__ == '__main__':
