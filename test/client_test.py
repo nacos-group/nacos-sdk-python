@@ -212,6 +212,10 @@ class TestClient(unittest.TestCase):
         nt1.scheduler()
         nt2 = NacosTimer("test_timer2", self.print_hello, 3, "nacos2")
         nt2.scheduler()
+
+        time.sleep(10)
+        nt1.cancel()
+        nt2.cancel()
         pass
 
     def timer_on_result_callback(self, res):
