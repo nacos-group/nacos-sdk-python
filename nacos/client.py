@@ -7,7 +7,7 @@ import json
 import platform
 
 from .listener import Event, SimpleListenerManager
-from .timer import NacosTimer
+from .timer import NacosTimer, NacosTimerManager
 
 try:
     import ssl
@@ -254,7 +254,7 @@ class NacosClient:
 
         self.watcher_mapping = dict()
         self.subscribed_local_manager = SubscribedLocalManager()
-        self.subscribe_timer = None
+        self.subscribe_timer_manager = NacosTimerManager()
         self.pulling_lock = RLock()
         self.puller_mapping = None
         self.notify_queue = None
@@ -1038,11 +1038,13 @@ class NacosClient:
                         self.subscribed_local_manager.remove_local_instance(slc)
                         self.subscribed_local_manager.do_listener_launch(service_name, Event.DELETED, slc)
 
-        if not self.subscribe_timer:
-            self.subscribe_timer = NacosTimer(name='service-subscribe-timer',
-                                              interval=listener_interval,
-                                              fn=_compare_and_trigger_listener)
-            self.subscribe_timer.scheduler()
+        # todo
+        timer_name = 'service-subscribe-timer-{key}'.format(key=service_name)
+        subscribe_timer = NacosTimer(name=timer_name,
+                                     interval=listener_interval,
+                                     fn=_compare_and_trigger_listener)
+        subscribe_timer.scheduler()
+        self.subscribe_timer_manager.add_timer(subscribe_timer)
 
     def unsubscribe(self, service_name, listener_name=None):
         """
@@ -1060,8 +1062,7 @@ class NacosClient:
         listener_manager.empty_listeners()
 
     def stop_subscribe(self):
-        if self.subscribe_timer:
-            self.subscribe_timer.cancel()
+        self.subscribe_timer_manager.stop()
 
 
 if DEBUG:

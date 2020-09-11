@@ -97,6 +97,12 @@ class NacosTimer(object):
         self._on_exception = fn
         return self
 
+    @property
+    def alive(self):
+        if self._timer is None:
+            return False
+        return self._timer.is_alive()
+
     def scheduler(self):
         try:
             res = self._fn(*self._args, **self._kwargs)
@@ -136,6 +142,8 @@ class NacosTimerManager(object):
         if self._executed:
             return
         for name, timer in self._timers_container.items():
+            if timer.alive():
+                continue
             timer.scheduler()
         self._executed = True
 
@@ -150,7 +158,7 @@ class NacosTimerManager(object):
         if timer:
             timer.cancel()
 
-    def     cancel(self):
+    def cancel(self):
         """
         cancel all timer in container
         :return: None
