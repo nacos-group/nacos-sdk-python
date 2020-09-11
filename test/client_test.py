@@ -1,6 +1,8 @@
 # -*- coding: utf8 -*-
 
 from __future__ import print_function
+
+import sys
 import unittest
 import nacos
 from nacos import files

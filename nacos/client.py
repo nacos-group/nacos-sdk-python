@@ -1038,10 +1038,11 @@ class NacosClient:
                         self.subscribed_local_manager.remove_local_instance(slc)
                         self.subscribed_local_manager.do_listener_launch(service_name, Event.DELETED, slc)
 
-        self.subscribe_timer = NacosTimer(name='service-subscribe-timer',
-                                          interval=listener_interval,
-                                          fn=_compare_and_trigger_listener)
-        self.subscribe_timer.scheduler()
+        if not self.subscribe_timer:
+            self.subscribe_timer = NacosTimer(name='service-subscribe-timer',
+                                              interval=listener_interval,
+                                              fn=_compare_and_trigger_listener)
+            self.subscribe_timer.scheduler()
 
     def unsubscribe(self, service_name, listener_name=None):
         """
@@ -1059,7 +1060,8 @@ class NacosClient:
         listener_manager.empty_listeners()
 
     def stop_subscribe(self):
-        self.subscribe_timer.cancel()
+        if self.subscribe_timer:
+            self.subscribe_timer.cancel()
 
 
 if DEBUG:
