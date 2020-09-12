@@ -1070,6 +1070,10 @@ class NacosClient:
         listener_manager.empty_listeners()
 
     def stop_subscribe(self):
+        """
+        stop subscribe timer scheduler
+        :return: 
+        """
         self.subscribe_timer_manager.stop()
 
 
