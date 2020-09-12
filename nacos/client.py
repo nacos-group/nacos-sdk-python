@@ -999,7 +999,7 @@ class NacosClient:
             if len(args) > 0:
                 service_name = args[0]
             else:
-                raise
+                raise NacosException("`service_name` is required in subscribe")
         self.subscribed_local_manager.add_local_listener(key=service_name, listener_fn=listener_fn)
 
         #  判断是否是第一次订阅调用
