@@ -5,9 +5,7 @@ import logging
 import socket
 import json
 import platform
-
-from .listener import Event, SimpleListenerManager
-from .timer import NacosTimer, NacosTimerManager
+import time
 
 try:
     import ssl
@@ -16,7 +14,6 @@ except ImportError:
 
 from multiprocessing import Process, Manager, Queue, pool
 from threading import RLock, Thread
-import time
 
 try:
     # python3.6
@@ -36,6 +33,8 @@ from .commons import synchronized_with_attr, truncate, python_version_bellow
 from .params import group_key, parse_key, is_valid
 from .files import read_file_str, save_file, delete_file
 from .exception import NacosException, NacosRequestException
+from .listener import Event, SimpleListenerManager
+from .timer import NacosTimer, NacosTimerManager
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -871,6 +870,13 @@ class NacosClient:
             raise
 
     def list_naming_instance(self, service_name, clusters=None, namespace_id=None, group_name=None, healthy_only=False):
+        """
+        :param service_name:        服务名
+        :param clusters:            集群名称            字符串，多个集群用逗号分隔
+        :param namespace_id:        命名空间ID
+        :param group_name:          分组名
+        :param healthy_only:         是否只返回健康实例   否，默认为false
+        """
         logger.info("[list-naming-instance] service_name:%s, namespace:%s" % (service_name, self.namespace))
 
         params = {
@@ -985,12 +991,6 @@ class NacosClient:
         reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
         :param listener_fn           监听方法，可以是元组，列表，单个监听方法
         :param listener_interval     监听间隔，在 HTTP 请求 OpenAPI 时间间隔
-        :param service_name:        服务名
-        :param listener_fn:         订阅方法
-        :param clusters:            集群名称            字符串，多个集群用逗号分隔
-        :param namespace_id:        命名空间ID
-        :param group_name:          分组名
-        :param healthyOnly:         是否只返回健康实例   否，默认为false
         :return:
         """
         service_name = kwargs.get("service_name")
