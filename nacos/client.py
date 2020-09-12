@@ -266,7 +266,7 @@ class NacosClient:
         self.cai_enabled = True
         self.pulling_timeout = DEFAULTS["PULLING_TIMEOUT"]
         self.pulling_config_size = DEFAULTS["PULLING_CONFIG_SIZE"]
-        self.callback_tread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
+        self.callback_thread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
         self.failover_base = DEFAULTS["FAILOVER_BASE"]
         self.snapshot_base = DEFAULTS["SNAPSHOT_BASE"]
         self.no_snapshot = False
@@ -715,7 +715,7 @@ class NacosClient:
             return
         self.puller_mapping = dict()
         self.notify_queue = Queue()
-        self.callback_tread_pool = pool.ThreadPool(self.callback_tread_num)
+        self.callback_tread_pool = pool.ThreadPool(self.callback_thread_num)
         self.process_mgr = Manager()
         t = Thread(target=self._process_polling_result)
         t.setDaemon(True)
