@@ -1002,6 +1002,10 @@ class NacosClient:
                 raise
         self.subscribed_local_manager.add_local_listener(key=service_name, listener_fn=listener_fn)
 
+        #  判断是否是第一次订阅调用
+        class _InnerSubContext(object):
+            first_sub = True
+
         def _compare_and_trigger_listener():
             #  invoke `list_naming_instance`
             latest_res = self.list_naming_instance(*args, **kwargs)
@@ -1013,6 +1017,10 @@ class NacosClient:
                 for instance in latest_instances:
                     slc = SubscribedLocalInstance(key=service_name, instance=instance)
                     self.subscribed_local_manager.add_local_instance(slc)
+                    #  第一次订阅调用不通知
+                    if _InnerSubContext.first_sub:
+                        _InnerSubContext.first_sub = False
+                        return
                     self.subscribed_local_manager.do_listener_launch(service_name, Event.ADDED, slc)
             else:
                 local_service_instances_dict_copy = local_service_instances_dict.copy()

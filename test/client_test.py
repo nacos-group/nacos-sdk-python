@@ -272,8 +272,13 @@ class TestClient(unittest.TestCase):
             print("fn_listener2 is listening ==> ", event, instance.instance)
             pass
 
+        def fn_listener3(event, instance):
+            print("fn_listener3 is listening ==> ", event, instance.instance)
+            pass
+
         fn1 = SubscribeListener(fn=fn_listener1, listener_name="fn_listener1")
         fn2 = SubscribeListener(fn=fn_listener2, listener_name="fn_listener2")
+        fn3 = SubscribeListener(fn=fn_listener3, listener_name="fn_listener3")
 
         # tuple
         # client.subscribe((fn1, fn2), 3, "test.service", )
@@ -282,17 +287,18 @@ class TestClient(unittest.TestCase):
         # single function
         client.subscribe(fn1, 2, "test.service1", )
         client.subscribe(fn2, 2, "test.service")
+        client.subscribe(fn3, 2, "test.service")
         print("subscribe finished")
 
         # unsubscribe
-        time.sleep(10)
-        client.unsubscribe(service_name="test.service1", listener_name="fn_listener1")
-        print("test.service1 has unsubscribed")
+        # time.sleep(10)
+        # client.unsubscribe(service_name="test.service1", listener_name="fn_listener1")
+        # print("test.service1 has unsubscribed")
 
         #  stop subscribe
-        time.sleep(10)
-        client.stop_subscribe()
-        print("subscribe has stopped")
+        # time.sleep(10)
+        # client.stop_subscribe()
+        # print("subscribe has stopped")
 
 
 if __name__ == '__main__':
