@@ -59,9 +59,8 @@ DEFAULTS = {
     "SNAPSHOT_BASE": "nacos-data/snapshot",
 }
 
-OPTIONS = set(
-    ["default_timeout", "pulling_timeout", "pulling_config_size", "callback_thread_num",
-     "failover_base", "snapshot_base", "no_snapshot"])
+OPTIONS = {"default_timeout", "pulling_timeout", "pulling_config_size", "callback_thread_num", "failover_base",
+           "snapshot_base", "no_snapshot"}
 
 
 def process_common_config_params(data_id, group):
@@ -236,9 +235,9 @@ class NacosClient:
         try:
             for server_addr in server_addresses.split(","):
                 self.server_list.append(parse_nacos_server_addr(server_addr.strip()))
-        except:
+        except Exception as ex:
             logger.exception("[init] bad server address for %s" % server_addresses)
-            raise
+            raise ex
 
         self.current_server = self.server_list[0]
 
@@ -467,9 +466,9 @@ class NacosClient:
         except HTTPError as e:
             if e.code == HTTPStatus.CONFLICT:
                 logger.error(
-                    "[get-configs] configs being modified concurrently for namespace:%s" % (self.namespace))
+                    "[get-configs] configs being modified concurrently for namespace:%s" % self.namespace)
             elif e.code == HTTPStatus.FORBIDDEN:
-                logger.error("[get-configs] no right for namespace:%s" % (self.namespace))
+                logger.error("[get-configs] no right for namespace:%s" % self.namespace)
                 raise NacosException("Insufficient privilege.")
             else:
                 logger.error("[get-configs] error code [:%s] for namespace:%s" % (e.code, self.namespace))
@@ -501,7 +500,7 @@ class NacosClient:
                     str(e), self.namespace))
             return json.loads(content)
 
-        logger.error("[get-configs] get config from server failed, try snapshot, namespace:%s" % (self.namespace))
+        logger.error("[get-configs] get config from server failed, try snapshot, namespace:%s" % self.namespace)
         content = read_file_str(self.snapshot_base, cache_key)
         if content is None:
             logger.warning("[get-configs] snapshot is not exist for %s." % cache_key)
