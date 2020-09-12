@@ -1013,6 +1013,11 @@ class NacosClient:
             local_service_instances_dict = self.subscribed_local_manager.get_local_instances(service_name)
             #  当前本地没有缓存，所有都是新的实例
             if not local_service_instances_dict:
+                if not latest_instances or len(latest_instances) < 1:
+                    #  第一次订阅调用不通知
+                    if _InnerSubContext.first_sub:
+                        _InnerSubContext.first_sub = False
+                        return
                 for instance in latest_instances:
                     slc = SubscribedLocalInstance(key=service_name, instance=instance)
                     self.subscribed_local_manager.add_local_instance(slc)
@@ -1045,7 +1050,6 @@ class NacosClient:
                         self.subscribed_local_manager.remove_local_instance(slc)
                         self.subscribed_local_manager.do_listener_launch(service_name, Event.DELETED, slc)
 
-        # todo
         timer_name = 'service-subscribe-timer-{key}'.format(key=service_name)
         subscribe_timer = NacosTimer(name=timer_name,
                                      interval=listener_interval,
