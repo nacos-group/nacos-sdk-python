@@ -97,7 +97,6 @@ class NacosTimer(object):
         self._on_exception = fn
         return self
 
-    @property
     def alive(self):
         if self._timer is None:
             return False
