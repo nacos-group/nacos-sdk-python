@@ -170,9 +170,11 @@ Remove one data item from Nacos.
 * `return` True if success or an exception will be raised.
 
 ### Query Instances
->`NacosClient.list_naming_instance(service_name, clusters, healthy_only)`
+>`NacosClient.list_naming_instance(service_name, clusters, namespace_id, group_name, healthy_only)`
 * `param` *service_name*  **required** Service name to query.
 * `param` *clusters* Cluster names separated by comma.
+* `param` *namespace_id* Customized group name, default `blank`.
+* `param` *group_name* Customized group name , default `DEFAULT_GROUP`.
 * `param` *healthy_only* A bool value for querying healthy instances or not.
 * `return` Instance info list if success or an exception will be raised.
 
@@ -194,6 +196,27 @@ Remove one data item from Nacos.
 * `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
 * `param` *metadata* Extra info in JSON string format or dict format.
 * `return` A JSON object include server recommended beat interval if success or an exception will be raised.
+
+### Subscribe Service Instances Changed
+>`NacosClient.subscribe(listener_fn, listener_interval=7, *args, **kwargs)`
+* `param` *listener_fn*  **required** Customized listener function.
+* `param` *listener_interval*  Listen interval , default 7 second.
+* `param` *service_name*  **required** Service name which subscribes.
+* `param` *clusters* Cluster names separated by comma.
+* `param` *namespace_id* Customized group name, default `blank`.
+* `param` *group_name* Customized group name , default `DEFAULT_GROUP`.
+* `param` *healthy_only* A bool value for querying healthy instances or not.
+* `return`
+
+### Unsubscribe Service Instances Changed 
+>`NacosClient.unsubscribe(service_name, listener_name)`
+* `param` *service_name*  **required** Service name to subscribed.
+* `param` *listener_name*  listener_name which is customized.
+* `return`
+
+### Stop All Service Subscribe 
+>`NacosClient.stop_subscribe()`
+* `return`
 
 ## Debugging Mode
 Debugging mode if useful for getting more detailed log on console.
