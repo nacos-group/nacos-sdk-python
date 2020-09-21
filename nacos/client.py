@@ -18,13 +18,13 @@ from threading import RLock, Thread
 try:
     # python3.6
     from http import HTTPStatus
-    from urllib.request import Request, urlopen
+    from urllib.request import Request, urlopen, ProxyHandler, build_opener, install_opener
     from urllib.parse import urlencode, unquote_plus, quote
     from urllib.error import HTTPError, URLError
 except ImportError:
     # python2.7
     import httplib as HTTPStatus
-    from urllib2 import Request, urlopen, HTTPError, URLError
+    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, build_opener, install_opener
     from urllib import urlencode, unquote_plus, quote
 
     base64.encodebytes = base64.encodestring
@@ -59,7 +59,7 @@ DEFAULTS = {
 }
 
 OPTIONS = {"default_timeout", "pulling_timeout", "pulling_config_size", "callback_thread_num", "failover_base",
-           "snapshot_base", "no_snapshot"}
+           "snapshot_base", "no_snapshot", "proxies"}
 
 
 def process_common_config_params(data_id, group):
@@ -268,6 +268,7 @@ class NacosClient:
         self.failover_base = DEFAULTS["FAILOVER_BASE"]
         self.snapshot_base = DEFAULTS["SNAPSHOT_BASE"]
         self.no_snapshot = False
+        self.proxies = None
 
         logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
 
@@ -623,6 +624,11 @@ class NacosClient:
                 else:
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers, method=method)
+                # build a new opener that adds proxy setting so that http request go through the proxy
+                if self.proxies:
+                    proxy_support = ProxyHandler(self.proxies)
+                    opener = build_opener(proxy_support)
+                    install_opener(opener)
 
                 # for python version compatibility
                 if python_version_bellow("2.7.9"):

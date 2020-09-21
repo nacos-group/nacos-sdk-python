@@ -64,6 +64,7 @@ Configurable options are:
 * *failover_base* - Dir to store failover config files.
 * *snapshot_base* - Dir to store snapshot config files.
 * *no_snapshot* - To disable default snapshot behavior, this can be overridden by param *no_snapshot* in *get* method.
+* *proxies* - Dict proxy mapping, some environments require proxy access, so you can set this parameter, this way http requests go through the proxy.
 
 ## API Reference
  
