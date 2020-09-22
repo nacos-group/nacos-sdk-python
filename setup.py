@@ -52,7 +52,7 @@ setup(
     name="nacos-sdk-python",
     version=nacos.__version__,
     packages=find_packages(
-        exclude=["*.tests", "*.tests.*", "tests.*", "tests"]),
+        exclude=["test", "*.tests", "*.tests.*", "tests.*", "tests"]),
     url="https://github.com/nacos-group/nacos-sdk-python",
     license="Apache License 2.0",
     classifiers=[
