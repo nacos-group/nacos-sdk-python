@@ -18,13 +18,13 @@ from threading import RLock, Thread
 try:
     # python3.6
     from http import HTTPStatus
-    from urllib.request import Request, urlopen, ProxyHandler, build_opener, install_opener
+    from urllib.request import Request, urlopen, ProxyHandler, build_opener
     from urllib.parse import urlencode, unquote_plus, quote
     from urllib.error import HTTPError, URLError
 except ImportError:
     # python2.7
     import httplib as HTTPStatus
-    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, build_opener, install_opener
+    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, build_opener
     from urllib import urlencode, unquote_plus, quote
 
     base64.encodebytes = base64.encodestring
@@ -40,7 +40,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -628,13 +628,13 @@ class NacosClient:
                 if self.proxies:
                     proxy_support = ProxyHandler(self.proxies)
                     opener = build_opener(proxy_support)
-                    install_opener(opener)
-
-                # for python version compatibility
-                if python_version_bellow("2.7.9"):
-                    resp = urlopen(req, timeout=timeout)
+                    resp = opener.open(req, timeout=timeout)
                 else:
-                    resp = urlopen(req, timeout=timeout, context=None)
+                    # for python version compatibility
+                    if python_version_bellow("2.7.9"):
+                        resp = urlopen(req, timeout=timeout)
+                    else:
+                        resp = urlopen(req, timeout=timeout, context=None)
                 logger.debug("[do-sync-req] info from server:%s" % server)
                 return resp
             except HTTPError as e:
