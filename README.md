@@ -33,6 +33,8 @@ NAMESPACE = "***"
 client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
 # auth mode
 #client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username="nacos", password="nacos")
+# auth mode(with https)
+#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username="nacos", password="nacos", protocol="https")
 
 # get config
 data_id = "config.nacos"

@@ -228,7 +228,8 @@ class NacosClient:
     def get_md5(content):
         return hashlib.md5(content.encode("UTF-8")).hexdigest() if content is not None else None
 
-    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None, username=None, password=None):
+    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None, username=None, password=None,
+                 protocol=None):
         self.server_list = list()
 
         try:
@@ -246,6 +247,7 @@ class NacosClient:
         self.sk = sk
         self.username = username
         self.password = password
+        self.protocol = protocol
 
         self.server_list_lock = RLock()
         self.server_offset = 0
@@ -604,6 +606,7 @@ class NacosClient:
         all_headers = self._get_common_headers(params, data)
         if headers:
             all_headers.update(headers)
+        protocol = self.protocol if self.protocol else "http"
         logger.debug(
             "[do-sync-req] url:%s, headers:%s, params:%s, data:%s, timeout:%s" % (
                 url, all_headers, params, data, timeout))
@@ -616,7 +619,7 @@ class NacosClient:
                     raise NacosRequestException("Server is not available.")
                 address, port = server_info
                 server = ":".join([address, str(port)])
-                server_url = "%s://%s" % ("http", server)
+                server_url = "%s://%s" % (protocol, server)
                 if python_version_bellow("3"):
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers)
