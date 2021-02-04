@@ -26,6 +26,8 @@ pip install nacos-sdk-python
 ```python
 import nacos
 
+# Both HTTP/HTTPS protocols are supported, if not set protocol prefix default is HTTP, and HTTPS with no ssl check(verify=False)
+# "192.168.3.4:8848" or "https://192.168.3.4:443" or "http://192.168.3.4:8848,192.168.3.5:8848" or "https://192.168.3.4:443,https://192.168.3.5:443"
 SERVER_ADDRESSES = "server addresses split by comma"
 NAMESPACE = "***"
 
@@ -53,6 +55,7 @@ Extra option can be set by `set_options`, as following:
 
 ```
 client.set_options({key}={value})
+# client.set_options(proxies={"http":"192.168.3.50:809"})
 ```
 
 Configurable options are:
