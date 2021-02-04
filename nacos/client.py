@@ -322,7 +322,7 @@ class NacosClient:
             logger.exception("[remove] exception %s occur" % str(e))
             raise
 
-    def publish_config(self, data_id, group, content, app_name=None, timeout=None):
+    def publish_config(self, data_id, group, content, app_name=None, config_type=None, timeout=None):
         if content is None:
             raise NacosException("Can not publish none content, use remove instead.")
 
@@ -344,6 +344,9 @@ class NacosClient:
 
         if app_name:
             params["appName"] = app_name
+
+        if config_type:
+            params["type"] = config_type
 
         try:
             resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
