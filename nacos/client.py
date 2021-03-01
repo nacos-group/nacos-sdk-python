@@ -18,13 +18,13 @@ from threading import RLock, Thread
 try:
     # python3.6
     from http import HTTPStatus
-    from urllib.request import Request, urlopen, ProxyHandler, build_opener
+    from urllib.request import Request, urlopen, ProxyHandler, HTTPSHandler, build_opener
     from urllib.parse import urlencode, unquote_plus, quote
     from urllib.error import HTTPError, URLError
 except ImportError:
     # python2.7
     import httplib as HTTPStatus
-    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, build_opener
+    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, HTTPSHandler, build_opener
     from urllib import urlencode, unquote_plus, quote
 
     base64.encodebytes = base64.encodestring
@@ -40,7 +40,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -206,8 +206,11 @@ class SubscribedLocalManager(object):
 
 def parse_nacos_server_addr(server_addr):
     sp = server_addr.split(":")
-    port = int(sp[1]) if len(sp) > 1 else 8848
-    return sp[0], port
+    if len(sp) == 3:
+        return sp[0] + ":" + sp[1], int(sp[2])
+    else:
+        port = int(sp[1]) if len(sp) > 1 else 8848
+        return sp[0], port
 
 
 class NacosClient:
@@ -322,7 +325,7 @@ class NacosClient:
             logger.exception("[remove] exception %s occur" % str(e))
             raise
 
-    def publish_config(self, data_id, group, content, app_name=None, timeout=None):
+    def publish_config(self, data_id, group, content, app_name=None, config_type=None, timeout=None):
         if content is None:
             raise NacosException("Can not publish none content, use remove instead.")
 
@@ -344,6 +347,9 @@ class NacosClient:
 
         if app_name:
             params["appName"] = app_name
+
+        if config_type:
+            params["type"] = config_type
 
         try:
             resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
@@ -616,25 +622,32 @@ class NacosClient:
                     raise NacosRequestException("Server is not available.")
                 address, port = server_info
                 server = ":".join([address, str(port)])
-                server_url = "%s://%s" % ("http", server)
+                server_url = server
+                if not server_url.startswith("http"):
+                    server_url = "%s://%s" % ("http", server)
                 if python_version_bellow("3"):
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers)
                     req.get_method = lambda: method
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
                 else:
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers, method=method)
+                    ctx = ssl.SSLContext()
                 # build a new opener that adds proxy setting so that http request go through the proxy
                 if self.proxies:
                     proxy_support = ProxyHandler(self.proxies)
-                    opener = build_opener(proxy_support)
+                    https_support = HTTPSHandler(context=ctx)
+                    opener = build_opener(proxy_support, https_support)
                     resp = opener.open(req, timeout=timeout)
                 else:
                     # for python version compatibility
-                    if python_version_bellow("2.7.9"):
+                    if python_version_bellow("2.7.5"):
                         resp = urlopen(req, timeout=timeout)
                     else:
-                        resp = urlopen(req, timeout=timeout, context=None)
+                        resp = urlopen(req, timeout=timeout, context=ctx)
                 logger.debug("[do-sync-req] info from server:%s" % server)
                 return resp
             except HTTPError as e:
