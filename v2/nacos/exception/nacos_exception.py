@@ -1,0 +1,2 @@
+class NacosException(Exception):
+    pass
