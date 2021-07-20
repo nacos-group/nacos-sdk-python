@@ -1,6 +1,6 @@
 class ConnectionEventListener:
-    def on_connected(self):
+    def on_connected(self) -> None:
         pass
 
-    def on_disconnected(self):
+    def on_disconnected(self) -> None:
         pass

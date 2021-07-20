@@ -16,20 +16,20 @@ class InstanceRequest(request.Request):
     def get_remote_type(self):
         return remote_request_type["NamingInstance"]
 
-    def get_namespace(self):
+    def get_namespace(self) -> str:
         return self.__namespace
 
-    def set_namespace(self, namespace):
+    def set_namespace(self, namespace: str) -> None:
         self.__namespace = namespace
 
-    def get_service_name(self):
+    def get_service_name(self) -> str:
         return self.__service_name
 
-    def set_service_name(self, service_name):
+    def set_service_name(self, service_name: str) -> None:
         self.__service_name = service_name
 
-    def get_group_name(self):
+    def get_group_name(self) -> str:
         return self.__group_name
 
-    def set_group_name(self, group_name):
+    def set_group_name(self, group_name: str) -> None:
         self.__group_name = group_name

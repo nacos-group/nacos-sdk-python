@@ -9,34 +9,31 @@ class Response:
         self.message = None
         self.request_id = None
 
-    def is_success(self):
+    def is_success(self) -> bool:
         return self.result_code == response_code["success"]
 
-    def get_request_id(self):
+    def get_request_id(self) -> str:
         return self.request_id
 
-    def set_request_id(self, request_id):
+    def set_request_id(self, request_id: str) -> None:
         self.request_id = request_id
 
-    def is_success(self):
-        return self.result_code == response_code["success"]
-
-    def get_result_code(self):
+    def get_result_code(self) -> int:
         return self.result_code
 
-    def set_result_code(self, result_code):
+    def set_result_code(self, result_code: int) -> None:
         self.result_code = result_code
 
-    def get_message(self):
+    def get_message(self) -> str:
         return self.message
 
-    def set_message(self, message):
+    def set_message(self, message: str) -> None:
         self.message = message
 
-    def set_error_code(self, error_code):
+    def set_error_code(self, error_code: int) -> None:
         self.error_code = error_code
 
-    def set_error_info(self, error_code, error_msg):
+    def set_error_info(self, error_code: int, error_msg: str) -> None:
         self.result_code = response_code["fail"]
         self.error_code = error_code
         self.message = error_msg

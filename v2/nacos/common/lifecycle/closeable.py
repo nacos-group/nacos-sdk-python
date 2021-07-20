@@ -1,3 +1,3 @@
 class Closeable:
-    def shutdown(self):
+    def shutdown(self) -> None:
         pass

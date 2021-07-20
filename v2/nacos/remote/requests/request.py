@@ -1,4 +1,5 @@
 from abc import abstractmethod
+from typing import Dict
 
 
 class Request:
@@ -6,32 +7,35 @@ class Request:
         self.headers = {}
         self.request_id = ""
 
-    def put_header(self, key, value):
+    def put_header(self, key: str, value: str) -> None:
         self.headers[key] = value
 
-    def put_all_header(self, headers):
+    def put_all_header(self, headers: Dict[str, str]) -> None:
         if not headers:
             return
         self.headers.update(headers)
 
-    def get_header(self, key, default_value=None):
+    def get_header(self, key: str, default_value=None) -> str:
         return self.headers[key] if self.headers[key] else default_value
 
-    def set_request_id(self, request_id):
+    def get_request_id(self) -> str:
+        return self.request_id
+
+    def set_request_id(self, request_id: str) -> None:
         self.request_id = request_id
 
     @abstractmethod
-    def get_module(self):
+    def get_module(self) -> str:
         pass
 
     @abstractmethod
-    def get_remote_type(self):
+    def get_remote_type(self) -> str:
         pass
 
-    def get_headers(self):
+    def get_headers(self) -> Dict[str, str]:
         return self.headers
 
-    def clear_headers(self):
+    def clear_headers(self) -> None:
         self.headers.clear()
 
     def __str__(self):
