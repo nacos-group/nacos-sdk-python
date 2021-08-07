@@ -2,7 +2,7 @@ from typing import Optional
 
 from v2.nacos.remote.requests import request
 from v2.nacos.remote.utils import remote_request_type
-from v2.nacos.naming.pojo.service_info import ServiceInfo
+from v2.nacos.naming.dtos.service_info import ServiceInfo
 
 class NotifySubscriberRequest(request.Request):
     def __init__(self, service_info=None, message=None):

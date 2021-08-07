@@ -40,3 +40,10 @@ class Request:
 
     def __str__(self):
         return self.__class__.__name__ + "{headers" + str(self.headers) + ", requestId='" + self.request_id + "'}"
+
+    @classmethod
+    def convert(cls, obj: object):
+        new_obj = cls()
+        for key, value in obj.__dict__.items():
+            new_obj.__dict__[key] = value
+        return new_obj
