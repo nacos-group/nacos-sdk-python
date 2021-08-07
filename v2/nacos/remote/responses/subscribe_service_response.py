@@ -1,7 +1,7 @@
 from typing import Optional
 from v2.nacos.remote.responses import response
 from v2.nacos.remote.utils import remote_response_type
-from v2.nacos.naming.pojo.service_info import ServiceInfo
+from v2.nacos.naming.dtos.service_info import ServiceInfo
 
 
 class SubscribeServiceResponse(response.Response):

@@ -33,6 +33,9 @@ class Response:
     def set_error_code(self, error_code: int) -> None:
         self.error_code = error_code
 
+    def get_error_code(self) -> int:
+        return self.error_code
+
     def set_error_info(self, error_code: int, error_msg: str) -> None:
         self.result_code = response_code["fail"]
         self.error_code = error_code
@@ -45,3 +48,10 @@ class Response:
     def __str__(self):
         return "Response{resultCode=" + str(self.result_code) + ", errorCode=" + str(self.error_code) + ", message='" \
                + self.message+"'" + ", requestId='"+self.request_id + "'}"
+
+    @classmethod
+    def convert(cls, obj: object):
+        new_obj = cls()
+        for key, value in obj.__dict__.items():
+            new_obj.__dict__[key] = value
+        return new_obj
