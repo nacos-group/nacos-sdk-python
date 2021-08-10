@@ -1,35 +1,25 @@
-from v2.nacos.remote.requests import request
+from v2.nacos.naming.dtos.instance import Instance
+from v2.nacos.remote.requests.abstract_naming_request import AbstractNamingRequest
 from v2.nacos.remote.utils import remote_request_type
 
 
-class InstanceRequest(request.Request):
-    def __init__(self, namespace=None, service_name=None, group_name=None):
-        super().__init__()
-        self.__MODULE = "naming"
-        self.__namespace = namespace
-        self.__service_name = service_name
-        self.__group_name = group_name
-
-    def get_module(self):
-        return self.__MODULE
+class InstanceRequest(AbstractNamingRequest):
+    def __init__(self, namespace=None, service_name=None, group_name=None, service_type=None, instance=None):
+        super().__init__(namespace, service_name, group_name)
+        self.type = service_type
+        self.instance = instance
 
     def get_remote_type(self):
         return remote_request_type["NamingInstance"]
 
-    def get_namespace(self) -> str:
-        return self.__namespace
+    def set_type(self, service_type: str) -> None:
+        self.type = service_type
 
-    def set_namespace(self, namespace: str) -> None:
-        self.__namespace = namespace
+    def get_type(self) -> str:
+        return self.type
 
-    def get_service_name(self) -> str:
-        return self.__service_name
+    def set_instance(self, instance: Instance) -> None:
+        self.instance = instance
 
-    def set_service_name(self, service_name: str) -> None:
-        self.__service_name = service_name
-
-    def get_group_name(self) -> str:
-        return self.__group_name
-
-    def set_group_name(self, group_name: str) -> None:
-        self.__group_name = group_name
+    def get_instance(self) -> Instance:
+        return self.instance

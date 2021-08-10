@@ -1,6 +1,11 @@
-class ConnectionEventListener:
+from abc import ABCMeta, abstractmethod
+
+
+class ConnectionEventListener(metaclass=ABCMeta):
+    @abstractmethod
     def on_connected(self) -> None:
         pass
 
-    def on_disconnected(self) -> None:
+    @abstractmethod
+    def on_disconnect(self) -> None:
         pass

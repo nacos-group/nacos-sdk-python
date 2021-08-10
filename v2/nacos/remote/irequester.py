@@ -10,13 +10,13 @@ class Requester(metaclass=ABCMeta):
     def request(self, request: Request, timeout_mills: int) -> Response:
         pass
 
-    @abstractmethod
-    def request_future(self, request: Request) -> RequestFuture:
-        pass
-
-    @abstractmethod
-    def async_request(self, request: Request, request_callback: RequestCallBack) -> None:
-        pass
+    # @abstractmethod
+    # def request_future(self, request: Request) -> RequestFuture:
+    #     pass
+    #
+    # @abstractmethod
+    # def async_request(self, request: Request, request_callback: RequestCallBack) -> None:
+    #     pass
 
     @abstractmethod
     def close(self) -> None:
