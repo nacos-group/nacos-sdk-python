@@ -7,8 +7,8 @@ class HealthCheckRequest(request.Request):
         super().__init__()
         self.__MODULE = "internal"
 
-    def get_module(self):
+    def get_module(self) -> str:
         return self.__MODULE
 
-    def get_remote_type(self):
+    def get_remote_type(self) -> str:
         return remote_request_type["HealthCheck"]

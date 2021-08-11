@@ -13,7 +13,7 @@ class ConfigQueryRequest(request.Request):
         self.__tenant = ""
         self.__tag = ""
 
-    def get_module(self):
+    def get_module(self) -> str:
         return self.__MODULE
 
     def get_remote_type(self):
