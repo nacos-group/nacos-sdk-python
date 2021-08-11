@@ -7,18 +7,18 @@ class ConnectResetRequest(request.Request):
         super().__init__()
         self.__MODULE = "internal"
         self.__server_ip = ""
-        self.__server_port = None
+        self.__server_port = ""
 
-    def get_server_ip(self):
+    def get_server_ip(self) -> str:
         return self.__server_ip
 
-    def set_server_ip(self, server_ip):
+    def set_server_ip(self, server_ip: str) -> None:
         self.__server_ip = server_ip
 
-    def get_server_port(self):
+    def get_server_port(self) -> str:
         return self.__server_port
 
-    def set_server_port(self, sever_port):
+    def set_server_port(self, sever_port: str) -> None:
         self.__server_port = sever_port
 
     def get_module(self):

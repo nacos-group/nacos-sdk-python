@@ -15,14 +15,13 @@ class ConfigBatchListenRequest(request.Request):
     def get_remote_type(self):
         return remote_request_type["ConfigBatchListen"]
 
-    def add_config_listen_context(self, group, data_id, tenant, md5):
+    def add_config_listen_context(self, group: str, data_id: str, tenant: str, md5: str) -> None:
         config_listen_context = ConfigBatchListenRequest.ConfigListenContext()
         config_listen_context.group = group
         config_listen_context.data_id = data_id
         config_listen_context.tenant = tenant
         config_listen_context.md5 = md5
         self.__config_listen_contexts.append(config_listen_context)
-
 
     class ConfigListenContext:
         def __init__(self):

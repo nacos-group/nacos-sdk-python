@@ -67,3 +67,7 @@ response_code = {
     "success": 200,
     "fail": 500
 }
+
+
+class ConnectionType:
+    GRPC = "GRPC"
