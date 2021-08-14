@@ -1,0 +1,2 @@
+class InstancesChangeNotifier:
+    pass

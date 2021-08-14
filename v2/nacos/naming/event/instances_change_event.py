@@ -1,0 +1,3 @@
+class InstancesChangeEvent:
+    pass
+
