@@ -1,9 +1,11 @@
+# -*- coding=utf-8 -*-
 import base64
 import hashlib
 import logging
 import socket
 import json
 import platform
+import time
 
 try:
     import ssl
@@ -12,18 +14,17 @@ except ImportError:
 
 from multiprocessing import Process, Manager, Queue, pool
 from threading import RLock, Thread
-import time
 
 try:
     # python3.6
     from http import HTTPStatus
-    from urllib.request import Request, urlopen
+    from urllib.request import Request, urlopen, ProxyHandler, HTTPSHandler, build_opener
     from urllib.parse import urlencode, unquote_plus, quote
     from urllib.error import HTTPError, URLError
 except ImportError:
     # python2.7
     import httplib as HTTPStatus
-    from urllib2 import Request, urlopen, HTTPError, URLError
+    from urllib2 import Request, urlopen, HTTPError, URLError, ProxyHandler, HTTPSHandler, build_opener
     from urllib import urlencode, unquote_plus, quote
 
     base64.encodebytes = base64.encodestring
@@ -32,12 +33,14 @@ from .commons import synchronized_with_attr, truncate, python_version_bellow
 from .params import group_key, parse_key, is_valid
 from .files import read_file_str, save_file, delete_file
 from .exception import NacosException, NacosRequestException
+from .listener import Event, SimpleListenerManager
+from .timer import NacosTimer, NacosTimerManager
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.2"
+VERSION = "0.1.6"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -55,9 +58,8 @@ DEFAULTS = {
     "SNAPSHOT_BASE": "nacos-data/snapshot",
 }
 
-OPTIONS = set(
-    ["default_timeout", "pulling_timeout", "pulling_config_size", "callback_thread_num",
-     "failover_base", "snapshot_base", "no_snapshot"])
+OPTIONS = {"default_timeout", "pulling_timeout", "pulling_config_size", "callback_thread_num", "failover_base",
+           "snapshot_base", "no_snapshot", "proxies"}
 
 
 def process_common_config_params(data_id, group):
@@ -106,10 +108,109 @@ class CacheData:
             logger.debug("[init-cache] cache for %s does not have local value" % key)
 
 
+class SubscribedLocalInstance(object):
+    def __init__(self, key, instance):
+        self.key = key
+        self.instance_id = instance["instanceId"]
+        self.md5 = NacosClient.get_md5(str(instance))
+        self.instance = instance
+
+
+class SubscribedLocalManager(object):
+    def __init__(self):
+        self.manager = {
+            # "key1": {
+            #     "LOCAL_INSTANCES": {
+            #         "instanceId1": None,
+            #         "instanceId2": None,
+            #         "instanceId3": None,
+            #         "instanceId4": None
+            #     },
+            #     "LISTENER_MANAGER": None
+            # },
+            # "key2": {
+            #     "LOCAL_INSTANCES": {
+            #         "instanceId1": "",
+            #         "instanceId2": "",
+            #         "instanceId3": "",
+            #         "instanceId4": ""
+            #     },
+            #     "LISTENER_MANAGER": None
+            # }
+        }
+
+    def do_listener_launch(self, key, event, slc):
+        listener_manager = self.get_local_listener_manager(key)
+        if listener_manager and isinstance(listener_manager, SimpleListenerManager):
+            listener_manager.do_launch(event, slc)
+
+    def get_local_listener_manager(self, key):
+        key_node = self.manager.get(key)
+        if not key_node:
+            return None
+        return key_node.get("LISTENER_MANAGER")
+
+    def add_local_listener(self, key, listener_fn):
+        if not self.manager.get(key):
+            self.manager[key] = {}
+        local_listener_manager = self.manager.get(key).get("LISTENER_MANAGER")
+
+        if not local_listener_manager or not isinstance(local_listener_manager, SimpleListenerManager):
+            self.manager.get(key)["LISTENER_MANAGER"] = SimpleListenerManager()
+        local_listener_manager = self.manager.get(key).get("LISTENER_MANAGER")
+        if not local_listener_manager:
+            return self
+        if isinstance(listener_fn, list):
+            listener_fn = tuple(listener_fn)
+            local_listener_manager.add_listeners(*listener_fn)
+        if isinstance(listener_fn, tuple):
+            local_listener_manager.add_listeners(*listener_fn)
+        #  just single listener function
+        else:
+            local_listener_manager.add_listener(listener_fn)
+        return self
+
+    def add_local_listener_manager(self, key, listener_manager):
+        key_node = self.manager.get(key)
+        if key_node is None:
+            key_node = {}
+        key_node["LISTENER_MANAGER"] = listener_manager
+        return self
+
+    def get_local_instances(self, key):
+        if not self.manager.get(key):
+            return None
+        return self.manager.get(key).get("LOCAL_INSTANCES")
+
+    def add_local_instance(self, slc):
+        if not self.manager.get(slc.key):
+            self.manager[slc.key] = {}
+        if not self.manager.get(slc.key).get('LOCAL_INSTANCES'):
+            self.manager.get(slc.key)['LOCAL_INSTANCES'] = {}
+        self.manager.get(slc.key)['LOCAL_INSTANCES'][slc.instance_id] = slc
+        return self
+
+    def remove_local_instance(self, slc):
+        key_node = self.manager.get(slc.key)
+        if not key_node:
+            return self
+        local_instances_node = key_node.get("LOCAL_INSTANCES")
+        if not local_instances_node:
+            return self
+        local_instance = local_instances_node.get(slc.instance_id)
+        if not local_instance:
+            return self
+        local_instances_node.pop(slc.instance_id)
+        return self
+
+
 def parse_nacos_server_addr(server_addr):
     sp = server_addr.split(":")
-    port = int(sp[1]) if len(sp) > 1 else 8848
-    return sp[0], port
+    if len(sp) == 3:
+        return sp[0] + ":" + sp[1], int(sp[2])
+    else:
+        port = int(sp[1]) if len(sp) > 1 else 8848
+        return sp[0], port
 
 
 class NacosClient:
@@ -136,9 +237,9 @@ class NacosClient:
         try:
             for server_addr in server_addresses.split(","):
                 self.server_list.append(parse_nacos_server_addr(server_addr.strip()))
-        except:
+        except Exception as ex:
             logger.exception("[init] bad server address for %s" % server_addresses)
-            raise
+            raise ex
 
         self.current_server = self.server_list[0]
 
@@ -153,6 +254,8 @@ class NacosClient:
         self.server_offset = 0
 
         self.watcher_mapping = dict()
+        self.subscribed_local_manager = SubscribedLocalManager()
+        self.subscribe_timer_manager = NacosTimerManager()
         self.pulling_lock = RLock()
         self.puller_mapping = None
         self.notify_queue = None
@@ -164,10 +267,11 @@ class NacosClient:
         self.cai_enabled = True
         self.pulling_timeout = DEFAULTS["PULLING_TIMEOUT"]
         self.pulling_config_size = DEFAULTS["PULLING_CONFIG_SIZE"]
-        self.callback_tread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
+        self.callback_thread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
         self.failover_base = DEFAULTS["FAILOVER_BASE"]
         self.snapshot_base = DEFAULTS["SNAPSHOT_BASE"]
         self.no_snapshot = False
+        self.proxies = None
 
         logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
 
@@ -221,7 +325,7 @@ class NacosClient:
             logger.exception("[remove] exception %s occur" % str(e))
             raise
 
-    def publish_config(self, data_id, group, content, app_name=None, timeout=None):
+    def publish_config(self, data_id, group, content, app_name=None, config_type=None, timeout=None):
         if content is None:
             raise NacosException("Can not publish none content, use remove instead.")
 
@@ -243,6 +347,9 @@ class NacosClient:
 
         if app_name:
             params["appName"] = app_name
+
+        if config_type:
+            params["type"] = config_type
 
         try:
             resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
@@ -365,9 +472,9 @@ class NacosClient:
         except HTTPError as e:
             if e.code == HTTPStatus.CONFLICT:
                 logger.error(
-                    "[get-configs] configs being modified concurrently for namespace:%s" % (self.namespace))
+                    "[get-configs] configs being modified concurrently for namespace:%s" % self.namespace)
             elif e.code == HTTPStatus.FORBIDDEN:
-                logger.error("[get-configs] no right for namespace:%s" % (self.namespace))
+                logger.error("[get-configs] no right for namespace:%s" % self.namespace)
                 raise NacosException("Insufficient privilege.")
             else:
                 logger.error("[get-configs] error code [:%s] for namespace:%s" % (e.code, self.namespace))
@@ -399,7 +506,7 @@ class NacosClient:
                     str(e), self.namespace))
             return json.loads(content)
 
-        logger.error("[get-configs] get config from server failed, try snapshot, namespace:%s" % (self.namespace))
+        logger.error("[get-configs] get config from server failed, try snapshot, namespace:%s" % self.namespace)
         content = read_file_str(self.snapshot_base, cache_key)
         if content is None:
             logger.warning("[get-configs] snapshot is not exist for %s." % cache_key)
@@ -494,7 +601,6 @@ class NacosClient:
                 if isinstance(puller_info[0], Process):
                     puller_info[0].terminate()
 
-
     def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET"):
         if self.username and self.password:
             if not params:
@@ -516,20 +622,32 @@ class NacosClient:
                     raise NacosRequestException("Server is not available.")
                 address, port = server_info
                 server = ":".join([address, str(port)])
-                server_url = "%s://%s" % ("http", server)
+                server_url = server
+                if not server_url.startswith("http"):
+                    server_url = "%s://%s" % ("http", server)
                 if python_version_bellow("3"):
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers)
                     req.get_method = lambda: method
+                    ctx = ssl.create_default_context()
+                    ctx.check_hostname = False
+                    ctx.verify_mode = ssl.CERT_NONE
                 else:
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers, method=method)
-
-                # for python version compatibility
-                if python_version_bellow("2.7.9"):
-                    resp = urlopen(req, timeout=timeout)
+                    ctx = ssl.SSLContext()
+                # build a new opener that adds proxy setting so that http request go through the proxy
+                if self.proxies:
+                    proxy_support = ProxyHandler(self.proxies)
+                    https_support = HTTPSHandler(context=ctx)
+                    opener = build_opener(proxy_support, https_support)
+                    resp = opener.open(req, timeout=timeout)
                 else:
-                    resp = urlopen(req, timeout=timeout, context=None)
+                    # for python version compatibility
+                    if python_version_bellow("2.7.5"):
+                        resp = urlopen(req, timeout=timeout)
+                    else:
+                        resp = urlopen(req, timeout=timeout, context=ctx)
                 logger.debug("[do-sync-req] info from server:%s" % server)
                 return resp
             except HTTPError as e:
@@ -614,7 +732,7 @@ class NacosClient:
             return
         self.puller_mapping = dict()
         self.notify_queue = Queue()
-        self.callback_tread_pool = pool.ThreadPool(self.callback_tread_num)
+        self.callback_tread_pool = pool.ThreadPool(self.callback_thread_num)
         self.process_mgr = Manager()
         t = Thread(target=self._process_polling_result)
         t.setDaemon(True)
@@ -644,7 +762,7 @@ class NacosClient:
                 if not watcher.last_md5 == md5:
                     logger.debug(
                         "[process-polling-result] md5 changed since last call, calling %s with changed params: %s"
-                        % (watcher.callback.__name__,params))
+                        % (watcher.callback.__name__, params))
                     try:
                         self.callback_tread_pool.apply(watcher.callback, (params,))
                     except Exception as e:
@@ -662,8 +780,9 @@ class NacosClient:
             else:
                 params["metadata"] = metadata
 
+
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
-                            enable=True, healthy=True, ephemeral=True):
+                            enable=True, healthy=True, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -675,7 +794,8 @@ class NacosClient:
             "enable": enable,
             "healthy": healthy,
             "clusterName": cluster_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName": group_name
         }
         self._build_metadata(metadata, params)
 
@@ -697,7 +817,7 @@ class NacosClient:
             logger.exception("[add-naming-instance] exception %s occur" % str(e))
             raise
 
-    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True):
+    def remove_naming_instance(self, service_name, ip, port, cluster_name=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -705,7 +825,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "serviceName": service_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName":group_name
         }
 
         if cluster_name is not None:
@@ -730,7 +851,7 @@ class NacosClient:
             raise
 
     def modify_naming_instance(self, service_name, ip, port, cluster_name=None, weight=None, metadata=None,
-                               enable=None, ephemeral=True):
+                               enable=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
@@ -738,7 +859,8 @@ class NacosClient:
             "ip": ip,
             "port": port,
             "serviceName": service_name,
-            "ephemeral": ephemeral
+            "ephemeral": ephemeral,
+            "groupName": group_name
         }
 
         if cluster_name is not None:
@@ -770,7 +892,14 @@ class NacosClient:
             logger.exception("[modify-naming-instance] exception %s occur" % str(e))
             raise
 
-    def list_naming_instance(self, service_name, clusters=None, healthy_only=False):
+    def list_naming_instance(self, service_name, clusters=None, namespace_id=None, group_name=None, healthy_only=False):
+        """
+        :param service_name:        服务名
+        :param clusters:            集群名称            字符串，多个集群用逗号分隔
+        :param namespace_id:        命名空间ID
+        :param group_name:          分组名
+        :param healthy_only:         是否只返回健康实例   否，默认为false
+        """
         logger.info("[list-naming-instance] service_name:%s, namespace:%s" % (service_name, self.namespace))
 
         params = {
@@ -781,8 +910,13 @@ class NacosClient:
         if clusters is not None:
             params["clusters"] = clusters
 
-        if self.namespace:
-            params["namespaceId"] = self.namespace
+        namespace_id = namespace_id or self.namespace
+        if namespace_id:
+            params["namespaceId"] = namespace_id
+
+        group_name = group_name or 'DEFAULT_GROUP'
+        if group_name:
+            params['groupName'] = group_name
 
         try:
             resp = self._do_sync_req("/nacos/v1/ns/instance/list", None, params, None, self.default_timeout, "GET")
@@ -831,7 +965,7 @@ class NacosClient:
             logger.exception("[get-naming-instance] exception %s occur" % str(e))
             raise
 
-    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None, ephemeral=True):
+    def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
         logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
                                                                                         self.namespace))
         beat_data = {
@@ -840,6 +974,7 @@ class NacosClient:
             "port": port,
             "weight": weight,
             "ephemeral": ephemeral
+
         }
 
         if cluster_name is not None:
@@ -854,6 +989,7 @@ class NacosClient:
         params = {
             "serviceName": service_name,
             "beat": json.dumps(beat_data),
+            "groupName": group_name
         }
 
         if self.namespace:
@@ -873,6 +1009,100 @@ class NacosClient:
         except Exception as e:
             logger.exception("[send-heartbeat] exception %s occur" % str(e))
             raise
+
+    def subscribe(self,
+                  listener_fn, listener_interval=7, *args, **kwargs):
+        """
+        reference at `/nacos/v1/ns/instance/list` in https://nacos.io/zh-cn/docs/open-api.html
+        :param listener_fn           监听方法，可以是元组，列表，单个监听方法
+        :param listener_interval     监听间隔，在 HTTP 请求 OpenAPI 时间间隔
+        :return:
+        """
+        service_name = kwargs.get("service_name")
+        if not service_name:
+            if len(args) > 0:
+                service_name = args[0]
+            else:
+                raise NacosException("`service_name` is required in subscribe")
+        self.subscribed_local_manager.add_local_listener(key=service_name, listener_fn=listener_fn)
+
+        #  判断是否是第一次订阅调用
+        class _InnerSubContext(object):
+            first_sub = True
+
+        def _compare_and_trigger_listener():
+            #  invoke `list_naming_instance`
+            latest_res = self.list_naming_instance(*args, **kwargs)
+            latest_instances = latest_res['hosts']
+            #  获取本地缓存实例
+            local_service_instances_dict = self.subscribed_local_manager.get_local_instances(service_name)
+            #  当前本地没有缓存，所有都是新的实例
+            if not local_service_instances_dict:
+                if not latest_instances or len(latest_instances) < 1:
+                    #  第一次订阅调用不通知
+                    if _InnerSubContext.first_sub:
+                        _InnerSubContext.first_sub = False
+                        return
+                for instance in latest_instances:
+                    slc = SubscribedLocalInstance(key=service_name, instance=instance)
+                    self.subscribed_local_manager.add_local_instance(slc)
+                    #  第一次订阅调用不通知
+                    if _InnerSubContext.first_sub:
+                        _InnerSubContext.first_sub = False
+                        return
+                    self.subscribed_local_manager.do_listener_launch(service_name, Event.ADDED, slc)
+            else:
+                local_service_instances_dict_copy = local_service_instances_dict.copy()
+                for instance in latest_instances:
+                    slc = SubscribedLocalInstance(key=service_name, instance=instance)
+                    local_slc = local_service_instances_dict.get(slc.instance_id)
+                    # 本地不存在实例缓存
+                    if local_slc is None:
+                        self.subscribed_local_manager.add_local_instance(slc)
+                        self.subscribed_local_manager.do_listener_launch(service_name, Event.ADDED, slc)
+                    # 本地存在实例缓存
+                    else:
+                        local_slc_md5 = local_slc.md5
+                        local_slc_id = local_slc.instance_id
+                        local_service_instances_dict_copy.pop(local_slc_id)
+                        # 比较md5,存在实例变更
+                        if local_slc_md5 != slc.md5:
+                            self.subscribed_local_manager.remove_local_instance(local_slc).add_local_instance(slc)
+                            self.subscribed_local_manager.do_listener_launch(service_name, Event.MODIFIED, slc)
+                #  still have instances in local marked deleted
+                if len(local_service_instances_dict_copy) > 0:
+                    for local_slc_id, slc in local_service_instances_dict_copy.items():
+                        self.subscribed_local_manager.remove_local_instance(slc)
+                        self.subscribed_local_manager.do_listener_launch(service_name, Event.DELETED, slc)
+
+        timer_name = 'service-subscribe-timer-{key}'.format(key=service_name)
+        subscribe_timer = NacosTimer(name=timer_name,
+                                     interval=listener_interval,
+                                     fn=_compare_and_trigger_listener)
+        subscribe_timer.scheduler()
+        self.subscribe_timer_manager.add_timer(subscribe_timer)
+
+    def unsubscribe(self, service_name, listener_name=None):
+        """
+        remove listener from subscribed  listener manager
+        :param service_name:    service_name
+        :param listener_name:   listener name
+        :return: 
+        """
+        listener_manager = self.subscribed_local_manager.get_local_listener_manager(key=service_name)
+        if not listener_manager:
+            return
+        if listener_name:
+            listener_manager.remove_listener(listener_name)
+            return
+        listener_manager.empty_listeners()
+
+    def stop_subscribe(self):
+        """
+        stop subscribe timer scheduler
+        :return: 
+        """
+        self.subscribe_timer_manager.stop()
 
 
 if DEBUG:

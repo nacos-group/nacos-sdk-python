@@ -28,4 +28,3 @@ class NacosException(Exception):
     RESOURCE_NOT_FOUND = -404
 
     HTTP_CLIENT_ERROR_CODE = -500
-

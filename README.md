@@ -26,6 +26,8 @@ pip install nacos-sdk-python
 ```python
 import nacos
 
+# Both HTTP/HTTPS protocols are supported, if not set protocol prefix default is HTTP, and HTTPS with no ssl check(verify=False)
+# "192.168.3.4:8848" or "https://192.168.3.4:443" or "http://192.168.3.4:8848,192.168.3.5:8848" or "https://192.168.3.4:443,https://192.168.3.5:443"
 SERVER_ADDRESSES = "server addresses split by comma"
 NAMESPACE = "***"
 
@@ -53,6 +55,7 @@ Extra option can be set by `set_options`, as following:
 
 ```
 client.set_options({key}={value})
+# client.set_options(proxies={"http":"192.168.3.50:809"})
 ```
 
 Configurable options are:
@@ -64,6 +67,7 @@ Configurable options are:
 * *failover_base* - Dir to store failover config files.
 * *snapshot_base* - Dir to store snapshot config files.
 * *no_snapshot* - To disable default snapshot behavior, this can be overridden by param *no_snapshot* in *get* method.
+* *proxies* - Dict proxy mapping, some environments require proxy access, so you can set this parameter, this way http requests go through the proxy.
 
 ## API Reference
  
@@ -170,9 +174,11 @@ Remove one data item from Nacos.
 * `return` True if success or an exception will be raised.
 
 ### Query Instances
->`NacosClient.list_naming_instance(service_name, clusters, healthy_only)`
+>`NacosClient.list_naming_instance(service_name, clusters, namespace_id, group_name, healthy_only)`
 * `param` *service_name*  **required** Service name to query.
 * `param` *clusters* Cluster names separated by comma.
+* `param` *namespace_id* Customized group name, default `blank`.
+* `param` *group_name* Customized group name , default `DEFAULT_GROUP`.
 * `param` *healthy_only* A bool value for querying healthy instances or not.
 * `return` Instance info list if success or an exception will be raised.
 
@@ -194,6 +200,27 @@ Remove one data item from Nacos.
 * `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
 * `param` *metadata* Extra info in JSON string format or dict format.
 * `return` A JSON object include server recommended beat interval if success or an exception will be raised.
+
+### Subscribe Service Instances Changed
+>`NacosClient.subscribe(listener_fn, listener_interval=7, *args, **kwargs)`
+* `param` *listener_fn*  **required** Customized listener function.
+* `param` *listener_interval*  Listen interval , default 7 second.
+* `param` *service_name*  **required** Service name which subscribes.
+* `param` *clusters* Cluster names separated by comma.
+* `param` *namespace_id* Customized group name, default `blank`.
+* `param` *group_name* Customized group name , default `DEFAULT_GROUP`.
+* `param` *healthy_only* A bool value for querying healthy instances or not.
+* `return`
+
+### Unsubscribe Service Instances Changed
+>`NacosClient.unsubscribe(service_name, listener_name)`
+* `param` *service_name*  **required** Service name to subscribed.
+* `param` *listener_name*  listener_name which is customized.
+* `return`
+
+### Stop All Service Subscribe 
+>`NacosClient.stop_subscribe()`
+* `return`
 
 ## Debugging Mode
 Debugging mode if useful for getting more detailed log on console.
