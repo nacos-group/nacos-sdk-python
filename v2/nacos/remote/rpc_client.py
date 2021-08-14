@@ -206,6 +206,7 @@ class RpcClient(metaclass=ABCMeta, Closeable):
             self.switch_server_async()
 
         self.register_server_request_handler(ConnectResetRequestHandler())
+        self.register_server_request_handler(ServerRequestHandler())
 
     def shutdown(self) -> None:
         self.logger.info("Shutdown rpc client, set status to shutdown")
