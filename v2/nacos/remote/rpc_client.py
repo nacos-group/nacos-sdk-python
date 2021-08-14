@@ -80,13 +80,13 @@ class RpcClient(metaclass=ABCMeta, Closeable):
         self.logger = logging.getLogger(__name__)
 
         self.__server_list_factory = server_list_factory
-        self._event_linked_blocking_queue = queue.Queue()  # todo LinkedBlockingQueue()
+        self._event_linked_blocking_queue = queue.Queue()
 
         self.lock = RLock()
-        self._rpc_client_status = rpc_client_status["WAIT_INIT"]  # todo safe?
+        self._rpc_client_status = rpc_client_status["WAIT_INIT"]
 
         self._client_event_executor = None
-        self.__reconnection_signal = queue.Queue()  # todo ArrayBlockingQueue()
+        self.__reconnection_signal = queue.Queue()
         self._current_connection = None
         self._labels = {}
         self.__name = name
@@ -125,10 +125,6 @@ class RpcClient(metaclass=ABCMeta, Closeable):
         self._labels.update(labels)
         self.logger.info("[%s]RpcClient init label, labels = %s"
                          % (self.__name, self._labels))
-
-    # def set_keep_alive(self, keep_alive_time: int) -> None:
-    #     # todo ? keep_alive * millis(keep_alive_time)
-    #     pass
 
     def notify_disconnected(self) -> None:
         if not self._connection_event_listeners:
@@ -210,7 +206,7 @@ class RpcClient(metaclass=ABCMeta, Closeable):
             self.switch_server_async()
 
         self.register_server_request_handler(ConnectResetRequestHandler())
-        # todo self.register_server_request_handler(ServerRequestHandler())
+        self.register_server_request_handler(ServerRequestHandler())
 
     def shutdown(self) -> None:
         self.logger.info("Shutdown rpc client, set status to shutdown")
