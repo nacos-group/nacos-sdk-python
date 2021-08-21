@@ -108,7 +108,7 @@ class RpcClient(metaclass=ABCMeta, Closeable):
     def set_client_abilities(self, client_abilities: ClientAbilities) -> None:
         self._client_abilities = client_abilities
 
-    def get_client_abilites(self) -> ClientAbilities:
+    def get_client_abilities(self) -> ClientAbilities:
         return self._client_abilities
 
     def set_server_list_factory(self, server_list_factory: ServerListFactory) -> None:
