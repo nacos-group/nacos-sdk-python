@@ -7,7 +7,7 @@ class ServiceListResponse(response.Response):
     def __init__(self):
         super().__init__()
         self.count = 0
-        self.service_name = []
+        self.service_names = []
 
     def get_remote_type(self):
         return remote_response_type["ServiceList"]
@@ -15,11 +15,11 @@ class ServiceListResponse(response.Response):
     def get_count(self) -> int:
         return self.count
 
-    def set_count(self, count:int) -> None:
+    def set_count(self, count: int) -> None:
         self.count = count
 
-    def get_service_name(self) -> List[str]:
-        return self.service_name
+    def get_service_names(self) -> List[str]:
+        return self.service_names
 
-    def set_service_name(self, service_name: List[str]) -> None:
-        self.service_name = service_name
+    def set_service_names(self, service_names: List[str]) -> None:
+        self.service_names = service_names
