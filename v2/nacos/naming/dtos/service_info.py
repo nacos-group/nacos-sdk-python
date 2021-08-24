@@ -129,3 +129,32 @@ class ServiceInfo:
         if self.group_name and Constants.SERVICE_INFO_SPLITER not in service_name:
             service_name = self.group_name + Constants.SERVICE_INFO_SPLITER + service_name
         return service_name
+
+    @staticmethod
+    def from_key(key: str):
+        service_info = ServiceInfo()
+        max_seg_count = 3
+        segs = key.split(Constants.SERVICE_INFO_SPLITER)
+        if len(segs) == max_seg_count - 1:
+            service_info.set_group_name(segs[0])
+            service_info.set_name(segs[1])
+        elif len(segs) == max_seg_count:
+            service_info.set_group_name(segs[0])
+            service_info.set_name(segs[1])
+            service_info.set_clusters(segs[2])
+        return service_info
+
+    def __str__(self):
+        return self.get_key()
+
+    def get_checksum(self) -> str:
+        return self.checksum
+
+    def set_checksum(self, checksum: str) -> None:
+        self.checksum = checksum
+
+    def is_reach_protection_threshold(self) -> bool:
+        return self.reach_protection_threshold
+
+    def set_reach_protection_threshold(self, reach_protection_threshold: bool) -> None:
+        self.reach_protection_threshold = reach_protection_threshold

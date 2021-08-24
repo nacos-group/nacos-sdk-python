@@ -60,6 +60,12 @@ class Instance:
             return False
         return key in self.metadata.keys()
 
+    def is_healthy(self) -> bool:
+        return self.healthy
+
+    def is_enabled(self) -> bool:
+        return self.enabled
+
     def __get_metadata_by_key_with_int_default(self, key: str, default_value: int) -> int:
         if not self.metadata:
             return default_value
