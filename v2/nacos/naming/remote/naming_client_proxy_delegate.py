@@ -37,7 +37,7 @@ class NamingClientProxyDelegate(NamingClientProxy):
 
     def __init_security_proxy(self):
         self.login_timer = sched.scheduler(time.time, time.sleep)
-        self.login_timer.enter(self.security_info_refresh_interval_second, 0, self.security_proxy.login,
+        self.login_timer.enter(self.security_info_refresh_interval_second, 0, self.security_proxy.login_servers,
                                (self.server_list_manager.get_server_list(),))
         self.executor = ThreadPoolExecutor(max_workers=1)
         self.executor.submit(self.login_timer.run)

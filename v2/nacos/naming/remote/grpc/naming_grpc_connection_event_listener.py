@@ -1,14 +1,13 @@
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.naming.dtos.instance import Instance
 from v2.nacos.naming.dtos.service_info import ServiceInfo
-from v2.nacos.naming.remote.grpc.naming_grpc_client_proxy import NamingGrpcClientProxy
 from v2.nacos.naming.utils.naming_utils import NamingUtils
 from v2.nacos.remote.iconnection_event_listener import ConnectionEventListener
 import logging
 
 
 class NamingGrpcConnectionEventListener(ConnectionEventListener):
-    def __init__(self, client_proxy: NamingGrpcClientProxy):
+    def __init__(self, client_proxy):
         logging.basicConfig()
         self.logger = logging.getLogger(__name__)
 

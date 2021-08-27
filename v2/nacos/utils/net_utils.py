@@ -4,7 +4,8 @@ class NetUtils:
     DEFAULT_SOLVE_FAILED_RETURN = "resolve_failed"
 
     def get_local_ip(self):
-        pass
+        # todo
+        return "192.168.220.22"
 
     def find_first_non_loop_back_address(self):
         pass

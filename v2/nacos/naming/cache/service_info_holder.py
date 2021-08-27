@@ -33,22 +33,24 @@ class ServiceInfoHolder(Closeable):
         self.push_empty_protection = self.__is_push_empty_protect(properties)
 
     def __init_cache_dir(self, namespace, properties):
-        jm_snapshot_path = os.environ.get(ServiceInfoHolder.JM_SNAPSHOT_PATH_PROPERTY)
-        naming_cache_registry_dir = ""
+        # jm_snapshot_path = os.environ.get(ServiceInfoHolder.JM_SNAPSHOT_PATH_PROPERTY)
+        # naming_cache_registry_dir = ""
+        #
+        # if PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR in properties:
+        #     naming_cache_registry_dir = os.path.join(properties[PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR])
+        #
+        # if jm_snapshot_path and jm_snapshot_path.strip():
+        #     self.cache_dir = os.path.join(jm_snapshot_path,
+        #                                   ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
+        #                                   ServiceInfoHolder.FILE_PATH_NAMING,
+        #                                   namespace)
+        # else:
+        #     self.cache_dir = os.path.join(os.environ.get(ServiceInfoHolder.USER_HOME_PROPERTY),
+        #                                   ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
+        #                                   ServiceInfoHolder.FILE_PATH_NAMING,
+        #                                   namespace)
 
-        if PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR in properties:
-            naming_cache_registry_dir = os.path.join(properties[PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR])
-
-        if jm_snapshot_path.strip():
-            self.cache_dir = os.path.join(jm_snapshot_path,
-                                          ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
-                                          ServiceInfoHolder.FILE_PATH_NAMING,
-                                          namespace)
-        else:
-            self.cache_dir = os.path.join(os.environ.get(ServiceInfoHolder.USER_HOME_PROPERTY),
-                                          ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
-                                          ServiceInfoHolder.FILE_PATH_NAMING,
-                                          namespace)
+        self.cache_dir = "/Users/cangxiamy/nacos/data"
 
     @staticmethod
     def __is_load_cache_at_start(properties):

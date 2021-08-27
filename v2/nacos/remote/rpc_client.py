@@ -20,7 +20,7 @@ from v2.nacos.common import constants
 from v2.nacos.remote.iserver_list_factory import ServerListFactory
 from v2.nacos.ability.client_abilities import ClientAbilities
 from v2.nacos.remote.iserver_request_handler import ServerRequestHandler
-from v2.nacos.remote.connection import Connection
+# from v2.nacos.remote.connection import Connection
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.remote.requests.request import Request
 from v2.nacos.remote.requests.health_check_request import HealthCheckRequest
@@ -48,7 +48,7 @@ class ServerInfo:
         self._server_port = server_port
 
     def __str__(self):
-        return "{serverIp='" + self._server_ip + "', server main port=" + self._server_port + "}"
+        return "{serverIp='" + str(self._server_ip) + "', server main port=" + str(self._server_port) + "}"
 
 
 class ConnectionEvent:
@@ -71,7 +71,7 @@ class ReconnectContext:
         self.on_request_fail = on_request_fail
 
 
-class RpcClient(metaclass=ABCMeta, Closeable):
+class RpcClient(Closeable, metaclass=ABCMeta):
     RETRY_TIMES = 3
     DEFAULT_TIMEOUT_MILLS = 3000
 
@@ -175,8 +175,8 @@ class RpcClient(metaclass=ABCMeta, Closeable):
             self._rpc_client_status = rpc_client_status["STARTING"]
 
         self._client_event_executor = ThreadPoolExecutor(max_workers=2)
-        self._client_event_executor.submit(self._start_connect())
-        self._client_event_executor.submit(self._start_reconnect())
+        self._client_event_executor.submit(self._start_connect)
+        self._client_event_executor.submit(self._start_reconnect)
 
         connect_to_server = None  # Connection()
         with self.lock:
@@ -362,7 +362,7 @@ class RpcClient(metaclass=ABCMeta, Closeable):
             self.logger.warning("[%s]Fail to reconnect to server, error is %s"
                                 % (self.__name, e))
 
-    def close_connection(self, connection: Connection) -> None:
+    def close_connection(self, connection) -> None:
         if connection:
             connection.close()
             self._event_linked_blocking_queue.put(ConnectionEvent(ConnectionEvent.DISCONNECTED))
@@ -460,7 +460,7 @@ class RpcClient(metaclass=ABCMeta, Closeable):
         raise NacosException
 
     @abstractmethod
-    def connect_to_server(self, server_info: ServerInfo) -> Connection:
+    def connect_to_server(self, server_info: ServerInfo):
         pass
 
     def handle_server_request(self, request) -> Response:

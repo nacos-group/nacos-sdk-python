@@ -3,7 +3,7 @@ from v2.nacos.remote.irequester import Requester
 from v2.nacos.remote.rpc_client import ServerInfo
 
 
-class Connection(metaclass=ABCMeta, Requester):
+class Connection(Requester, metaclass=ABCMeta):
     def __init__(self, server_info: ServerInfo):
         self.__connection_id = ""
         self.__abandon = False

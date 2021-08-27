@@ -1,8 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.remote.requests.request import Request
-from v2.nacos.remote.irequest_future import RequestFuture
-from v2.nacos.remote.irequest_callback import RequestCallBack
 
 
 class Requester(metaclass=ABCMeta):

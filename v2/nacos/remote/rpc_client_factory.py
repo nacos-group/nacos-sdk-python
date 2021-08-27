@@ -29,10 +29,10 @@ class RpcClientFactory:
     def create_client(self, client_name: str, connection_type: str, labels: Dict[str, str]) -> RpcClient:
         client = None
         if client_name not in self.__CLIENT_MAP.keys():
-            self.logger.info("[RpcClientFactory]Create a new rpc client of " + client_name)
+            self.logger.info("[RpcClientFactory]Create a new rpc client of " + str(client_name))
             if connection_type == ConnectionType.GRPC:
                 client = GrpcClient()
             if not client:
-                raise NacosException("Unsupported connection type: " + connection_type)
+                raise NacosException("Unsupported connection type: " + str(connection_type))
             client.set_labels(labels)
         return client

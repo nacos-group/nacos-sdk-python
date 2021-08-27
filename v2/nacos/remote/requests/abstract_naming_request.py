@@ -3,7 +3,7 @@ from abc import ABCMeta
 from v2.nacos.remote.requests.request import Request
 
 
-class AbstractNamingRequest(metaclass=ABCMeta, Request):
+class AbstractNamingRequest(Request, metaclass=ABCMeta):
     def __init__(self, namespace: str, service_name: str, group_name: str):
         super().__init__()
         self.__MODULE = "naming"

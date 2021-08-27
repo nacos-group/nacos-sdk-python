@@ -60,7 +60,7 @@ class NamingGrpcClientProxy(NamingClientProxy):
         self.request_timeout = request_timeout
         labels = {RemoteConstants.LABEL_SOURCE: RemoteConstants.LABEL_SOURCE_SDK,
                   RemoteConstants.LABEL_MODULE: RemoteConstants.LABEL_MODULE_NAMING}
-        self.rpc_client = RpcClientFactory.create_client(self.uuid, ConnectionType.GRPC, labels)
+        self.rpc_client = RpcClientFactory().create_client(self.uuid, ConnectionType.GRPC, labels)
         self.naming_grpc_connection_event_listener = NamingGrpcConnectionEventListener(self)
         self.__start(server_list_factory, service_info_holder)
 

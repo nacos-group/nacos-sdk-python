@@ -37,7 +37,7 @@ class GrpcClient(RpcClient):
         try:
 
             port = server_info.get_server_port() + self.get_rpc_port_offset()
-            with grpc.insecure_channel(server_info.get_server_ip()+":"+port) as channel:
+            with grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port)) as channel:
                 request_stub = RequestStub(channel)
                 if request_stub:
                     response = self.server_check(request_stub, server_info.get_server_ip(), port)

@@ -8,7 +8,7 @@ from v2.nacos.naming.dtos.service_info import ServiceInfo
 from v2.nacos.remote.list_view import ListView
 
 
-class NamingClientProxy(metaclass=ABCMeta, Closeable):
+class NamingClientProxy(Closeable, metaclass=ABCMeta):
     @abstractmethod
     def register_service(self, service_name: str, group_name: str, instance: Instance) -> None:
         pass

@@ -33,7 +33,7 @@ class InstancesChangeNotifier:
         if not event_listeners:
             self.listener_map.pop(key)
 
-    def is_subscribe(self, group_name: str, service_name: str, clusters: str) -> bool:
+    def is_subscribed(self, group_name: str, service_name: str, clusters: str) -> bool:
         key = ServiceInfo.get_key(NamingUtils.get_grouped_name(service_name, group_name), clusters)
         if key in self.listener_map.keys() and self.listener_map[key]:
             return True

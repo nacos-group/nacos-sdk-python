@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from v2.nacos.common.constants import Constants
+from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.naming.utils.util_and_coms import UtilAndComs
 from v2.nacos.property_key_constants import PropertyKeyConstants
@@ -18,17 +19,29 @@ class SecurityProxy:
     def __init__(self, properties: dict):
         logging.basicConfig()
         self.logger = logging.getLogger(__name__)
-        self.username = properties[PropertyKeyConstants.USERNAME] = ""
-        self.password = properties[PropertyKeyConstants.PASSWORD] = ""
+        self.username = properties[PropertyKeyConstants.USERNAME]
+        self.password = properties[PropertyKeyConstants.PASSWORD]
         context_path = properties[PropertyKeyConstants.CONTEXT_PATH].strip()
         self.context_path = context_path if context_path[0] == "/" else "/" + context_path
         self.access_token = ""
         self.token_ttl = None
         self.token_refresh_window = None
+        self.last_refresh_time = None
 
-    def login_servers(self, server: List[str]) -> bool:
-        # todo
-        pass
+    def login_servers(self, servers: List[str]) -> bool:
+        try:
+            if get_current_time_millis() - self.last_refresh_time < self.token_ttl - self.token_refresh_window:
+                return True
+
+            for server in servers:
+                if self.login_server(server):
+                    self.last_refresh_time = get_current_time_millis()
+                    return True
+
+        except NacosException as e:
+            self.logger.warning("[SecurityProxy] login failed, error: " + e)
+
+        return False
 
     def login_server(self, server: str) -> bool:
         params = {PropertyKeyConstants.USERNAME: self.username}
