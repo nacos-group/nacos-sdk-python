@@ -13,10 +13,11 @@ class ServiceInfoUpdateService(Closeable):
 
     DEFAULT_UPDATE_CACHE_TIME_MULTIPLE = 6
 
-    def __init__(self, properties: dict, service_info_holder: ServiceInfoHolder,
+    def __init__(self, logger, properties: dict, service_info_holder: ServiceInfoHolder,
                  naming_client_proxy: NamingClientProxy, change_notifier: InstancesChangeNotifier):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.future_map = {}
 

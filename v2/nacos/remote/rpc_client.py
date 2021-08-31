@@ -75,9 +75,10 @@ class RpcClient(Closeable, metaclass=ABCMeta):
     RETRY_TIMES = 3
     DEFAULT_TIMEOUT_MILLS = 3000
 
-    def __init__(self, name: str = None, server_list_factory: ServerListFactory = None):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, name: str = None, server_list_factory: ServerListFactory = None):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.__server_list_factory = server_list_factory
         self._event_linked_blocking_queue = queue.Queue()

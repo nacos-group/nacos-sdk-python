@@ -44,10 +44,11 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
     SEPARATOR = "@@"
 
-    def __init__(self, namespace: str, security_proxy: SecurityProxy, server_list_factory: ServerListFactory,
+    def __init__(self, logger, namespace: str, security_proxy: SecurityProxy, server_list_factory: ServerListFactory,
                  properties: dict, service_info_holder: ServiceInfoHolder):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.namespace = namespace
         self.uuid = uuid.uuid4()
@@ -60,8 +61,8 @@ class NamingGrpcClientProxy(NamingClientProxy):
         self.request_timeout = request_timeout
         labels = {RemoteConstants.LABEL_SOURCE: RemoteConstants.LABEL_SOURCE_SDK,
                   RemoteConstants.LABEL_MODULE: RemoteConstants.LABEL_MODULE_NAMING}
-        self.rpc_client = RpcClientFactory().create_client(self.uuid, ConnectionType.GRPC, labels)
-        self.naming_grpc_connection_event_listener = NamingGrpcConnectionEventListener(self)
+        self.rpc_client = RpcClientFactory(self.logger).create_client(str(self.uuid), ConnectionType.GRPC, labels)
+        self.naming_grpc_connection_event_listener = NamingGrpcConnectionEventListener(self.logger, self)
         self.__start(server_list_factory, service_info_holder)
 
     def __start(self, server_list_factory: ServerListFactory, service_info_holder: ServiceInfoHolder):

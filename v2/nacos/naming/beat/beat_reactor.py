@@ -11,9 +11,10 @@ class BeatReactor(Closeable):
 
     CLIENT_BEAT_INTERVAL_FIELD = "clientBeatInterval"
 
-    def __init__(self, server_proxy=None, properties=None):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, server_proxy=None, properties=None):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.server_proxy = server_proxy
         self.light_beat_enabled = False

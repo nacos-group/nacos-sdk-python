@@ -19,21 +19,22 @@ from v2.nacos.security.security_proxy import SecurityProxy
 
 
 class NamingClientProxyDelegate(NamingClientProxy):
-    def __init__(self, namespace, service_info_holder, properties, change_notifier):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, namespace, service_info_holder, properties, change_notifier):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.security_info_refresh_interval_second = 5
-        self.service_info_update_service = ServiceInfoUpdateService(properties, service_info_holder,
+        self.service_info_update_service = ServiceInfoUpdateService(self.logger, properties, service_info_holder,
                                                                     self, change_notifier)
-        self.server_list_manager = ServerListManager(properties)
+        self.server_list_manager = ServerListManager(self.logger, properties)
         self.server_info_holder = service_info_holder
-        self.security_proxy = SecurityProxy(properties)
+        self.security_proxy = SecurityProxy(self.logger, properties)
         self.__init_security_proxy()
-        self.http_client_proxy = NamingHttpClientProxy(namespace, self.security_proxy,
+        self.http_client_proxy = NamingHttpClientProxy(self.logger, namespace, self.security_proxy,
                                                        self.server_list_manager, properties, service_info_holder)
-        self.grpc_client_proxy = NamingGrpcClientProxy(namespace, self.security_proxy, self.server_list_manager,
-                                                       properties, service_info_holder)
+        self.grpc_client_proxy = NamingGrpcClientProxy(self.logger, namespace, self.security_proxy,
+                                                       self.server_list_manager, properties, service_info_holder)
 
     def __init_security_proxy(self):
         self.login_timer = sched.scheduler(time.time, time.sleep)

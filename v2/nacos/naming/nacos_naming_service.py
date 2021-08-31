@@ -15,15 +15,16 @@ class NacosNamingService:
 
     DOWN = "DOWN"
 
-    def __init__(self, properties: dict):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, properties: dict):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.namespace = properties["namespace"]
         self.change_notifier = InstancesChangeNotifier()
-        self.service_info_holder = ServiceInfoHolder(self.namespace, properties)
+        self.service_info_holder = ServiceInfoHolder(self.logger, self.namespace, properties)
         self.client_proxy = NamingClientProxyDelegate(
-            self.namespace, self.service_info_holder, properties, self.change_notifier
+            self.logger, self.namespace, self.service_info_holder, properties, self.change_notifier
         )
 
     def register_instance(self, service_name: str, group_name: str, ip: str, port: int, cluster_name: str) -> None:

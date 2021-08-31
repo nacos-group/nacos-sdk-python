@@ -8,9 +8,10 @@ from v2.nacos.remote.utils import ConnectionType
 
 
 class RpcClientFactory:
-    def __init__(self):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.__CLIENT_MAP = {}
 
     def get_all_client_entries(self) -> Dict[str, RpcClient]:
@@ -31,7 +32,7 @@ class RpcClientFactory:
         if client_name not in self.__CLIENT_MAP.keys():
             self.logger.info("[RpcClientFactory]Create a new rpc client of " + str(client_name))
             if connection_type == ConnectionType.GRPC:
-                client = GrpcClient()
+                client = GrpcClient(self.logger)
             if not client:
                 raise NacosException("Unsupported connection type: " + str(connection_type))
             client.set_labels(labels)

@@ -17,7 +17,7 @@ class GrpcConnection(Connection):
         self.channel = None
         self.request_stub = None
         self.bi_request_stream_stub = None
-        self.queue = Queue()
+        self.queue = Queue()  # todo delete?
 
     def request(self, request: Request, timeout_mills: int) -> Response:
         grpc_request = GrpcUtils.convert_request(request)

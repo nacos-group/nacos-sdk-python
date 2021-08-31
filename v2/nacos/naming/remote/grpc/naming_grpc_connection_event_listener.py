@@ -7,9 +7,10 @@ import logging
 
 
 class NamingGrpcConnectionEventListener(ConnectionEventListener):
-    def __init__(self, client_proxy):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, client_proxy):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.client_proxy = client_proxy
         self.registered_instance_cached = {}

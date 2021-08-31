@@ -19,9 +19,10 @@ class ServiceInfoHolder(Closeable):
 
     USER_HOME_PROPERTY = "user.home"
 
-    def __init__(self, namespace, properties):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, namespace, properties):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
 
         self.__init_cache_dir(namespace, properties)
         if self.__is_load_cache_at_start(properties):

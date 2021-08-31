@@ -16,9 +16,10 @@ from v2.nacos.property_key_constants import PropertyKeyConstants
 class SecurityProxy:
     LOGIN_URL = "/v1/auth/users/login"
 
-    def __init__(self, properties: dict):
-        logging.basicConfig()
-        self.logger = logging.getLogger(__name__)
+    def __init__(self, logger, properties: dict):
+        # logging.basicConfig()
+        # self.logger = logging.getLogger(__name__)
+        self.logger = logger
         self.username = properties[PropertyKeyConstants.USERNAME]
         self.password = properties[PropertyKeyConstants.PASSWORD]
         context_path = properties[PropertyKeyConstants.CONTEXT_PATH].strip()
