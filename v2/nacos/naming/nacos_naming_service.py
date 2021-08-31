@@ -27,7 +27,7 @@ class NacosNamingService:
         )
 
     def register_instance(self, service_name: str, group_name: str, ip: str, port: int, cluster_name: str) -> None:
-        instance = Instance(ip=ip, port=port, weight=1.0, cluster_name=cluster_name)
+        instance = Instance(ip=ip, port=port, weight=1.0, cluster_name=cluster_name, service_name=service_name)
         NamingUtils.check_instance_is_legal(instance)
         self.client_proxy.register_service(service_name, group_name, instance)
 

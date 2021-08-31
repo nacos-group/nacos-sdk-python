@@ -22,10 +22,10 @@ class Instance:
         self.metadata = metadata
 
     def __str__(self):
-        return "Instance{instanceId='" + self.instance_id + "', ip='" + self.ip + "', port=" + self.port + \
-               ", weight=" + self.weight + ", healthy=" + self.healthy + ", enabled=" + self.enabled + \
-               ", ephemeral=" + self.ephemeral + ", clusterName='" + self.cluster_name + "', serviceName='" +\
-               self.service_name + "', metadata=" + self.metadata + "}"
+        return "Instance{instanceId='" + str(self.instance_id) + "', ip='" + str(self.ip) + "', port=" + str(self.port) + \
+               ", weight=" + str(self.weight) + ", healthy=" + str(self.healthy) + ", enabled=" + str(self.enabled) + \
+               ", ephemeral=" + str(self.ephemeral) + ", clusterName='" + str(self.cluster_name) + "', serviceName='" +\
+               str(self.service_name) + "', metadata=" + str(self.metadata) + "}"
 
     def to_inet_addr(self):
         return self.ip + ":" + self.port

@@ -36,32 +36,34 @@ class GrpcClient(RpcClient):
     def connect_to_server(self, server_info: ServerInfo) -> Connection:
         try:
 
-            port = server_info.get_server_port() + self.get_rpc_port_offset()
-            with grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port)) as channel:
-                request_stub = RequestStub(channel)
-                if request_stub:
-                    response = self.server_check(request_stub, server_info.get_server_ip(), port)
-                    if not response or not isinstance(response, ServerCheckResponse):
-                        self.shutdown_channel(channel)
-                        return None
+            port = server_info.get_server_port()
+            self._channel = grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port))
+            # with grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port)) as channel:
+            request_stub = RequestStub(self._channel)
+            if request_stub:
+                response = self.server_check(request_stub, server_info.get_server_ip(), port)
+                if not response or not isinstance(response, ServerCheckResponse):
+                    self.shutdown_channel(self._channel)
+                    return None
 
-                    bi_request_stream_stub = BiRequestStreamStub(channel)
-                    grpc_conn = GrpcConnection(server_info)
-                    grpc_conn.set_connection_id(response.get_connection_id())
-                    grpc_conn.set_bi_request_stream_stub(bi_request_stream_stub)
-                    grpc_conn.set_request_stub(request_stub)
-                    grpc_conn.set_channel(channel)
+                bi_request_stream_stub = BiRequestStreamStub(self._channel)
+                grpc_conn = GrpcConnection(server_info)
+                grpc_conn.set_connection_id(response.get_connection_id())
+                # grpc_conn.set_connection_id(response.connectionId)
+                grpc_conn.set_bi_request_stream_stub(bi_request_stream_stub)
+                grpc_conn.set_request_stub(request_stub)
+                grpc_conn.set_channel(self._channel)
 
-                    # send a setup request
-                    connection_setup_request = ConnectionSetupRequest()
-                    connection_setup_request.set_client_version(Constants.CLIENT_VERSION)
-                    connection_setup_request.set_labels(self.get_labels())
-                    connection_setup_request.set_abilities(self.get_client_abilites())
-                    connection_setup_request.set_tenant(self.get_tenant())
-                    grpc_conn.send_request(connection_setup_request)
+                # send a setup request
+                connection_setup_request = ConnectionSetupRequest()
+                connection_setup_request.set_client_version(Constants.CLIENT_VERSION)
+                connection_setup_request.set_labels(self.get_labels())
+                connection_setup_request.set_abilities(self.get_client_abilities())
+                connection_setup_request.set_tenant(self.get_tenant())
+                grpc_conn.send_request(connection_setup_request)
 
-                    time.sleep(0.1)
-                    return grpc_conn
+                time.sleep(0.1)
+                return grpc_conn
 
         except NacosException as e:
             self.logger.error("[%s]Fail to connect to server, error=%s"

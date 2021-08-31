@@ -25,7 +25,7 @@ remote_connection_type = {
 remote_request_type = {
     "ConfigPublish": "ConfigPublishRequest",
     "ConfigRemove": "ConfigRemoveRequest",
-    "ConfigQuery": "ConfigQueryReqest",
+    "ConfigQuery": "ConfigQueryRequest",
     "ConfigBatchListen": "ConfigBatchListenRequest",
     "NamingHeartBeat": "HeartBeatRequest",
     "NamingInstance": "InstanceRequest",
@@ -45,7 +45,7 @@ remote_request_type = {
 
 remote_response_type = {
     "ConfigPublish": "ConfigPublishResponse",
-    "ConfigChangeBatchListen": "ConfigChangeBatchListenReponse",
+    "ConfigChangeBatchListen": "ConfigChangeBatchListenResponse",
     "ConfigChangeNotify": "ConfigChangeNotifyResponse",
     "ConfigQuery": "ConfigQueryResponse",
     "ConfigRemove": "ConfigRemoveResponse",

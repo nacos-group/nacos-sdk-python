@@ -1,12 +1,15 @@
 import json
 
 from google.protobuf.any_pb2 import Any
+from dacite import from_dict
 
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.remote.requests.request import Request
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.utils.net_utils import NetUtils
+from v2.nacos.remote.responses import *
+from v2.nacos.remote.requests import *
 
 
 class GrpcUtils:
@@ -14,9 +17,28 @@ class GrpcUtils:
     def parse(payload: Payload) -> object:
         metadata_type = payload.metadata.type
         if metadata_type:
-            obj = json.loads(payload.body.value.decode('utf-8'))
+            # obj = json.loads(payload.body.value.decode('utf-8'))
+            # if isinstance(obj, Request):
+            #     obj.put_all_header(payload.metadata.headers)
+            # return obj
+            json_dict = json.loads(payload.body.value.decode('utf-8'))
+
+            if "Response" in metadata_type:
+                obj = eval(metadata_type + "()")
+            elif "Request" in metadata_type:
+                obj = eval(metadata_type + "()")
+            else:
+                raise NacosException(NacosException.SERVER_ERROR+"Unknown metadata type: " + metadata_type)
+
+            # todo: how to deal with json_dict ?
+            # result = from_dict(data_class=eval(metadata_type), data=json_dict)
+            # print(result)
+            # print(type(result))
+
+            # obj = from_dict(data_class=eval(metadata_type), data=json_dict)
             if isinstance(obj, Request):
                 obj.put_all_header(payload.metadata.headers)
+
             return obj
         else:
             raise NacosException(NacosException.SERVER_ERROR+"Unknown payload type:"+payload.metadata.type)

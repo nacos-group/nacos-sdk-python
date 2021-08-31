@@ -33,7 +33,7 @@ class ServerInfo:
         self._server_port = server_port
 
     def get_address(self):
-        return self._server_ip + constants.Constants.COLON + self._server_port
+        return self._server_ip + constants.Constants.COLON + str(self._server_port)
 
     def get_server_ip(self):
         return self._server_ip
@@ -98,6 +98,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
 
         self._connection_event_listeners = []
         self._server_request_handlers = []
+        self._channel = None
 
         if server_list_factory:
             with self.lock:
@@ -205,7 +206,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         else:
             self.switch_server_async()
 
-        self.register_server_request_handler(ConnectResetRequestHandler())
+        self.register_server_request_handler(ConnectResetRequestHandler(self))
 
     def shutdown(self) -> None:
         self.logger.info("Shutdown rpc client, set status to shutdown")
@@ -284,11 +285,11 @@ class RpcClient(Closeable, metaclass=ABCMeta):
     def switch_server_async_on_request_fail(self) -> None:
         self._switch_server_async(None, True)
 
-    # def switch_server_async(self):
-    #     self._switch_server_async(None, False)
+    def switch_server_async(self):
+        self._switch_server_async(None, False)
 
-    # def _switch_server_async(self, recommend_server_info, on_request_fail) -> None:
-    #     self.__reconnection_signal.put(ReconnectContext(recommend_server_info, on_request_fail))
+    def _switch_server_async(self, recommend_server_info, on_request_fail) -> None:
+        self.__reconnection_signal.put(ReconnectContext(recommend_server_info, on_request_fail))
 
     def switch_server_async(self, recommend_server_info=None, on_request_fail=False) -> None:
         self.__reconnection_signal.put(ReconnectContext(recommend_server_info, on_request_fail))
@@ -391,7 +392,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
             try:
                 if not self._current_connection or not self.is_running():
                     wait_reconnect = True
-                    raise NacosException("Client not connected, current status:" + self._rpc_client_status)
+                    raise NacosException("Client not connected, current status:" + str(self._rpc_client_status))
                 response = self._current_connection.request(request, timeout_mills)
                 if not response:
                     raise NacosException("Unknown Exception")

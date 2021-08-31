@@ -120,7 +120,7 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
     @staticmethod
     def __get_sign_data(service_name: str) -> str:
-        return get_current_time_millis() + NamingGrpcClientProxy.SEPARATOR + service_name if service_name.strip() else \
+        return str(get_current_time_millis()) + NamingGrpcClientProxy.SEPARATOR + service_name if service_name.strip() else \
             str(get_current_time_millis())
 
     def register_service(self, service_name, group_name, instance):
