@@ -120,18 +120,18 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         with self.lock:
             self._rpc_client_status = rpc_client_status["INITIALIZED"]
         self.logger.info("[%s]RpcClient init, ServerListFactory = %s"
-                         % (self.__name, server_list_factory.__class__.__name__))
+                         % (self.__class__.__name__, server_list_factory.__class__.__name__))
         return
 
     def set_labels(self, labels: Dict[str, str]) -> None:
         self._labels.update(labels)
         self.logger.info("[%s]RpcClient init label, labels = %s"
-                         % (self.__name, self._labels))
+                         % (self.__class__.__name__, self._labels))
 
     def notify_disconnected(self) -> None:
         if not self._connection_event_listeners:
             return
-        self.logger.info("[%s]Notify disconnected event to listeners" % self.__name)
+        self.logger.info("[%s]Notify disconnected event to listeners" % self.__class__.__name__)
         for connection_event_listener in self._connection_event_listeners:
             try:
                 connection_event_listener.on_disconnect()
@@ -142,7 +142,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
     def notify_connected(self) -> None:
         if not self._connection_event_listeners:
             return
-        self.logger.info("[%s]Notify connected event to listeners" % self.__name)
+        self.logger.info("[%s]Notify connected event to listeners" % self.__class__.__name__)
         for connection_event_listener in self._connection_event_listeners:
             try:
                 connection_event_listener.on_connected()
@@ -190,15 +190,15 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                 start_up_retry_times -= 1
                 server_info = self.next_rpc_server()
                 self.logger.info("[%s]Try to connect to server on start up, server:%s"
-                                 % (self.__name, server_info))
+                                 % (self.__class__.__name__, server_info))
                 connect_to_server = self.connect_to_server(server_info)
             except NacosException as e:
                 self.logger.warning("[%s]Fail to connect to server on start up, error message=%s, start up "
-                                    "retry times left:%s" % (self.__name, e, start_up_retry_times))
+                                    "retry times left:%s" % (self.__class__.__name__, e, start_up_retry_times))
 
         if connect_to_server:
             self.logger.info("[%s]Success to connect to server [%s] on start up, connectionId=%s"
-                             % (self.__name, connect_to_server.get_server_info().get_address()
+                             % (self.__class__.__name__, connect_to_server.get_server_info().get_address()
                                 , connect_to_server.get_connection_id))
             self._current_connection = connect_to_server
             with self.lock:
@@ -244,7 +244,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                             if not self._current_connection:
                                 continue
                             self.logger.info("[%s]Server healthy check fail, currentConnection=%s"
-                                             % (self.__name, self._current_connection.get_connection_id))
+                                             % (self.__class__.__name__, self._current_connection.get_connection_id))
                             if self._rpc_client_status == rpc_client_status["SHUTDOWN"]:
                                 break
                             with self.lock:
@@ -267,7 +267,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
 
                     if not server_exist:
                         self.logger.info("[%s]Recommend server is not in server list, ignore recommend server %s"
-                                         % (self.__name, reconnect_context.server_info.get_address()))
+                                         % (self.__class__.__name__, reconnect_context.server_info.get_address()))
                 self.reconnect(reconnect_context.server_info, reconnect_context.on_request_fail)
             except NacosException:
                 pass
@@ -300,7 +300,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
             recommend_server = recommend_server_info
             if on_request_fail and self.health_check():
                 self.logger.info("[%s]Server check success, currentServer is %s"
-                                 % (self.__name, self._current_connection.server_info.get_address()))
+                                 % (self.__class__.__name__, self._current_connection.server_info.get_address()))
                 with self.lock:
                     self._rpc_client_status = rpc_client_status["RUNNING"]
                 return
@@ -315,10 +315,10 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                     connection_new = self.connect_to_server(server_info)
                     if connection_new:
                         self.logger.info("[%s]Success to connect to a server [%s], connectionId=%s"
-                                         % (self.__name, server_info.get_address(), connection_new.get_connection_id()))
+                                         % (self.__class__.__name__, server_info.get_address(), connection_new.get_connection_id()))
                         if self._current_connection:
                             self.logger.info("[%s]Abandon previous connection, server is %s, connectionId is %s"
-                                             % (self.__name, self._current_connection.server_info.get_address(),
+                                             % (self.__class__.__name__, self._current_connection.server_info.get_address(),
                                                 self._current_connection.get_connection_id()))
                             self._current_connection.set_abandon(True)
                             self.close_connection(self._current_connection)
@@ -339,7 +339,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
 
                 if reconnect_times > 0 and reconnect_times % len(self.__server_list_factory.get_server_list()) == 0:
                     self.logger.info("[%s]fail to connect to server, after trying %s times, last try server is %s"
-                                     % (self.__name, reconnect_times, server_info))
+                                     % (self.__class__.__name__, reconnect_times, server_info))
                     if retry_turns == sys.maxsize:
                         retry_turns = 50
                     else:
@@ -358,11 +358,11 @@ class RpcClient(Closeable, metaclass=ABCMeta):
 
             if self.is_shutdown():
                 self.logger.info("[%s]Client is shutdown, stop reconnecting to server"
-                                 % self.__name)
+                                 % self.__class__.__name__)
 
         except NacosException as e:
             self.logger.warning("[%s]Fail to reconnect to server, error is %s"
-                                % (self.__name, e))
+                                % (self.__class__.__name__, e))
 
     def close_connection(self, connection) -> None:
         if connection:
@@ -451,7 +451,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                     except NacosException:
                         pass
                 self.logger.error("[%s]Send request fail, request=%s, retryTimes=%s, errorMessage=%s"
-                                  % (self.__name, request, retry_times, e))
+                                  % (self.__class__.__name__, request, retry_times, e))
 
             retry_times += 1
 
@@ -467,29 +467,29 @@ class RpcClient(Closeable, metaclass=ABCMeta):
 
     def handle_server_request(self, request) -> Response:
         self.logger.info("[%s]receive server push request, request=%s, requestId=%s"
-                         % (self.__name, request.__class__.__name__, request.get_request_id()))
+                         % (self.__class__.__name__, request.__class__.__name__, request.get_request_id()))
         self.__last_active_time_stamp = get_current_time_millis()
         for server_request_handler in self._server_request_handlers:
             try:
                 response = server_request_handler.request_reply(request)
                 if response:
                     self.logger.info("[%s]ack server push request, request=%s, requestId=%s"
-                                     % (self.__name, request.__class__.__name__, request.get_request_id()))
+                                     % (self.__class__.__name__, request.__class__.__name__, request.get_request_id()))
                     return response
             except NacosException as e:
                 self.logger.info("[%s]handleServerRequest:%s, errorMessage=%s"
-                                 % (self.__name, server_request_handler.__class__.__name__, e))
+                                 % (self.__class__.__name__, server_request_handler.__class__.__name__, e))
 
     @synchronized_with_attr("lock")
     def register_connection_listener(self, connection_event_listener) -> None:
         self.logger.info("[%s]Register connection listener to current client:%s"
-                         % (self.__name, connection_event_listener.__class__.__name__))
+                         % (self.__class__.__name__, connection_event_listener.__class__.__name__))
         self._connection_event_listeners.append(connection_event_listener)
 
     @synchronized_with_attr("lock")
     def register_server_request_handler(self, server_request_handler) -> None:
         self.logger.info("[%s]Register server push request handler:%s"
-                         % (self.__name, server_request_handler.__class__.__name__))
+                         % (self.__class__.__name__, server_request_handler.__class__.__name__))
         self._server_request_handlers.append(server_request_handler)
 
     def get_name(self) -> str:
