@@ -1,16 +1,18 @@
-from abc import abstractmethod
-from typing import Dict
+from abc import abstractmethod, ABCMeta
+from typing import Optional
+
+from pydantic import BaseModel
 
 
-class Request:
-    def __init__(self):
-        self.headers = {}
-        self.request_id = ""
+class Request(BaseModel, metaclass=ABCMeta):
+    headers: dict = {}
+    requestId: Optional[str]
+    module: Optional[str]
 
     def put_header(self, key: str, value: str) -> None:
         self.headers[key] = value
 
-    def put_all_header(self, headers: Dict[str, str]) -> None:
+    def put_all_header(self, headers: dict) -> None:
         if not headers:
             return
         self.headers.update(headers)
@@ -19,10 +21,10 @@ class Request:
         return self.headers[key] if self.headers[key] else default_value
 
     def get_request_id(self) -> str:
-        return self.request_id
+        return self.requestId
 
     def set_request_id(self, request_id: str) -> None:
-        self.request_id = request_id
+        self.requestId = request_id
 
     @abstractmethod
     def get_module(self) -> str:
@@ -32,7 +34,7 @@ class Request:
     def get_remote_type(self) -> str:
         pass
 
-    def get_headers(self) -> Dict[str, str]:
+    def get_headers(self) -> dict:
         return self.headers
 
     def clear_headers(self) -> None:
@@ -47,3 +49,6 @@ class Request:
         for key, value in obj.__dict__.items():
             new_obj.__dict__[key] = value
         return new_obj
+
+    class Config:
+        arbitrary_types_allowed = True

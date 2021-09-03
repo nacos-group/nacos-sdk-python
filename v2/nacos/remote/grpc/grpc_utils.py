@@ -17,28 +17,18 @@ class GrpcUtils:
     def parse(payload: Payload) -> object:
         metadata_type = payload.metadata.type
         if metadata_type:
-            # obj = json.loads(payload.body.value.decode('utf-8'))
+            # todo: how to deal with json_dict ?
+            # method-1
+            # json_dict = json.loads(payload.body.value.decode('utf-8'))
+            # obj = from_dict(data_class=eval(metadata_type), data=json_dict)
             # if isinstance(obj, Request):
             #     obj.put_all_header(payload.metadata.headers)
-            # return obj
+
+            # method-2
             json_dict = json.loads(payload.body.value.decode('utf-8'))
-
-            if "Response" in metadata_type:
-                obj = eval(metadata_type + "()")
-            elif "Request" in metadata_type:
-                obj = eval(metadata_type + "()")
-            else:
-                raise NacosException(NacosException.SERVER_ERROR+"Unknown metadata type: " + metadata_type)
-
-            # todo: how to deal with json_dict ?
-            # result = from_dict(data_class=eval(metadata_type), data=json_dict)
-            # print(result)
-            # print(type(result))
-
-            # obj = from_dict(data_class=eval(metadata_type), data=json_dict)
+            obj = eval(metadata_type+"(**json_dict)")
             if isinstance(obj, Request):
                 obj.put_all_header(payload.metadata.headers)
-
             return obj
         else:
             raise NacosException(NacosException.SERVER_ERROR+"Unknown payload type:"+payload.metadata.type)
@@ -46,6 +36,7 @@ class GrpcUtils:
     @staticmethod
     def convert_request(request: Request) -> Payload:
         payload_body_bytes = json.dumps(request, default=GrpcUtils.to_json).encode('utf-8')
+        # payload_body_bytes = request.json().encode('utf-8') # error
         payload_body = Any(value=payload_body_bytes)
         payload_metadata = Metadata(type=request.get_remote_type(), clientIp=NetUtils().get_local_ip(),
                                     headers=request.get_headers())
@@ -56,6 +47,7 @@ class GrpcUtils:
     def convert_response(response: Response) -> Payload:
         payload_metadata = Metadata(type=response.get_remote_type())
         payload_body_bytes = bytes(json.dumps(response, default=GrpcUtils.to_json), encoding='utf-8')
+        # payload_body_bytes = bytes(response.json(), encoding='utf-8')
         payload_body = Any(value=payload_body_bytes)
         payload = Payload(metadata=payload_metadata, body=payload_body)
         return payload

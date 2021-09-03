@@ -1,42 +1,41 @@
+from typing import Optional
+
 from v2.nacos.remote.requests import request
 from v2.nacos.remote.utils import remote_request_type
 
 
 class ConfigRemoveRequest(request.Request):
-    def __init__(self):
-        super().__init__()
-        self.__MODULE = "config"
-        self.__data_id = ""
-        self.__group = ""
-        self.__tenant = ""
-        self.__tag = ""
+    dataId: Optional[str]
+    group: Optional[str]
+    tenant: Optional[str]
+    tag: Optional[str]
 
     def get_module(self) -> str:
-        return self.__MODULE
+        return "config"
 
     def get_remote_type(self):
         return remote_request_type["ConfigRemove"]
 
     def get_data_id(self) -> str:
-        return self.__data_id
+        return self.dataId
 
     def set_data_id(self, data_id: str) -> None:
-        self.__data_id = data_id
+        self.dataId = data_id
 
     def get_group(self) -> str:
-        return self.__group
+        return self.group
 
     def set_group(self, group: str) -> None:
-        self.__group = group
+        self.group = group
 
     def get_tenant(self) -> str:
-        return self.__tenant
+        return self.tenant
 
     def set_tenant(self, tenant: str) -> None:
-        self.__tenant = tenant
+        self.tenant = tenant
 
     def get_tag(self) -> str:
-        return self.__tag
+        return self.tag
 
     def set_tag(self, tag: str) -> None:
-        self.__tag = tag
+        self.tag = tag

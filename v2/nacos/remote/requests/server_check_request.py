@@ -3,12 +3,8 @@ from v2.nacos.remote.utils import remote_request_type
 
 
 class ServerCheckRequest(request.Request):
-    def __init__(self):
-        super().__init__()
-        self.__MODULE = "internal"
-
     def get_module(self) -> str:
-        return self.__MODULE
+        return "internal"
 
     def get_remote_type(self) -> str:
         return remote_request_type["ServerCheck"]

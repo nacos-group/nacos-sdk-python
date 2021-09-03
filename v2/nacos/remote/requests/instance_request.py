@@ -1,13 +1,13 @@
+from typing import Optional
+
 from v2.nacos.naming.dtos.instance import Instance
 from v2.nacos.remote.requests.abstract_naming_request import AbstractNamingRequest
 from v2.nacos.remote.utils import remote_request_type
 
 
 class InstanceRequest(AbstractNamingRequest):
-    def __init__(self, namespace=None, service_name=None, group_name=None, service_type=None, instance=None):
-        super().__init__(namespace, service_name, group_name)
-        self.type = service_type
-        self.instance = instance
+    type: Optional[str]
+    instance: Optional[Instance]
 
     def get_remote_type(self):
         return remote_request_type["NamingInstance"]

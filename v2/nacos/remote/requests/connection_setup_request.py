@@ -1,46 +1,41 @@
-from typing import Dict
+from typing import Optional
 from v2.nacos.remote.requests import request
 from v2.nacos.remote.utils import remote_request_type
 from v2.nacos.ability.client_abilities import ClientAbilities
 
 
 class ConnectionSetupRequest(request.Request):
-    def __init__(self):
-        super().__init__()
-        self.__client_version = ""
-        self.__client_abilities = None
-        self.__abilities = ClientAbilities()
-        self.__tenant = ""
-        self.__labels = {}
-
-        self.__MODULE = "internal"
+    clientVersion: Optional[str]
+    abilities: Optional[ClientAbilities]
+    tenant: Optional[str]
+    labels: dict = {}
 
     def get_client_version(self) -> str:
-        return self.__client_version
+        return self.clientVersion
 
     def set_client_version(self, client_version: str) -> None:
-        self.__client_version = client_version
+        self.clientVersion = client_version
 
-    def get_labels(self) -> Dict[str, str]:
-        return self.__labels
+    def get_labels(self) -> dict:
+        return self.labels
 
-    def set_labels(self, labels: Dict[str, str]) -> None:
-        self.__labels = labels
+    def set_labels(self, labels: dict) -> None:
+        self.labels = labels
 
     def get_tenant(self) -> str:
-        return self.__tenant
+        return self.tenant
 
     def set_tenant(self, tenant: str) -> None:
-        self.__tenant = tenant
+        self.tenant = tenant
 
     def get_abilities(self) -> ClientAbilities:
-        return self.__abilities
+        return self.abilities
 
     def set_abilities(self, abilities: ClientAbilities) -> None:
-        self.__abilities = abilities
+        self.abilities = abilities
 
     def get_module(self):
-        return self.__MODULE
+        return "internal"
 
     def get_remote_type(self):
         return remote_request_type["ConnectionSetup"]

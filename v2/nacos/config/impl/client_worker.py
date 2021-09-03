@@ -1,3 +1,6 @@
+import uuid
+
+from v2.nacos.common.constants import Constants
 from v2.nacos.common.lifecycle.closeable import Closeable
 from v2.nacos.config.filter_impl.config_response import ConfigResponse
 from v2.nacos.config.ilistener import Listener
@@ -19,11 +22,29 @@ class ClientWorker(Closeable):
 
     DEFAULT_RESOURCE = ""
 
-    def __init__(self):
-        pass
+    def __init__(self, logger):
+        self.logger = logger
+        self.cache_map = {}
+        self.config_filter_chain_manager = None
+        self.is_health_server = True
+        self.uuid = uuid.uuid4()
+        self.timeout = None
+        self.agent = None
+        self.task_penalty_time = None
+        self.enable_remote_sync_config = False
+
+    @staticmethod
+    def __blank_2_default_group(group: str) -> str:
+        if not group or not group.strip():
+            return Constants.DEFAULT_GROUP
+        else:
+            return group.strip()
 
     def add_listeners(self, data_id: str, group: str, listeners: list) -> None:
-        pass
+        group = self.__blank_2_default_group(group)
+        tenant = self.agent.get_tenant()
+        cache = self.add_cache_data_if_absent(data_id, group, tenant)
+        
 
     def add_tenant_listeners(self, data_id: str, group: str, listeners: list) -> None:
         pass

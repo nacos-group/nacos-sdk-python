@@ -5,21 +5,13 @@ from v2.nacos.naming.dtos.service_info import ServiceInfo
 
 
 class SubscribeServiceResponse(response.Response):
-    def __init__(self, result_code:Optional[int]=None, message:Optional[str]=None,
-                 service_info:Optional[ServiceInfo]=None):
-        super().__init__()
-        if result_code:
-            self.set_result_code(result_code)
-        if message:
-            self.set_message(message)
-        if service_info:
-            self.__service_info = service_info
+    serviceInfo: Optional[ServiceInfo]
 
     def get_remote_type(self):
         return remote_response_type["SubscribeService"]
 
     def get_service_info(self) -> ServiceInfo:
-        return self.__service_info
+        return self.serviceInfo
 
     def set_service_info(self, service_info: ServiceInfo) -> None:
-        self.__service_info = service_info
+        self.serviceInfo = service_info

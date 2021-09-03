@@ -4,7 +4,7 @@ from v2.nacos.naming.nacos_naming_service import NacosNamingService
 import sys
 
 SERVER_ADDRESSES = "http://mse-96d50180-p.nacos-ans.mse.aliyuncs.com:8848"
-NAMESPACE = "test"
+NAMESPACE = "public"
 
 if __name__ == '__main__':
     properties = {
@@ -25,5 +25,5 @@ if __name__ == '__main__':
     logger.setLevel(logging.DEBUG)
 
     naming = NacosNamingService(logger, properties)
-    # naming.register_instance("nacos.test.3", "default", "11.11.11.11", 8888, "default")
+    naming.register_instance("nacos.test.3", "default", "11.11.11.11", 8888, "default")
     # print("step:2")

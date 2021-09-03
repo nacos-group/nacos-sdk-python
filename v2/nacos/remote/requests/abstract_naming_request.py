@@ -1,33 +1,31 @@
 from abc import ABCMeta
+from typing import Optional
 
 from v2.nacos.remote.requests.request import Request
 
 
 class AbstractNamingRequest(Request, metaclass=ABCMeta):
-    def __init__(self, namespace: str, service_name: str, group_name: str):
-        super().__init__()
-        self.__MODULE = "naming"
-        self.__namespace = namespace
-        self.__service_name = service_name
-        self.__group_name = group_name
+    namespace: Optional[str]
+    serviceName: Optional[str]
+    groupName: Optional[str]
 
     def get_module(self):
-        return self.__MODULE
+        return "naming"
 
     def get_namespace(self) -> str:
-        return self.__namespace
+        return self.namespace
 
     def set_namespace(self, namespace: str) -> None:
-        self.__namespace = namespace
+        self.namespace = namespace
 
     def get_service_name(self) -> str:
-        return self.__service_name
+        return self.serviceName
 
     def set_service_name(self, service_name: str) -> None:
-        self.__service_name = service_name
+        self.serviceName = service_name
 
     def get_group_name(self) -> str:
-        return self.__group_name
+        return self.groupName
 
     def set_group_name(self, group_name: str) -> None:
-        self.__group_name = group_name
+        self.groupName = group_name

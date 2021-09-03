@@ -127,8 +127,8 @@ class NamingGrpcClientProxy(NamingClientProxy):
     def register_service(self, service_name, group_name, instance):
         self.logger.info("[REGISTER-SERVICE] %s registering service %s with instance %s" %
                          (self.namespace, service_name, instance))
-        request = InstanceRequest(self.namespace, service_name, group_name,
-                                  NamingRemoteConstants.REGISTER_INSTANCE, instance)
+        request = InstanceRequest(namespace=self.namespace, serviceName=service_name, groupName=group_name,
+                                  type=NamingRemoteConstants.REGISTER_INSTANCE, instance=instance)
         self.__request_to_server(request, Response)
 
     def deregister_service(self, service_name, group_name, instance):
