@@ -20,6 +20,7 @@ from v2.nacos.common import constants
 from v2.nacos.remote.iserver_list_factory import ServerListFactory
 from v2.nacos.ability.client_abilities import ClientAbilities
 from v2.nacos.remote.iserver_request_handler import ServerRequestHandler
+from v2.nacos.remote.client_detection_request_handler import ClientDetectionRequestHandler
 # from v2.nacos.remote.connection import Connection
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.remote.requests.request import Request
@@ -208,6 +209,9 @@ class RpcClient(Closeable, metaclass=ABCMeta):
             self.switch_server_async()
 
         self.register_server_request_handler(ConnectResetRequestHandler(self))
+        # todo ?
+        self.register_server_request_handler(ClientDetectionRequestHandler())
+
 
     def shutdown(self) -> None:
         self.logger.info("Shutdown rpc client, set status to shutdown")
