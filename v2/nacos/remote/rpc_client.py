@@ -209,7 +209,6 @@ class RpcClient(Closeable, metaclass=ABCMeta):
             self.switch_server_async()
 
         self.register_server_request_handler(ConnectResetRequestHandler(self))
-        # todo ?
         self.register_server_request_handler(ClientDetectionRequestHandler())
 
 
@@ -544,7 +543,7 @@ class ConnectResetRequestHandler(ServerRequestHandler):
     def __init__(self, rpc_client: RpcClient):
         self._rpc_client = rpc_client
 
-    def request_reply(self, request: Request) -> Response:
+    def request_reply(self, request: Request) -> Optional[Response]:
         if isinstance(request, ConnectResetRequest):
             try:
                 with self._rpc_client.lock:
