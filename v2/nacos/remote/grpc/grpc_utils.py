@@ -1,13 +1,14 @@
 import json
 
 from google.protobuf.any_pb2 import Any
-from dacite import from_dict
 
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.remote.requests.request import Request
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.utils.net_utils import NetUtils
+
+# should keep
 from v2.nacos.remote.responses import *
 from v2.nacos.remote.requests import *
 
@@ -17,7 +18,6 @@ class GrpcUtils:
     def parse(payload: Payload) -> object:
         metadata_type = payload.metadata.type
         if metadata_type:
-            # todo: how to deal with json_dict ?
             # method-1
             # json_dict = json.loads(payload.body.value.decode('utf-8'))
             # obj = from_dict(data_class=eval(metadata_type), data=json_dict)
