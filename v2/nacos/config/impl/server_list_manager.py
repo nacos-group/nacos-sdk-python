@@ -1,3 +1,4 @@
+import random
 import re
 import sched
 import time
@@ -5,10 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import RLock
 from urllib.request import Request, urlopen
 from v2.nacos.common.lifecycle.closeable import Closeable
-from v2.nacos.common.internet_address_util import InternetAddressUtil
 from v2.nacos.common.utils import synchronized_with_attr
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.property_key_constants import PropertyKeyConstants
+from v2.nacos.remote.utils import response_code
 
 
 class ServerListManager(Closeable):
@@ -77,30 +78,20 @@ class ServerListManager(Closeable):
                                           str(self.endpoint_port) + self.content_path + "/" + self.server_list_name + \
                                           "?namespace=" + namespace
 
-    @staticmethod
-    def __get_fixed_name_suffix(server_ips: list) -> str:
-        sb = ""
-        spilt = ""
-        for server_ip in server_ips:
-            sb += spilt
-            server_ip = re.sub(r"http(s)?://", "", server_ip)
-            server_ip = re.sub(r":", "", server_ip)
-            sb += server_ip
-            spilt = "-"
-        return sb
-
     @synchronized_with_attr("lock")
     def start(self) -> None:
         if self.started or self.fixed:
             return
 
-        get_servers_task = ...
+        get_servers_task = ServerListManager.GetServerListTask(
+            self.logger, self.name, self.address_server_url, self.update_if_changed
+        )
 
         i = 0
         while i < self.init_server_list_retry_times and not self.server_urls:
             try:
                 get_servers_task.run()
-                pass
+                time.sleep((i+1)/10)
             except NacosException:
                 self.logger.warning("get serverlist fail, url: %s" % self.address_server_url)
             i += 1
@@ -121,7 +112,9 @@ class ServerListManager(Closeable):
         return self.server_urls
 
     def shutdown(self) -> None:
-        pass
+        self.logger.info("%s do shutdown begin" % self.__class__.__name__)
+        self.executor_service.shutdown()
+        self.logger.info("%s do shutdown stop" % self.__class__.__name__)
 
     def update_if_changed(self, new_list: list) -> None:
         if not new_list:
@@ -145,6 +138,52 @@ class ServerListManager(Closeable):
         self.logger.info("[%s] [update-serverlist] serverlist update to %s"
                          % (self.name, str(self.server_urls)))
 
+    def get_url_str(self) -> str:
+        return str(self.server_urls)
+
+    @staticmethod
+    def __get_fixed_name_suffix(server_ips: list) -> str:
+        sb = ""
+        spilt = ""
+        for server_ip in server_ips:
+            sb += spilt
+            server_ip = re.sub(r"http(s)?://", "", server_ip)
+            server_ip = re.sub(r":", "", server_ip)
+            sb += server_ip
+            spilt = "-"
+        return sb
+
+    def __str__(self):
+        return "ServerManager-" + self.name + "-" + self.get_url_str()
+
+    def refresh_current_server_addr(self) -> None:
+        index = random.randint(0, len(self.server_urls)-1)
+        self.current_server_addr = self.server_urls[index]
+
+    def get_next_server_addr(self) -> str:
+        self.refresh_current_server_addr()
+        return self.current_server_addr
+
+    def get_current_server_addr(self) -> str:
+        if not self.current_server_addr:
+            self.refresh_current_server_addr()
+        return self.current_server_addr
+
+    def update_current_server_addr(self, current_server_addr: str):
+        self.current_server_addr = current_server_addr
+
+    def get_content_path(self) -> str:
+        return self.content_path
+
+    def get_name(self) -> str:
+        return self.name
+
+    def get_namespace(self) -> str:
+        return self.namespace
+
+    def get_tenant(self) -> str:
+        return self.tenant
+
     class GetServerListTask:
         def __init__(self, logger, name, url, func):
             self.logger = logger
@@ -161,9 +200,26 @@ class ServerListManager(Closeable):
                 )
 
         def __get_apache_server_list(self):
-            req = Request(url=self.url, method="GET")
-            resp = urlopen(req)
-            if resp.getcode() == 0 or resp.getcode() == 200:
-                pass
-
-
+            try:
+                req = Request(url=self.url, method="GET")
+                resp = urlopen(req)
+                if resp.getcode() == response_code["success"]:
+                    lines = resp.read().decode("utf-8")
+                    result = []
+                    lines = lines.split("\n")
+                    for server_addr in lines:
+                        ip_port = server_addr.strip().split(":")
+                        ip = ip_port[0].strip()
+                        if len(ip_port) == 1:
+                            result.append(ip + ":8848")
+                        else:
+                            result.append(server_addr.strip())
+                    return result
+                else:
+                    self.logger.error("[check-serverlist] error. addressServerUrl: %s, code: %s"
+                                      % (self.url, resp.getcode()))
+                    return
+            except NacosException as e:
+                self.logger.error("[check-serverlist] exception. url: %s, %s"
+                                  % (self.url, str(e)))
+                return
