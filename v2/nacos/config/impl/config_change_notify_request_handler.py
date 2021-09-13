@@ -1,5 +1,6 @@
 from threading import RLock
 
+from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.config.common.group_key import GroupKey
 from v2.nacos.remote.requests import ConfigChangeNotifyRequest
 from v2.nacos.remote.requests.request import Request
@@ -21,7 +22,8 @@ class ConfigRpcServerRequestHandler:
                 cache_data = self.cache_map[group_key]
                 if cache_data:
                     with self.lock:
-                        # todo
+                        cache_data.set_last_modified_ts(get_current_time_millis())
+                        cache_data.set_sync_with_server(False)
                         self.func()
             return ConfigChangeNotifyResponse()
         return
