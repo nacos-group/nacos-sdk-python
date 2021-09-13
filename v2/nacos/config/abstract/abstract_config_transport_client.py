@@ -1,3 +1,4 @@
+import hashlib
 import sched
 import time
 from abc import ABCMeta, abstractmethod
@@ -9,6 +10,7 @@ from v2.nacos.config.filter_impl.config_response import ConfigResponse
 from v2.nacos.config.impl.server_list_manager import ServerListManager
 from v2.nacos.property_key_constants import PropertyKeyConstants
 from v2.nacos.security.security_proxy import SecurityProxy
+from v2.nacos.utils.param_utils import ParamUtils
 
 
 class AbstractConfigTransportClient(metaclass=ABCMeta):
@@ -49,9 +51,10 @@ class AbstractConfigTransportClient(metaclass=ABCMeta):
     def _get_spas_headers(self):
         spas_header = {}
         # todo STS 临时凭证鉴权的优先级高于 AK/SK 鉴权
-        pass
+        return spas_header
 
     def _get_security_headers(self) -> dict:
+        # todo
         access_token = self.security_proxy.get_access_token()
         if not access_token or not access_token.strip():
             return
@@ -59,8 +62,22 @@ class AbstractConfigTransportClient(metaclass=ABCMeta):
         return security_headers
 
     def _get_common_header(self) -> dict:
+        # ts = str(get_current_time_millis())
+        # md = hashlib.md5()
+        # md.update((ts + ParamUtil.get_app_key()).encode(Constants.ENCODE))
+        # token = md.hexdigest()
+        #
+        # headers = {
+        #     Constants.CLIENT_APPNAME_HEADER: ParamUtil.get_app_name(),
+        #     Constants.CLIENT_REQUEST_TS_HEADER: ts,
+        #     Constants.CLIENT_REQUEST_TOKEN_HEADER: token,
+        #     AbstractConfigTransportClient.CONFIG_INFO_HEADER: AbstractConfigTransportClient.DEFAULT_CONFIG_INFO,
+        #     Constants.CHARSET_KEY: self.encode
+        # }
+        #
+        # return headers
         # todo
-        pass
+        return {}
 
     def get_access_token(self) -> str:
         return self.security_proxy.get_access_token()
@@ -127,7 +144,7 @@ class AbstractConfigTransportClient(metaclass=ABCMeta):
                        data_id: str, group: str, tenant: str, app_name: str,
                        tag: str, beta_ips: str, content: str, encrypted_data_key: str,
                        cas_md5: str, config_type: str
-                       ) -> bool:  # todo config type or type?
+                       ) -> bool:
         pass
 
     @abstractmethod
