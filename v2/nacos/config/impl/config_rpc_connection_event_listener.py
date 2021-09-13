@@ -1,9 +1,11 @@
+import queue
+
 from v2.nacos.remote.iconnection_event_listener import ConnectionEventListener
 from v2.nacos.remote.rpc_client import RpcClient
 
 
 class ConfigRpcConnectionEventListener(ConnectionEventListener):
-    def __init__(self, logger, rpc_client_inner: RpcClient, cache_map: dict, listen_execute_bell: list):
+    def __init__(self, logger, rpc_client_inner: RpcClient, cache_map: dict, listen_execute_bell: queue.Queue):
         self.logger = logger
         self.rpc_client = rpc_client_inner
         self.cache_map = cache_map
@@ -25,4 +27,4 @@ class ConfigRpcConnectionEventListener(ConnectionEventListener):
                 cache_data.is_listen_success = False
 
     def notify_listen_config(self):
-        self.listen_execute_bell.append(self.bell_item)
+        self.listen_execute_bell.put(self.bell_item)
