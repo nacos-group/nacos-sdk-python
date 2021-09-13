@@ -8,8 +8,6 @@ import logging
 
 class NamingGrpcConnectionEventListener(ConnectionEventListener):
     def __init__(self, logger, client_proxy):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
         self.client_proxy = client_proxy
@@ -40,7 +38,7 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
         self.logger.info("Grpc reconnect, redo register services")
         for key, value in self.registered_instance_cached.items():
             service_name = NamingUtils.get_service_name(key)
-            group_name = NamingUtils.get_grouped_name(key)
+            group_name = NamingUtils.get_group_name(key)
             self.__redo_register_each_instance(service_name, group_name, value)
 
     def __redo_register_each_instance(self, service_name: str, group_name: str, instance: Instance) -> None:

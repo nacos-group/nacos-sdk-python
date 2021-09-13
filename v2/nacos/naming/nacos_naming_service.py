@@ -16,8 +16,6 @@ class NacosNamingService:
     DOWN = "DOWN"
 
     def __init__(self, logger, properties: dict):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
         self.namespace = properties["namespace"]
@@ -36,7 +34,8 @@ class NacosNamingService:
         instance = Instance(ip=ip, port=port, cluster_name=cluster_name, service_name=service_name)
         self.client_proxy.deregister_service(service_name, group_name, instance)
 
-    def get_all_instances(self, service_name: str, group_name: str, clusters: List[str], subscribe: bool) -> List[Instance]:
+    def get_all_instances(self, service_name: str, group_name: str, clusters: List[str], subscribe: bool
+                          ) -> List[Instance]:
         cluster_string = ",".join(clusters)
         if subscribe:
             service_info = self.service_info_holder.get_service_info(service_name, group_name, cluster_string)
@@ -49,7 +48,8 @@ class NacosNamingService:
 
         return service_info.get_hosts()
 
-    def select_instances(self, service_name: str, group_name: str, clusters: List[str], healthy: bool, subscribe: bool) -> List[Instance]:
+    def select_instances(self, service_name: str, group_name: str, clusters: List[str], healthy: bool, subscribe: bool
+                         ) -> List[Instance]:
         cluster_string = ",".join(clusters)
         if subscribe:
             service_info = self.service_info_holder.get_service_info(service_name, group_name, cluster_string)
@@ -71,7 +71,8 @@ class NacosNamingService:
         service_info.set_hosts(instances_list)
         return instances_list
 
-    def select_one_healthy_instance(self, service_name: str, group_name: str, clusters: List[str], subscribe: bool) -> Instance:
+    def select_one_healthy_instance(self, service_name: str, group_name: str, clusters: List[str], subscribe: bool
+                                    ) -> Instance:
         cluster_string = ",".join(clusters)
         if subscribe:
             service_info = self.service_info_holder.get_service_info(service_name, group_name, cluster_string)

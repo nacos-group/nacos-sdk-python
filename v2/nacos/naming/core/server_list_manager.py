@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from random import randint
 from threading import RLock
-from typing import List
+from typing import List, Optional
 from urllib.request import Request, urlopen
 
 from v2.nacos.common.lifecycle.closeable import Closeable
@@ -17,8 +17,6 @@ from v2.nacos.remote.iserver_list_factory import ServerListFactory
 
 class ServerListManager(ServerListFactory, Closeable):
     def __init__(self, logger, properties: dict):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
         self.refresh_server_list_internal = 30  # second
         self.current_index = 0
@@ -49,14 +47,14 @@ class ServerListManager(ServerListFactory, Closeable):
                 if len(self.server_list) == 1:
                     self.nacos_domain = server_list_from_props
 
-    def __get_server_list_from_endpoint(self) -> list:
+    def __get_server_list_from_endpoint(self) -> Optional[list]:
         try:
             url_str = "http://" + self.endpoint + "/nacos/serverlist"
             req = Request(url=url_str)
             resp = urlopen(req)
             resp_data = resp.read()
             obj = json.loads(resp_data).decode('utf-8')
-            # todo check ?
+            # todo check and fix
             if obj["code"] != 0 and obj["code"] != 200:
                 raise NacosException("Error while requesting")
 

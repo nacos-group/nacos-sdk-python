@@ -46,8 +46,6 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
     def __init__(self, logger, namespace: str, security_proxy: SecurityProxy, server_list_factory: ServerListFactory,
                  properties: dict, service_info_holder: ServiceInfoHolder):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
         self.namespace = namespace
@@ -82,7 +80,7 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
             if response.get_result_code() != response_code["success"]:
                 raise NacosException(str(response.get_error_code()) + response.get_message())
-            if issubclass(response.__class__, response_class):  # todo check if anything wrong
+            if issubclass(response.__class__, response_class):  # todo check and fix if anything wrong
                 return response
             self.logger.error("Server return unexpected response '%s', expected response should be '%s'"
                               % (response.__class__.__name__, response_class.__name__))
@@ -145,7 +143,12 @@ class NamingGrpcClientProxy(NamingClientProxy):
     def query_instances_of_service(self, service_name, group_name, clusters, udp_port, healthy_only):
         request = ServiceQueryRequest(self.namespace, service_name, group_name, clusters, healthy_only, udp_port)
         response = self.__request_to_server(request, QueryServiceResponse)
-        return response.get_service_info()
+        if isinstance(response, QueryServiceResponse):
+            return response.get_service_info()
+        else:
+            self.logger.error("[QUERY-INSTANCE-OF-SERVICE] unexpected type of response: %s"
+                              % response.__class__.__name__)
+            raise NacosException("Unexpected type of response!")
 
     def query_service(self, service_name, group_name):
         pass
@@ -167,8 +170,13 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
         request = ServiceListRequest(self.namespace, group_name, page_no, page_size, selector_str)
         response = self.__request_to_server(request, ServiceListResponse)
-        result = ListView(response.get_service_names(), response.get_count())
-        return result
+        if isinstance(response, ServiceListResponse):
+            result = ListView(response.get_service_names(), response.get_count())
+            return result
+        else:
+            self.logger.error("[GET-SERVICE-RESPONSE] unexpected type of response: %s"
+                              % response.__class__.__name__)
+            raise NacosException("Unexpected type of response!")
 
     def subscribe(self, service_name: str, group_name: str, clusters: str):
         request = SubscribeServiceRequest(self.namespace, group_name, service_name, clusters, True)
@@ -176,7 +184,12 @@ class NamingGrpcClientProxy(NamingClientProxy):
         self.naming_grpc_connection_event_listener.cache_subscribe_for_redo(
             NamingUtils.get_grouped_name(service_name, group_name), clusters
         )
-        return response.get_service_info()
+        if isinstance(response, SubscribeServiceResponse):
+            return response.get_service_info()
+        else:
+            self.logger.error("[SUBSCRIBE] unexpected type of response: %s"
+                              % response.__class__.__name__)
+            raise NacosException("Unexpected type of response!")
 
     def unsubscribe(self, service_name: str, group_name: str, clusters: str) -> None:
         request = SubscribeServiceRequest(

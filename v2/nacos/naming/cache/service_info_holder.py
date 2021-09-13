@@ -20,8 +20,6 @@ class ServiceInfoHolder(Closeable):
     USER_HOME_PROPERTY = "user.home"
 
     def __init__(self, logger, namespace, properties):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
         self.__init_cache_dir(namespace, properties)
@@ -51,6 +49,7 @@ class ServiceInfoHolder(Closeable):
         #                                   ServiceInfoHolder.FILE_PATH_NAMING,
         #                                   namespace)
 
+        # todo
         self.cache_dir = "/Users/cangxiamy/nacos/data"
 
     @staticmethod

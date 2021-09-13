@@ -19,12 +19,12 @@ from v2.nacos.security.security_proxy import SecurityProxy
 
 
 class NamingClientProxyDelegate(NamingClientProxy):
+    SECURITY_INFO_REFRESH_INTERVAL_SECOND = 5
+
     def __init__(self, logger, namespace, service_info_holder, properties, change_notifier):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
-        self.security_info_refresh_interval_second = 5
+        self.security_info_refresh_interval_second = NamingClientProxyDelegate.SECURITY_INFO_REFRESH_INTERVAL_SECOND
         self.service_info_update_service = ServiceInfoUpdateService(self.logger, properties, service_info_holder,
                                                                     self, change_notifier)
         self.server_list_manager = ServerListManager(self.logger, properties)
@@ -83,7 +83,7 @@ class NamingClientProxyDelegate(NamingClientProxy):
         else:
             result = self.server_info_holder.get_service_info_map()[service_key]
 
-        self.service_info_update_service.schedule_update_if_absent(service_name, clusters)
+        self.service_info_update_service.schedule_update_if_absent(service_name, group_name, clusters)
         self.server_info_holder.process_service_info(result)
         return result
 

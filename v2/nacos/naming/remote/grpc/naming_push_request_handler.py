@@ -1,3 +1,5 @@
+from typing import Optional
+
 from v2.nacos.naming.cache.service_info_holder import ServiceInfoHolder
 from v2.nacos.remote.iserver_request_handler import ServerRequestHandler
 from v2.nacos.remote.requests.notify_subscriber_request import NotifySubscriberRequest
@@ -10,7 +12,7 @@ class NamingPushRequestHandler(ServerRequestHandler):
     def __init__(self, service_info_holder: ServiceInfoHolder):
         self.service_info_holder = service_info_holder
 
-    def request_reply(self, request: Request) -> Response:
+    def request_reply(self, request: Request) -> Optional[Response]:
         if isinstance(request, NotifySubscriberRequest):
             self.service_info_holder.process_service_info(request.get_service_info())
             response = NotifySubscriberResponse()
