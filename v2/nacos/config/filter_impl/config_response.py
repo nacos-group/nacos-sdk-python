@@ -1,10 +1,11 @@
 from pydantic import BaseModel
 
+from v2.nacos.config.abstract.abstract_config_response import AbstractConfigResponse
 from v2.nacos.config.common.config_constants import ConfigConstants
 from v2.nacos.config.filter_impl.config_context import ConfigContext
 
 
-class ConfigResponse(BaseModel):
+class ConfigResponse(AbstractConfigResponse, BaseModel):
     param: dict = {}
     configContext: ConfigContext = ConfigContext()
 
