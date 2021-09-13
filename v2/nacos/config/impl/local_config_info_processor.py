@@ -1,6 +1,9 @@
 import os
 
 from v2.nacos.exception.nacos_exception import NacosException
+from v2.nacos.utils.env_util import EnvUtil
+
+system_properties = EnvUtil().get_system_properties()
 
 
 class LocalConfigInfoProcessor:
@@ -18,9 +21,11 @@ class LocalConfigInfoProcessor:
 
     SNAPSHOT_FILE_CHILD_2 = "snapshot-tenant"
 
-    # todo
-    LOCAL_FILEROOT_PATH = ...
-    LOCAL_SNAPSHOT_PATH = ...
+    USER_HOME = system_properties.get("user.home")
+
+    LOCAL_FILEROOT_PATH = os.path.join(USER_HOME, "nacos", "config")
+
+    LOCAL_SNAPSHOT_PATH = os.path.join(USER_HOME, "nacos", "config")
 
     def __init__(self, logger):
         self.logger = logger

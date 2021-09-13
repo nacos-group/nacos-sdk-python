@@ -1,4 +1,5 @@
 import logging
+import time
 
 from v2.nacos.naming.nacos_naming_service import NacosNamingService
 import sys
@@ -27,3 +28,4 @@ if __name__ == '__main__':
     naming = NacosNamingService(logger, properties)
     naming.register_instance("nacos.test.3", "default", "11.11.11.11", 8888, "default")
     # print("step:2")
+    time.sleep(1000)
