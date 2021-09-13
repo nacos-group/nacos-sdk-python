@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import RLock, Thread
 import queue
 from abc import ABCMeta, abstractmethod
-from typing import Dict
+from typing import Dict, Optional
 
 from nacos.commons import synchronized_with_attr
 from v2.nacos.common.constants import Constants
