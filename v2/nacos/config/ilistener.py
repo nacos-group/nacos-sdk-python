@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class Listener(etaclass=ABCMeta):
+class Listener(metaclass=ABCMeta):
     @abstractmethod
     def get_executor(self):
         pass

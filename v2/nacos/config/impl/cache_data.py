@@ -4,7 +4,12 @@ from typing import Optional
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.utils import get_current_time_millis
+from v2.nacos.config.abstract.abstract_config_change_listener import AbstractConfigChangeListener
+from v2.nacos.config.abstract.abstract_shared_listener import AbstractSharedListener
+from v2.nacos.config.filter_impl.config_response import ConfigResponse
 from v2.nacos.config.ilistener import Listener
+from v2.nacos.config.impl.config_change_event import ConfigChangeEvent
+from v2.nacos.config.impl.config_change_handler import ConfigChangeHandler
 from v2.nacos.config.impl.local_config_info_processor import LocalConfigInfoProcessor
 from v2.nacos.config.impl.local_encrypted_data_key_processor import LocalEncryptedDataKeyProcessor
 from v2.nacos.exception.nacos_exception import NacosException
@@ -133,29 +138,60 @@ class CacheData:
     def check_listener_md5(self) -> None:
         for wrap in self.listeners:
             if wrap.last_call_md5 != self.md5:
-                self.__safe_notify_listener(self.content, self.md5, wrap)
+                self.__safe_notify_listener(
+                    self.data_id, self.group, self.content, self.type, self.md5, self.encrypted_data_key, wrap
+                )
 
     def check_listener_md5_consistent(self) -> bool:
         for wrap in self.listeners:
             if self.md5 != wrap.last_call_md5:
                 return False
 
-    @staticmethod
-    def __safe_notify_listener(content: str, md5: str, wrap) -> None:
+    def __safe_notify_listener(
+            self, data_id, group, content, config_type, md5, encrypted_dat_key, listener_wrap) -> None:
         # todo uncompleted
-        listener = wrap.listener
-        wrap.last_content = content
-        wrap.last_call_md5 = md5
-        listener.receive_config_info(content)
-
         # def job():
-        #     pass
+        #     start = get_current_time_millis()
+        #     try:
+        #         if isinstance(listener, AbstractSharedListener):
+        #             listener.fill_context(data_id, group)
+        #             self.logger.info("[%s] [notify-context] dataId=%s, group=%s, md5=%s"
+        #                              % (self.name, data_id, group, md5))
         #
-        # listener = wrap.listener
-        # if wrap.in_notifying:
-        #     self.logger.warning("[%s] [notify-currentSkip] dataId=%s, group=%s, md5=%s, listener=%s, " +\
+        #             cr = ConfigResponse()
+        #             cr.set_data_id(data_id)
+        #             cr.set_group(group)
+        #             cr.set_content(content)
+        #             cr.set_encrypted_data_key(encrypted_dat_key)
+        #             self.config_filter_chain_manager.do_filter(None, cr)
+        #             content_tmp = cr.get_content()
+        #             listener_wrap.in_notifying = True
+        #             listener.receive_config_info(content_tmp)
+        #
+        #         if isinstance(listener, AbstractConfigChangeListener):
+        #             data = ConfigChangeHandler.get_instance().parse_change_data(
+        #                 listener_wrap.last_content, content, config_type
+        #             )
+        #             event = ConfigChangeEvent(data)
+        #             listener.receive_config_change(event)
+        #             listener_wrap.last_content = content
+        #
+        #         listener_wrap = md5
+        #
+        #         self.logger.info("[%s] [notify-ok] dataId=%s, group=%s, md5=%s, listener=%s, cost=%s millis."
+        #                          % (self.name, data_id, group, md5, listener, str(get_current_time_millis() - start)))
+        #     except NacosException as ex:
+        #         self.logger.error("[%s] [notify-error] dataId=%s, group=%s, md5=%s, listener=%s, errInfo=%s"
+        #                           % (self.name, data_id, group, md5, listener, str(ex)))
+        #     finally:
+        #         listener_wrap.in_notifying = False
+        #
+        # listener = listener_wrap.listener
+        # if listener_wrap.in_notifying:
+        #     self.logger.warning("[%s] [notify-currentSkip] dataId=%s, group=%s, md5=%s, listener=%s, "
+        #                         % (self.name, data_id, group, md5, listener) +
         #                         "listener is not finish yet, will try next time."
-        #                         % (self.name, data_id, group, md5, listener))
+        #                         )
         #
         # start_notify = get_current_time_millis()
         # try:
@@ -168,18 +204,32 @@ class CacheData:
         #             self.logger.error("[%s] [notify-blocked] dataId=%s, group=%s, md5=%s, listener=%s"
         #                               % (self.name, data_id, group, md5, listener)
         #                               )
-        #             # 如果多线程执行出现异常，就顺序执行
+        #             # if there is an exception, run in order
         #             job()
         # except NacosException as e:
         #     self.logger.error("[%s] [notify-error] dataId=%s, group=%s, md5=%s, listener=%s: %s"
         #                       % (self.name, data_id, group, md5, listener, str(e))
         #                       )
-        #
         # finish_notify = get_current_time_millis()
         # self.logger.info(
         #     "[%s] [notify-listener] time cost=%sms in ClientWorker, dataId=%s, group=%s, md5=%s, listener=%s"
         #     % (self.name, str(finish_notify-start_notify), data_id, group, md5, listener)
         # )
+
+        listener = listener_wrap.listener
+        cr = ConfigResponse()
+        cr.set_data_id(data_id)
+        cr.set_group(group)
+        cr.set_content(content)
+        cr.set_encrypted_data_key(encrypted_dat_key)
+        self.config_filter_chain_manager.do_filter(None, cr)
+
+        content_tmp = cr.get_content()
+
+        listener_wrap.last_content = content
+        listener_wrap.last_call_md5 = md5
+
+        listener.receive_config_info(content_tmp)
 
     @staticmethod
     def get_md5_str(config: str) -> str:
