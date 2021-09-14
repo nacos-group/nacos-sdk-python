@@ -74,7 +74,10 @@ class ReconnectContext:
 
 class RpcClient(Closeable, metaclass=ABCMeta):
     RETRY_TIMES = 3
+
     DEFAULT_TIMEOUT_MILLS = 3000
+
+    MAX_WORKERS = 3
 
     def __init__(self, logger, name: str = None, server_list_factory: ServerListFactory = None):
         # logging.basicConfig()
@@ -87,7 +90,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         self.lock = RLock()
         self._rpc_client_status = rpc_client_status["WAIT_INIT"]
 
-        self._client_event_executor = None
+        self._client_event_executor = ThreadPoolExecutor(max_workers=RpcClient.MAX_WORKERS)
         self.__reconnection_signal = queue.Queue()
         self._current_connection = None
         self._labels = {}
@@ -177,7 +180,6 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         with self.lock:
             self._rpc_client_status = rpc_client_status["STARTING"]
 
-        self._client_event_executor = ThreadPoolExecutor(max_workers=2)
         self._client_event_executor.submit(self._start_connect)
         self._client_event_executor.submit(self._start_reconnect)
 

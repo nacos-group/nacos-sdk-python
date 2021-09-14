@@ -69,7 +69,8 @@ class GrpcConnection(Connection):
     def gen_message(self):
         while True:
             try:
-                payload = self.queue.get(timeout=GrpcConnection.TIMEOUT)
+                # payload = self.queue.get(timeout=GrpcConnection.TIMEOUT)
+                payload = self.queue.get()
                 yield payload
             except NacosException:
                 pass
