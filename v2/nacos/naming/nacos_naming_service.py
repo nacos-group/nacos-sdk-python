@@ -8,6 +8,7 @@ from v2.nacos.naming.event.instances_change_notifier import InstancesChangeNotif
 from v2.nacos.naming.ievent_listener import EventListener
 from v2.nacos.naming.remote.naming_client_proxy_delegate import NamingClientProxyDelegate
 from v2.nacos.naming.utils.naming_utils import NamingUtils
+from v2.nacos.utils.validator_utils import ValidatorUtils
 
 
 class NacosNamingService:
@@ -16,6 +17,7 @@ class NacosNamingService:
     DOWN = "DOWN"
 
     def __init__(self, logger, properties: dict):
+        ValidatorUtils.check_init_param(properties)
         self.logger = logger
 
         self.namespace = properties["namespace"]

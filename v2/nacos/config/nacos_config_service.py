@@ -12,6 +12,7 @@ from v2.nacos.config.impl.server_list_manager import ServerListManager
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.property_key_constants import PropertyKeyConstants
 from v2.nacos.utils.param_utils import ParamUtils
+from v2.nacos.utils.validator_utils import ValidatorUtils
 
 
 class NacosConfigService:
@@ -20,6 +21,8 @@ class NacosConfigService:
     DOWN = "DOWN"
 
     def __init__(self, logger, properties: dict):
+        ValidatorUtils.check_init_param(properties)
+
         self.logger = logger
         self.namespace = properties[PropertyKeyConstants.NAMESPACE]
 
