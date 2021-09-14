@@ -49,7 +49,6 @@ class GrpcClient(RpcClient):
                 bi_request_stream_stub = BiRequestStreamStub(self._channel)
                 grpc_conn = GrpcConnection(server_info)
                 grpc_conn.set_connection_id(response.get_connection_id())
-                # grpc_conn.set_connection_id(response.connectionId)
                 grpc_conn.set_bi_request_stream_stub(bi_request_stream_stub)
                 grpc_conn.set_request_stub(request_stub)
                 grpc_conn.set_channel(self._channel)
@@ -87,7 +86,28 @@ class GrpcClient(RpcClient):
             return
 
     def bind_request_stream(self, stream_stub: BiRequestStreamStub, grpc_conn: GrpcConnection):
-        pass
+        for payload in stream_stub.requestBiStream(grpc_conn.gen_message()):
+            self.logger.info("[%s] Stream server request receive, original info: %s"
+                             % (grpc_conn.get_connection_id(), str(payload)))
+            try:
+                request = GrpcUtils.convert_request(payload)
+                if request:
+                    try:
+                        response = self.handle_server_request(request)
+                        if response:
+                            response.set_request_id(request.get_request_id())
+                            self._send_response(response)
+                        else:
+                            self.logger.warning("[%s] Fail to process server request, ackId->%s"
+                                                % (grpc_conn.get_connection_id(), request.get_request_id()))
+                    except NacosException as e:
+                        self.logger.error("[%s] Handle server request exception: %s, %s"
+                                          % (grpc_conn.get_connection_id(), str(payload), e))
+            except NacosException:
+                self.logger.error("[%s] Error to process server push response: %s"
+                                  % (grpc_conn.get_connection_id(), str(payload.body)))
+
+        return stream_stub
 
     def _send_response_with_flag(self, ack_id: str, success: bool):
         try:

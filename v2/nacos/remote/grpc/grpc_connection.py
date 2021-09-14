@@ -12,12 +12,14 @@ from v2.nacos.remote.rpc_client import ServerInfo
 
 
 class GrpcConnection(Connection):
+    TIMEOUT = 5
+
     def __init__(self, server_info: ServerInfo):
         super().__init__(server_info)
         self.channel = None
         self.request_stub = None
         self.bi_request_stream_stub = None
-        self.queue = Queue()  # todo delete?
+        self.queue = Queue()
 
     def request(self, request: Request, timeout_mills: int) -> Response:
         grpc_request = GrpcUtils.convert_request(request)
@@ -32,8 +34,9 @@ class GrpcConnection(Connection):
 
     def send_request(self, request: Request) -> None:
         convert = GrpcUtils.convert_request(request)
-        responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
-        self.queue.put(responses)
+        # responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
+        # self.queue.put(responses)
+        self.queue.put(convert)
 
     # def request_future(self, request: Request) -> RequestFuture:
     #     pass
@@ -43,8 +46,9 @@ class GrpcConnection(Connection):
 
     def send_response(self, response: Response) -> None:
         convert = GrpcUtils.convert_response(response)
-        responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
-        self.queue.put(responses)
+        # responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
+        # self.queue.put(responses)
+        self.queue.put(convert)
 
     def close(self) -> None:
         if self.channel:
@@ -61,3 +65,11 @@ class GrpcConnection(Connection):
 
     def set_bi_request_stream_stub(self, stub: BiRequestStreamStub) -> None:
         self.bi_request_stream_stub = stub
+
+    def gen_message(self):
+        while True:
+            try:
+                payload = self.queue.get(timeout=GrpcConnection.TIMEOUT)
+                yield payload
+            except NacosException:
+                pass
