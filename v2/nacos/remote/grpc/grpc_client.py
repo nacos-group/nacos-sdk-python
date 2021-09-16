@@ -38,7 +38,6 @@ class GrpcClient(RpcClient):
 
             port = server_info.get_server_port()
             self._channel = grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port))
-            # with grpc.insecure_channel(str(server_info.get_server_ip())+":"+str(port)) as channel:
             request_stub = RequestStub(self._channel)
             if request_stub:
                 response = self.server_check(request_stub, server_info.get_server_ip(), port)
@@ -48,6 +47,7 @@ class GrpcClient(RpcClient):
 
                 bi_request_stream_stub = BiRequestStreamStub(self._channel)
                 grpc_conn = GrpcConnection(server_info)
+                bi_request_stream_stub = self.bind_request_stream(bi_request_stream_stub, grpc_conn)
                 grpc_conn.set_connection_id(response.get_connection_id())
                 grpc_conn.set_bi_request_stream_stub(bi_request_stream_stub)
                 grpc_conn.set_request_stub(request_stub)
