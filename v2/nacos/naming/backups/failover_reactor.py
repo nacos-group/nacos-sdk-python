@@ -30,13 +30,14 @@ class FailoverReactor(Closeable):
         self.failover_dir = cache_dir + FailoverReactor.FAILOVER_DIR
 
         self.executor_service = ThreadPoolExecutor(max_workers=1)
-        self.__init_failover_reactor()
 
         self.last_modified_time = 0
 
         self.task_timer = sched.scheduler(time.time, time.sleep)
 
         self.disk_cache = DiskCache(self.logger)
+
+        self.__init_failover_reactor()
 
     def __init_failover_reactor(self):
         self.task_timer.enter(5, 0, self.__switch_refresher)
