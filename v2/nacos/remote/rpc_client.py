@@ -241,7 +241,10 @@ class RpcClient(Closeable, metaclass=ABCMeta):
             try:
                 if self.is_shutdown():
                     break
-                reconnect_context = self.__reconnection_signal.get(block=True, timeout=self.__keep_alive_time / 1000)
+                try:
+                    reconnect_context = self.__reconnection_signal.get(block=True, timeout=self.__keep_alive_time / 1000)
+                except Exception:
+                    reconnect_context = None
                 if not reconnect_context:
                     if get_current_time_millis() - self.__last_active_time_stamp >= self.__keep_alive_time:
                         is_healthy = self.health_check()
@@ -273,6 +276,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                     if not server_exist:
                         self.logger.info("[%s]Recommend server is not in server list, ignore recommend server %s"
                                          % (self.__class__.__name__, reconnect_context.server_info.get_address()))
+                        reconnect_context.server_info = None
                 self.reconnect(reconnect_context.server_info, reconnect_context.on_request_fail)
             except NacosException:
                 pass
