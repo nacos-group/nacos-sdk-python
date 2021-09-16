@@ -1,28 +1,35 @@
 import urllib.parse
+from typing import Optional
+
+from pydantic import BaseModel
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.exception.nacos_exception import NacosException
 
 
-class ServiceInfo:
+class ServiceInfo(BaseModel):
+    name: Optional[str]
+    groupName: Optional[str]
+
+    clusters: Optional[str]
+    cacheMillis: int = 1000
+    hosts: list = []
+    lastRefTime: int = 0
+    checksum: str = ""
+    allIps: bool = False
+    reachProtectionThreshold: bool = False
+    jsonFromServer: str = ""
+
     EMPTY = ""
+
     ALL_IPS = "000--00-ALL_IPS--00--000"
+
     SPLITER = "@@"
+
     DEFAULT_CHARSET = "UTF-8"
 
-    def __init__(self, key=None):
-        self.name = ""
-        self.group_name = ""
-        self.clusters = ""
-        self.cache_millis = 1000
-        self.hosts = []
-        self.last_ref_time = 0
-        self.checksum = ""
-        self.all_ips = False
-        self.reach_protection_threshold = False
-        self.json_from_server = ServiceInfo.EMPTY
-
+    def init_from_key(self, key=None):
         if key:
             max_index = 2
             cluster_index = 2
@@ -30,20 +37,20 @@ class ServiceInfo:
             group_index = 0
             keys = key.split(Constants.SERVICE_INFO_SPLITER)
             if len(keys) >= max_index + 1:
-                self.group_name = keys[group_index]
+                self.groupName = keys[group_index]
                 self.name = keys[service_name_index]
                 self.clusters = keys[cluster_index]
             elif len(keys) == max_index:
-                self.group_name = keys[group_index]
+                self.groupName = keys[group_index]
                 self.name = keys[service_name_index]
             else:
                 raise NacosException("Can't parse out 'group_name', but it must not None!")
 
     def ip_count(self):
-        return self.hosts.count()
+        return len(self.hosts)
 
     def expired(self):
-        return get_current_time_millis() - self.last_ref_time > self.cache_millis
+        return get_current_time_millis() - self.lastRefTime > self.cacheMillis
 
     def set_hosts(self, hosts):
         self.hosts = hosts
@@ -67,16 +74,16 @@ class ServiceInfo:
         self.name = name
 
     def get_group_name(self):
-        return self.group_name
+        return self.groupName
 
     def set_group_name(self, group_name):
-        self.group_name = group_name
+        self.groupName = group_name
 
     def get_last_ref_time(self):
-        return self.last_ref_time
+        return self.lastRefTime
 
     def set_last_ref_time(self, last_ref_time):
-        self.last_ref_time = last_ref_time
+        self.lastRefTime = last_ref_time
 
     def get_clusters(self):
         return self.clusters
@@ -85,19 +92,19 @@ class ServiceInfo:
         self.clusters = clusters
 
     def get_cache_millis(self):
-        return self.cache_millis
+        return self.cacheMillis
 
     def set_cache_millis(self, cache_millis):
-        self.cache_millis = cache_millis
+        self.cacheMillis = cache_millis
 
     def get_json_from_server(self) -> str:
-        return self.json_from_server
+        return self.jsonFromServer
 
     def set_json_from_server(self, json_from_server) -> None:
-        self.json_from_server = json_from_server
+        self.jsonFromServer = json_from_server
 
     def validate(self):
-        if self.all_ips:
+        if self.allIps:
             return True
 
         if not self.hosts:
@@ -111,7 +118,7 @@ class ServiceInfo:
             for i in range(host.get_weight()):
                 valid_hosts.append(i)
 
-        return valid_hosts.count() > 0
+        return len(valid_hosts) > 0
 
     @staticmethod
     def get_key(name=None, clusters=None):
@@ -126,8 +133,8 @@ class ServiceInfo:
 
     def get_grouped_service_name(self):
         service_name = self.name
-        if self.group_name and Constants.SERVICE_INFO_SPLITER not in service_name:
-            service_name = self.group_name + Constants.SERVICE_INFO_SPLITER + service_name
+        if self.groupName and Constants.SERVICE_INFO_SPLITER not in service_name:
+            service_name = self.groupName + Constants.SERVICE_INFO_SPLITER + service_name
         return service_name
 
     @staticmethod
@@ -154,7 +161,8 @@ class ServiceInfo:
         self.checksum = checksum
 
     def is_reach_protection_threshold(self) -> bool:
-        return self.reach_protection_threshold
+        return self.reachProtectionThreshold
 
     def set_reach_protection_threshold(self, reach_protection_threshold: bool) -> None:
-        self.reach_protection_threshold = reach_protection_threshold
+        self.reachProtectionThreshold = reach_protection_threshold
+

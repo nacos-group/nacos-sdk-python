@@ -1,39 +1,38 @@
 import re
+from typing import Optional
+
+from pydantic import BaseModel
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.preserved_metadata_keys import PreservedMetadataKeys
 
 
-class Instance:
-    def __init__(self, instance_ip=None, ip=None, port=None, weight=1.0, healthy=True, enabled=True, ephemeral=True,
-                 cluster_name=None, service_name=None, metadata=None):
-        if metadata is None:
-            metadata = {}
-
-        self.instance_id = instance_ip
-        self.ip = ip
-        self.port = port
-        self.weight = weight
-        self.healthy = healthy
-        self.enabled = enabled
-        self.ephemeral = ephemeral
-        self.cluster_name = cluster_name
-        self.service_name = service_name
-        self.metadata = metadata
+class Instance(BaseModel):
+    instanceId: Optional[str]
+    ip: Optional[str]
+    port: Optional[int]
+    weight: float = 1.0
+    healthy: bool = True
+    enabled: bool = True
+    ephemeral: bool = True
+    clusterName: Optional[str]
+    serviceName: Optional[str]
+    metadata: dict = {}
 
     def __str__(self):
-        return "Instance{instanceId='" + str(self.instance_id) + "', ip='" + str(self.ip) + "', port=" + str(self.port) + \
-               ", weight=" + str(self.weight) + ", healthy=" + str(self.healthy) + ", enabled=" + str(self.enabled) + \
-               ", ephemeral=" + str(self.ephemeral) + ", clusterName='" + str(self.cluster_name) + "', serviceName='" +\
-               str(self.service_name) + "', metadata=" + str(self.metadata) + "}"
+        return \
+            "Instance{instanceId='" + str(self.instanceId) + "', ip='" + str(self.ip) + "', port=" + str(self.port) + \
+            ", weight=" + str(self.weight) + ", healthy=" + str(self.healthy) + ", enabled=" + str(self.enabled) + \
+            ", ephemeral=" + str(self.ephemeral) + ", clusterName='" + str(self.clusterName) + "', serviceName='" + \
+            str(self.serviceName) + "', metadata=" + str(self.metadata) + "}"
 
-    def to_inet_addr(self):
-        return self.ip + ":" + self.port
+    def to_inet_addr(self) -> str:
+        return self.ip + ":" + str(self.port)
 
     def is_ephemeral(self) -> bool:
         return self.ephemeral
 
-    def get_weight(self):
+    def get_weight(self) -> float:
         return self.weight
 
     def add_metadata(self, key: str, value: str) -> None:

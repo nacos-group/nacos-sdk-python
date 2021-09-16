@@ -27,3 +27,9 @@ class UtilAndComs:
 
     HTTPS = "https://"
 
+    ENV_CONFIGS = "00-00---000-ENV_CONFIGS-000---00-00"
+
+    VIP_CLIENT_FILE = "vipclient.properties"
+
+    ALL_HOSTS = "00-00---000-ALL_HOSTS-000---00-00"
+
