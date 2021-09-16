@@ -41,7 +41,8 @@ class Request(BaseModel, metaclass=ABCMeta):
         self.headers.clear()
 
     def __str__(self):
-        return self.__class__.__name__ + "{headers" + str(self.headers) + ", requestId='" + self.request_id + "'}"
+        return self.__class__.__name__ + "{headers" + str(self.headers) if self.headers else "None" + ", requestId='" +\
+                                                                                             self.requestId + "'}"
 
     @classmethod
     def convert(cls, obj: object):

@@ -56,7 +56,7 @@ class Response(BaseModel, metaclass=ABCMeta):
         self.message = error_msg
 
     def __str__(self):
-        return "Response{resultCode=" + str(self.resultCode) + ", errorCode=" + str(self.error_code) + ", message='" \
+        return "Response{resultCode=" + str(self.resultCode) + ", errorCode=" + str(self.errorCode) + ", message='" \
                    + self.message+"'" + ", requestId='"+self.requestId + "'}"
 
     class Config:
