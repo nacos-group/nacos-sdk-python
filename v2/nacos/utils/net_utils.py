@@ -1,6 +1,10 @@
-from v2.nacos.utils.env_util import EnvUtil
+# from v2.nacos.utils.arg_util import ArgUtil
+#
+# system_properties = ArgUtil().get_system_properties()
 
-system_properties = EnvUtil().get_system_properties()
+from v2.nacos.utils.arg_util import arg_parser
+
+system_args_parser = arg_parser.parse_args()
 
 
 class NetUtils:
@@ -8,4 +12,5 @@ class NetUtils:
 
     @staticmethod
     def get_local_ip():
-        return system_properties.get(NetUtils.CLIENT_NAMING_LOCAL_IP_PROPERTY)
+        # return system_properties.get(NetUtils.CLIENT_NAMING_LOCAL_IP_PROPERTY)
+        return system_args_parser.com_alibaba_nacos_client_naming_local_ip

@@ -33,7 +33,7 @@ from v2.nacos.remote.rpc_client import RpcClient
 from v2.nacos.remote.rpc_client_factory import RpcClientFactory
 from v2.nacos.remote.utils import ConnectionType
 from v2.nacos.utils.app_name_utils import AppNameUtils
-from v2.nacos.utils.env_util import EnvUtil
+from v2.nacos.utils.arg_util import ArgUtil
 
 
 class ClientWorker(Closeable):

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from typing import Optional
 
 from v2.nacos.common.lifecycle.closeable import Closeable
 from v2.nacos.naming.backups.failover_reactor import FailoverReactor
@@ -8,6 +9,14 @@ from v2.nacos.naming.cache.disk_cache import DiskCache
 from v2.nacos.naming.dtos.service_info import ServiceInfo
 from v2.nacos.naming.utils.naming_utils import NamingUtils
 from v2.nacos.property_key_constants import PropertyKeyConstants
+# from v2.nacos.utils.arg_util import ArgUtil
+#
+# system_properties = ArgUtil().get_system_properties()
+
+
+from v2.nacos.utils.arg_util import arg_parser
+
+system_args_parser = arg_parser.parse_args()
 
 
 class ServiceInfoHolder(Closeable):
@@ -21,36 +30,38 @@ class ServiceInfoHolder(Closeable):
 
     def __init__(self, logger, namespace, properties):
         self.logger = logger
-
+        self.disk_cache = DiskCache(self.logger)
         self.__init_cache_dir(namespace, properties)
         if self.__is_load_cache_at_start(properties):
-            self.service_info_map = DiskCache.read(self.cache_dir)
+            self.service_info_map = self.disk_cache.read(self.cache_dir)
         else:
             self.service_info_map = {}
 
-        self.failover_reactor = FailoverReactor(self, self.cache_dir)
+        self.failover_reactor = FailoverReactor(self.logger, self, self.cache_dir)
         self.push_empty_protection = self.__is_push_empty_protect(properties)
 
     def __init_cache_dir(self, namespace, properties):
-        # jm_snapshot_path = os.environ.get(ServiceInfoHolder.JM_SNAPSHOT_PATH_PROPERTY)
-        # naming_cache_registry_dir = ""
-        #
-        # if PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR in properties:
-        #     naming_cache_registry_dir = os.path.join(properties[PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR])
-        #
-        # if jm_snapshot_path and jm_snapshot_path.strip():
-        #     self.cache_dir = os.path.join(jm_snapshot_path,
-        #                                   ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
-        #                                   ServiceInfoHolder.FILE_PATH_NAMING,
-        #                                   namespace)
-        # else:
-        #     self.cache_dir = os.path.join(os.environ.get(ServiceInfoHolder.USER_HOME_PROPERTY),
-        #                                   ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
-        #                                   ServiceInfoHolder.FILE_PATH_NAMING,
-        #                                   namespace)
+        # jm_snapshot_path = system_properties.get(ServiceInfoHolder.JM_SNAPSHOT_PATH_PROPERTY)
+        jm_snapshot_path = system_args_parser.JM_SNAPSHOT_PATH
+        naming_cache_registry_dir = ""
 
-        # todo
-        self.cache_dir = "/Users/cangxiamy/nacos/data"
+        if PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR in properties:
+            naming_cache_registry_dir = os.path.join(properties[PropertyKeyConstants.NAMING_CACHE_REGISTRY_DIR])
+
+        if jm_snapshot_path and jm_snapshot_path.strip():
+            self.cache_dir = os.path.join(jm_snapshot_path,
+                                          ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
+                                          ServiceInfoHolder.FILE_PATH_NAMING,
+                                          namespace)
+        else:
+            # self.cache_dir = os.path.join(system_properties.get(ServiceInfoHolder.USER_HOME_PROPERTY),
+            #                               ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
+            #                               ServiceInfoHolder.FILE_PATH_NAMING,
+            #                               namespace)
+            self.cache_dir = os.path.join(system_args_parser.user_home,
+                                          ServiceInfoHolder.FILE_PATH_NACOS + naming_cache_registry_dir,
+                                          ServiceInfoHolder.FILE_PATH_NAMING,
+                                          namespace)
 
     @staticmethod
     def __is_load_cache_at_start(properties):
@@ -78,7 +89,7 @@ class ServiceInfoHolder(Closeable):
             return self.failover_reactor.get_service(key)
         return self.service_info_map[key]
 
-    def process_service_info(self, service_info: ServiceInfo) -> ServiceInfo:
+    def process_service_info(self, service_info: ServiceInfo) -> Optional[ServiceInfo]:
         service_key = service_info.get_key()
         if not service_key:
             return
@@ -95,7 +106,7 @@ class ServiceInfoHolder(Closeable):
             self.logger.info("Current ips:(" + service_info.ip_count() + ") service: " + service_info.get_key() + \
                              " -> " + json.dumps(service_info.get_hosts()))
             # todo notifier
-            DiskCache.write(service_info, self.cache_dir)
+            self.disk_cache.write(service_info, self.cache_dir)
 
         return service_info
 
