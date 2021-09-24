@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.exception.nacos_exception import NacosException
+from v2.nacos.naming.dtos.instance import Instance
 
 
 class ServiceInfo(BaseModel):
@@ -121,13 +122,17 @@ class ServiceInfo(BaseModel):
         return len(valid_hosts) > 0
 
     @staticmethod
-    def get_key(name=None, clusters=None):
+    def get_key(name, clusters):
         if clusters and len(clusters.strip()) > 0:
             return name + Constants.SERVICE_INFO_SPLITER + clusters
         return name
 
+    def get_key_default(self):
+        service_name = self.get_grouped_service_name()
+        return self.get_key(service_name, self.clusters)
+
     def get_key_encoded(self):
-        service_name = self.get_grouped_service_name().encode(ServiceInfo.DEFAULT_CHARSET)
+        service_name = self.get_grouped_service_name().encode("utf-8")
         service_name = urllib.parse.quote(service_name)
         return self.get_key(service_name, self.clusters)
 
@@ -166,3 +171,22 @@ class ServiceInfo(BaseModel):
     def set_reach_protection_threshold(self, reach_protection_threshold: bool) -> None:
         self.reachProtectionThreshold = reach_protection_threshold
 
+    @staticmethod
+    def build(json_dict: dict):
+        new_service_info = ServiceInfo(**json_dict)
+        hosts_dict_list = new_service_info.get_hosts()
+        hosts_instance_list = []
+        for host in hosts_dict_list:
+            instance = Instance(**host)
+            hosts_instance_list.append(instance)
+        new_service_info.hosts = hosts_instance_list
+        return new_service_info
+
+    def get_hosts_str(self):
+        hosts_str = ""
+        for host in self.hosts:
+            hosts_str += host.json() + ";"
+        return hosts_str
+
+    class Config:
+        arbitrary_types_allowed = True

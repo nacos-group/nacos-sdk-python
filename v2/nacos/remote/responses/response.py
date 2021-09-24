@@ -61,3 +61,4 @@ class Response(BaseModel, metaclass=ABCMeta):
 
     class Config:
         arbitrary_types_allowed = True
+

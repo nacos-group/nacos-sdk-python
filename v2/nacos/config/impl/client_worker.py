@@ -33,7 +33,6 @@ from v2.nacos.remote.rpc_client import RpcClient
 from v2.nacos.remote.rpc_client_factory import RpcClientFactory
 from v2.nacos.remote.utils import ConnectionType
 from v2.nacos.utils.app_name_utils import AppNameUtils
-from v2.nacos.utils.arg_util import ArgUtil
 
 
 class ClientWorker(Closeable):
@@ -528,7 +527,7 @@ class ClientWorker(Closeable):
                     del all_client_entries[key]
 
                 self.logger.info("Shutdown executor " + str(self.executor))
-                self.executor.shutdown()
+                self.executor.shutdown(cancel_futures=True)
 
                 for value in self.cache_map.values():
                     value.set_sync_with_server(False)

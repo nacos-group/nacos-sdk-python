@@ -2,7 +2,6 @@ import logging
 import sched
 import time
 from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
 
 from v2.nacos.naming.core.server_list_manager import ServerListManager
 from v2.nacos.naming.core.service_info_update_service import ServiceInfoUpdateService
@@ -78,12 +77,11 @@ class NamingClientProxyDelegate(NamingClientProxy):
     def subscribe(self, service_name: str, group_name: str, clusters: str) -> ServiceInfo:
         service_name_with_group = NamingUtils.get_grouped_name(service_name, group_name)
         service_key = ServiceInfo.get_key(service_name_with_group, clusters)
-        if service_key in self.server_info_holder.get_service_info_map().keys():
-            result = self.grpc_client_proxy.subscribe(service_name, group_name, clusters)
-        else:
-            result = self.server_info_holder.get_service_info_map()[service_key]
-
         self.service_info_update_service.schedule_update_if_absent(service_name, group_name, clusters)
+        result = self.server_info_holder.get_service_info_map().get(service_key)
+        if not result:
+            result = self.grpc_client_proxy.subscribe(service_name, group_name, clusters)
+
         self.server_info_holder.process_service_info(result)
         return result
 
@@ -95,7 +93,7 @@ class NamingClientProxyDelegate(NamingClientProxy):
         pass
 
     def server_healthy(self) -> bool:
-        self.grpc_client_proxy.server_healthy()
+        return self.grpc_client_proxy.server_healthy()
 
     def __get_execute_client_proxy(self, instance: Instance) -> NamingClientProxy:
         return self.grpc_client_proxy if instance.is_ephemeral() else self.http_client_proxy

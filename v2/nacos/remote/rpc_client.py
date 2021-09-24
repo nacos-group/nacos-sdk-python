@@ -218,7 +218,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         self.logger.info("Shutdown rpc client, set status to shutdown")
         with self.lock:
             self._rpc_client_status = rpc_client_status["SHUTDOWN"]
-        self.logger.info("Shutdown client event executor " + self._client_event_executor)
+        self.logger.info("Shutdown client event executor " + str(self._client_event_executor))
         self._client_event_executor.shutdown()
         self.logger.info("Close current connection " + self._current_connection.get_connection_id())
         self.close_connection(self._current_connection)

@@ -10,4 +10,4 @@ class ListView:
         return self.count
 
     def __str__(self):
-        return "ListView{data=" + self.data + ", count=" + self.count + "}"
+        return "ListView{data=" + str(self.data) + ", count=" + str(self.count) + "}"

@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import List
 
 from v2.nacos.naming.cache.service_info_holder import ServiceInfoHolder
@@ -22,13 +23,12 @@ class NacosNamingService:
 
         self.namespace = properties["namespace"]
         self.change_notifier = InstancesChangeNotifier()
-        self.service_info_holder = ServiceInfoHolder(self.logger, self.namespace, properties)
+        self.service_info_holder = ServiceInfoHolder(self.logger, self.namespace, properties, self.change_notifier)
         self.client_proxy = NamingClientProxyDelegate(
             self.logger, self.namespace, self.service_info_holder, properties, self.change_notifier
         )
 
-    def register_instance(self, service_name: str, group_name: str, ip: str, port: int, cluster_name: str) -> None:
-        instance = Instance(ip=ip, port=port, weight=1.0, cluster_name=cluster_name, service_name=service_name)
+    def register_instance(self, service_name: str, group_name: str, instance: Instance) -> None:
         NamingUtils.check_instance_is_legal(instance)
         self.client_proxy.register_service(service_name, group_name, instance)
 
@@ -41,6 +41,8 @@ class NacosNamingService:
         cluster_string = ",".join(clusters)
         if subscribe:
             service_info = self.service_info_holder.get_service_info(service_name, group_name, cluster_string)
+            if not service_info:
+                service_info = self.client_proxy.subscribe(service_name, group_name, cluster_string)
         else:
             service_info = self.client_proxy.query_instances_of_service(
                 service_name, group_name, cluster_string, 0, False

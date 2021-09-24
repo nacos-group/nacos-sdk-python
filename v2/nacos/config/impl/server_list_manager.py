@@ -49,7 +49,7 @@ class ServerListManager(Closeable):
 
         if self.server_addrs_str and self.server_addrs_str.strip():
             self.fixed = True
-            server_addrs_tokens = self.server_addrs_str.spilt(",;")
+            server_addrs_tokens = self.server_addrs_str.split(",;")
             for token in server_addrs_tokens:
                 # trust the input server addresses of user
                 self.server_urls.append(token.strip())
@@ -113,7 +113,7 @@ class ServerListManager(Closeable):
 
     def shutdown(self) -> None:
         self.logger.info("%s do shutdown begin" % self.__class__.__name__)
-        self.executor_service.shutdown()
+        self.executor_service.shutdown(cancel_futures=True)
         self.logger.info("%s do shutdown stop" % self.__class__.__name__)
 
     def update_if_changed(self, new_list: list) -> None:

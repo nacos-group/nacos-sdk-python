@@ -17,17 +17,15 @@ class SecurityProxy:
     LOGIN_URL = "/v1/auth/users/login"
 
     def __init__(self, logger, properties: dict):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
         self.username = properties[PropertyKeyConstants.USERNAME]
         self.password = properties[PropertyKeyConstants.PASSWORD]
         context_path = properties[PropertyKeyConstants.CONTEXT_PATH].strip()
         self.context_path = context_path if context_path[0] == "/" else "/" + context_path
         self.access_token = ""
-        self.token_ttl = None
-        self.token_refresh_window = None
-        self.last_refresh_time = None
+        self.token_ttl = 0
+        self.token_refresh_window = 0
+        self.last_refresh_time = 0
 
     def login_servers(self, servers: List[str]) -> bool:
         try:
@@ -45,8 +43,9 @@ class SecurityProxy:
         return False
 
     def login_server(self, server: str) -> bool:
-        params = {PropertyKeyConstants.USERNAME: self.username}
-        body_map = {PropertyKeyConstants.PASSWORD: self.password}
+        params = {PropertyKeyConstants.USERNAME: self.username,
+                  PropertyKeyConstants.PASSWORD: self.password
+                  }
         url = UtilAndComs.HTTP + server + self.context_path + SecurityProxy.LOGIN_URL
 
         if Constants.HTTP_PREFIX in server:
@@ -56,23 +55,21 @@ class SecurityProxy:
             req = Request(url=url, data=urlencode(params).encode('utf-8') if params else None, method="POST")
             resp = urlopen(req)
             resp_data = resp.read()
-            # todo ?
-            obj = json.loads(resp_data).decode('utf-8')
-            if obj["code"] != 0 and obj["code"] != 200:
-                self.logger.error("Login fail: %s" % json.dumps(resp))
+            message = json.loads(resp_data.decode('utf-8'))
+            if resp.getcode() != 0 and resp.getcode() != 200:
+                self.logger.error("Login fail: %s" % resp)
                 return False
-            message = eval(obj["message"])
             if Constants.ACCESS_TOKEN in message.keys():
-                self.access_token = str(obj[message.ACCESS_TOKEN])
-                self.token_ttl = int(obj[message.TOKEN_TTL])
+                self.access_token = message.get(Constants.ACCESS_TOKEN)
+                self.token_ttl = message.get(Constants.TOKEN_TTL)
                 self.token_refresh_window = self.token_ttl/10
         except URLError as e:
-            self.logger.error("[SecurityProxy] Login http request failed url: %s, params: %s, bodyMap: %s, errorMsg: %s"
-                              % (url, params, body_map, e))
+            self.logger.error("[SecurityProxy] Login http request failed url: %s, params: %s, errorMsg: %s"
+                              % (url, params, e))
             return False
         except NacosException as e:
-            self.logger.error("[SecurityProxy] Login http request failed url: %s, params: %s, bodyMap: %s, errorMsg: %s"
-                              % (url, params, body_map, e))
+            self.logger.error("[SecurityProxy] Login http request failed url: %s, params: %s, errorMsg: %s"
+                              % (url, params, e))
             return False
 
         return True

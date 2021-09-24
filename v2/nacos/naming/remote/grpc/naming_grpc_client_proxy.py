@@ -8,6 +8,8 @@ from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.naming.cache.service_info_holder import ServiceInfoHolder
 from v2.nacos.naming.dtos.abstract_selector import AbstractSelector
+from v2.nacos.naming.dtos.instance import Instance
+from v2.nacos.naming.dtos.service_info import ServiceInfo
 from v2.nacos.naming.utils.naming_remote_constants import NamingRemoteConstants
 from v2.nacos.naming.remote.grpc.naming_grpc_connection_event_listener import NamingGrpcConnectionEventListener
 from v2.nacos.naming.remote.grpc.naming_push_request_handler import NamingPushRequestHandler
@@ -133,17 +135,24 @@ class NamingGrpcClientProxy(NamingClientProxy):
         self.logger.info("[DEREGISTER-SERVICE] %s deregistering service %s with instance: %s"
                          % (self.namespace, service_name, instance))
         self.naming_grpc_connection_event_listener.remove_instance_for_redo(service_name, group_name, instance)
-        request = InstanceRequest(self.namespace, service_name, group_name,
-                                  NamingRemoteConstants.DE_REGISTER_INSTANCE, instance)
+        request = InstanceRequest(namespace=self.namespace, serviceName=service_name, groupName=group_name,
+                                  type=NamingRemoteConstants.DE_REGISTER_INSTANCE, instnace=instance)
         self.__request_to_server(request, Response)
 
     def update_instance(self, service_name, group_name, instance):
         pass
 
     def query_instances_of_service(self, service_name, group_name, clusters, udp_port, healthy_only):
-        request = ServiceQueryRequest(self.namespace, service_name, group_name, clusters, healthy_only, udp_port)
+        request = ServiceQueryRequest(
+            namespace=self.namespace, serviceName=service_name, groupName=group_name, clusters=clusters,
+            healthyOnly=healthy_only, udpPort=udp_port
+        )
         response = self.__request_to_server(request, QueryServiceResponse)
         if isinstance(response, QueryServiceResponse):
+            service_info_dict = response.get_service_info()
+            service_info = ServiceInfo.build(service_info_dict)
+
+            response.serviceInfo = service_info
             return response.get_service_info()
         else:
             self.logger.error("[QUERY-INSTANCE-OF-SERVICE] unexpected type of response: %s"
@@ -168,7 +177,8 @@ class NamingGrpcClientProxy(NamingClientProxy):
         else:
             selector_str = None
 
-        request = ServiceListRequest(self.namespace, group_name, page_no, page_size, selector_str)
+        request = ServiceListRequest(
+            namespace=self.namespace, serviceName="", groupName=group_name, pageNo=page_no, pageSize=page_size, selector=selector_str)
         response = self.__request_to_server(request, ServiceListResponse)
         if isinstance(response, ServiceListResponse):
             result = ListView(response.get_service_names(), response.get_count())
@@ -179,12 +189,16 @@ class NamingGrpcClientProxy(NamingClientProxy):
             raise NacosException("Unexpected type of response!")
 
     def subscribe(self, service_name: str, group_name: str, clusters: str):
-        request = SubscribeServiceRequest(self.namespace, group_name, service_name, clusters, True)
+        request = SubscribeServiceRequest(
+            namespace=self.namespace, groupName=group_name, serviceName=service_name, clusters=clusters, subscribe=True)
         response = self.__request_to_server(request, SubscribeServiceResponse)
         self.naming_grpc_connection_event_listener.cache_subscribe_for_redo(
             NamingUtils.get_grouped_name(service_name, group_name), clusters
         )
         if isinstance(response, SubscribeServiceResponse):
+            service_info_dict = response.get_service_info()
+            service_info = ServiceInfo.build(service_info_dict)  # covert dict to ServiceInfo
+            response.serviceInfo = service_info
             return response.get_service_info()
         else:
             self.logger.error("[SUBSCRIBE] unexpected type of response: %s"

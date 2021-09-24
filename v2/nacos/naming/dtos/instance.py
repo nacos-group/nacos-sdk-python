@@ -68,11 +68,11 @@ class Instance(BaseModel):
     def __get_metadata_by_key_with_int_default(self, key: str, default_value: int) -> int:
         if not self.metadata:
             return default_value
-        value = self.metadata[key]
+        value = self.metadata.get(key)
 
         pattern = re.compile(Constants.NUMBER_PATTERN)
 
-        if value.strip() and re.match(pattern, value):
+        if value and value.strip() and re.match(pattern, value):
             return int(value)
 
         return default_value

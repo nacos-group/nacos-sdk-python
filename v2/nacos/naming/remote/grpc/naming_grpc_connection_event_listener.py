@@ -54,7 +54,7 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
 
     def remove_instance_for_redo(self, service_name: str, group_name: str, instance: Instance) -> None:
         key = NamingUtils.get_grouped_name(service_name, group_name)
-        self.registered_instance_cached.pop(key)
+        self.registered_instance_cached.pop(key, None)
 
     def cache_subscribe_for_redo(self, full_service_name: str, cluster: str) -> None:
         self.subscribes.append(ServiceInfo.get_key(full_service_name, cluster))

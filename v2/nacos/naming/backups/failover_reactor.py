@@ -1,10 +1,13 @@
 import json
 import os
 import sched
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
 
 from v2.nacos.common.lifecycle.closeable import Closeable
+from v2.nacos.common.utils import terminate_thread
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.naming.cache.disk_cache import DiskCache
 from v2.nacos.naming.dtos.service_info import ServiceInfo
@@ -21,6 +24,7 @@ class FailoverReactor(Closeable):
     FAILOVER_MODE_PARAM = "failover-mode"
 
     DAY_PERIOD_SECONDS = 24 * 60 * 60
+    # DAY_PERIOD_SECONDS = 10 # debug
 
     def __init__(self, logger, service_info_holder, cache_dir):
         self.logger = logger
@@ -89,7 +93,7 @@ class FailoverReactor(Closeable):
                 with open(switch_file, "r", encoding='utf-8') as f:
                     failover = f.read()
                 if failover:
-                    lines = failover.split(DiskCache.get_line_saparator())
+                    lines = failover.split(DiskCache.get_line_separator())
                     for line in lines:
                         line1 = line.strip()
                         if FailoverReactor.IS_FAILOVER_MODE == line1:
@@ -134,13 +138,14 @@ class FailoverReactor(Closeable):
                     if json_str.strip():
                         try:
                             json_dict = json.loads(json_str.strip())
-                            dom = ServiceInfo(**json_dict)
+                            dom = ServiceInfo.build(json_dict)
+
                         except NacosException as e:
                             self.logger.error("[NA] error while parsing cached dom: %s, errorMsg: %s"
                                               % (json_str, str(e)))
 
                 if dom.get_hosts():
-                    dom_map[dom.get_key()] = dom
+                    dom_map[dom.get_key_default()] = dom
 
         except NacosException as e:
             self.logger.error("[NA] failed to read cache file, errorMsg: " + str(e))
@@ -149,15 +154,16 @@ class FailoverReactor(Closeable):
             self.service_map = dom_map
 
     def __disk_file_writer(self):
-        time.sleep(0.03)
+        def timer_task():
+            service_info_map = self.service_info_holder.get_service_info_map()
 
-        service_info_map = self.service_info_holder.get_service_info_map()
+            for key, service_info in service_info_map.items():
+                if service_info.get_key() == UtilAndComs.ALL_IPS or \
+                        service_info.get_name() == UtilAndComs.ENV_LIST_KEY or \
+                        service_info.get_name() == UtilAndComs.ENV_CONFIGS or \
+                        service_info.get_name() == UtilAndComs.VIP_CLIENT_FILE or \
+                        service_info.get_name() == UtilAndComs.ALL_HOSTS:
+                    continue
+                self.disk_cache.write(service_info, self.failover_dir)
 
-        for key, service_info in service_info_map.items():
-            if service_info.get_key() == UtilAndComs.ALL_IPS or \
-                    service_info.get_name() == UtilAndComs.ENV_LIST_KEY or \
-                    service_info.get_name() == UtilAndComs.ENV_CONFIGS or \
-                    service_info.get_name() == UtilAndComs.VIP_CLIENT_FILE or \
-                    service_info.get_name() == UtilAndComs.ALL_HOSTS:
-                continue
-            self.disk_cache.write(service_info, self.failover_dir)
+        return threading.Timer(30*60, timer_task).start()

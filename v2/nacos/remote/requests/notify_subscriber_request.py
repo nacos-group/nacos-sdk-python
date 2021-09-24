@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Any
 
 from v2.nacos.remote.requests import request
 from v2.nacos.remote.utils import remote_request_type
@@ -9,7 +9,7 @@ class NotifySubscriberRequest(request.Request):
     namespace: Optional[str]
     serviceName: Optional[str]
     groupName: Optional[str]
-    serviceInfo: Optional[ServiceInfo]
+    serviceInfo: Optional[Any]
 
     def get_module(self):
         return "naming"

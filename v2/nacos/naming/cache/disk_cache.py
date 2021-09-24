@@ -24,7 +24,7 @@ class DiskCache:
         try:
             DiskCache.__make_sure_cache_dir_exists(cache_dir)
             file_path = os.path.join(cache_dir, dom.get_key_encoded())
-            with open(file_path, "w", encoding="utf-8") as f:
+            with open(file_path, "a", encoding="utf-8") as f:
                 json_str = dom.get_json_from_server()
                 if not json_str:
                     json_str = json.dumps(dom)
@@ -33,7 +33,7 @@ class DiskCache:
             self.logger.error("[NA] failed to write cache for dom: " + dom.get_name() + str(e))
 
     @staticmethod
-    def get_line_saparator():
+    def get_line_separator():
         # return system_properties.get(DiskCache.LINE_SEPARATOR)
         return system_args_parser.line_separator
 
@@ -51,9 +51,11 @@ class DiskCache:
 
                 if not (file.endswith(Constants.SERVICE_INFO_SPLITER + "meta") or
                         file.endswith(Constants.SERVICE_INFO_SPLITER + "special-url")):
-                    dom = ServiceInfo(file)
+                    dom = ServiceInfo()
+                    dom.init_from_key(file)
                     ips = []
                     dom.set_hosts(ips)
+
                     new_format = None
 
                     try:
@@ -62,16 +64,18 @@ class DiskCache:
                             json_strs = f.readlines()
                         for json_str in json_strs:
                             json_dict = json.loads(json_str)
-                            new_format = ServiceInfo(**json_dict)
+
+                            new_format = ServiceInfo.build(json_dict)
+
                             new_instance = Instance(**json_dict)
                             ips.append(new_instance)
                     except NacosException as e:
                         self.logger.error("[NA] failed to read cache file from dom: " + file + str(e))
 
                     if new_format and new_format.get_name() and new_format.get_hosts():
-                        dom_map[dom.get_key()] = new_format
+                        dom_map[dom.get_key_default()] = new_format
                     elif dom.get_hosts():
-                        dom_map[dom.get_key()] = dom
+                        dom_map[dom.get_key_default()] = dom
         except NacosException as e:
             self.logger.error("[NA] failed to read cache file" + str(e))
 
