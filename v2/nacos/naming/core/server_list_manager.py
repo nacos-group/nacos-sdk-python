@@ -54,8 +54,7 @@ class ServerListManager(ServerListFactory, Closeable):
             resp = urlopen(req)
             resp_data = resp.read()
             obj = json.loads(resp_data).decode('utf-8')
-            # todo check and fix
-            if obj["code"] != 0 and obj["code"] != 200:
+            if resp.getcode() != 0 and resp.getcode() != 200:
                 raise NacosException("Error while requesting")
 
             content = eval(obj["message"])
@@ -111,6 +110,6 @@ class ServerListManager(ServerListFactory, Closeable):
     def shutdown(self) -> None:
         self.logger.info("%s do shutdown begin" % self.__class__.__name__)
         if self.refresh_server_list_executor:
-            self.refresh_server_list_executor.shutdown()
+            self.refresh_server_list_executor.shutdown(wait=False)
         # todo NamingHttpClientManager
         self.logger.info("%s do shutdown stop" % self.__class__.__name__)

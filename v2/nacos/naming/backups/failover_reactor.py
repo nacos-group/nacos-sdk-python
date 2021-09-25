@@ -61,7 +61,7 @@ class FailoverReactor(Closeable):
 
     def shutdown(self) -> None:
         self.logger.info("%s do shutdown begin" % self.__class__.__name__)
-        self.executor_service.shutdown()
+        self.executor_service.shutdown(wait=False)
         self.logger.info("%s do shutdown stop" % self.__class__.__name__)
 
     def __backup_file(self):

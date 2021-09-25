@@ -63,7 +63,9 @@ class NacosConfigService:
             return NacosConfigService.DOWN
 
     def shutdown(self) -> None:
+        self.logger.info("%s do shutdown begin" % self.__class__.__name__)
         self.worker.shutdown()
+        self.logger.info("%s do shutdown stop" % self.__class__.__name__)
 
     @staticmethod
     def __blank_2_default_group(group: str) -> str:

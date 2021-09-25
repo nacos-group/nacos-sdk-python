@@ -111,5 +111,7 @@ class NacosNamingService:
         return NacosNamingService.UP if self.client_proxy.server_healthy() else NacosNamingService.DOWN
 
     def shutdown(self) -> None:
+        self.logger.info("%s do shutdown begin" % self.__class__.__name__)
         self.service_info_holder.shutdown()
         self.client_proxy.shutdown()
+        self.logger.info("%s do shutdown stop" % self.__class__.__name__)

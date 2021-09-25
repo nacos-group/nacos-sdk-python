@@ -219,7 +219,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         with self.lock:
             self._rpc_client_status = rpc_client_status["SHUTDOWN"]
         self.logger.info("Shutdown client event executor " + str(self._client_event_executor))
-        self._client_event_executor.shutdown()
+        self._client_event_executor.shutdown(wait=False)
         self.logger.info("Close current connection " + self._current_connection.get_connection_id())
         self.close_connection(self._current_connection)
 
@@ -252,7 +252,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
                             if not self._current_connection:
                                 continue
                             self.logger.info("[%s]Server healthy check fail, currentConnection=%s"
-                                             % (self.__class__.__name__, self._current_connection.get_connection_id))
+                                             % (self.__class__.__name__, self._current_connection.get_connection_id()))
                             if self._rpc_client_status == rpc_client_status["SHUTDOWN"]:
                                 break
                             with self.lock:

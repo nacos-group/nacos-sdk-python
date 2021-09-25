@@ -103,5 +103,5 @@ class NamingClientProxyDelegate(NamingClientProxy):
         self.service_info_update_service.shutdown()
         self.http_client_proxy.shutdown()
         self.grpc_client_proxy.shutdown()
-        self.executor.shutdown()
+        self.executor.shutdown(wait=False)
         self.logger.info("%s do shutdown stop" % self.__class__.__name__)

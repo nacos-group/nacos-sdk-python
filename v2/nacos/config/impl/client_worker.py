@@ -515,7 +515,7 @@ class ClientWorker(Closeable):
         def shutdown(self):
             with self.lock:
                 self.logger.info("Trying to shutdown transport client")
-                all_client_entries = RpcClientFactory.get_all_client_entries()
+                all_client_entries = RpcClientFactory(self.logger).get_all_client_entries()
                 for key in list(all_client_entries.items()):
                     key.startswith(str(self.uuid))
                     self.logger.info("Trying to shutdown rpc client " + key)
@@ -527,7 +527,7 @@ class ClientWorker(Closeable):
                     del all_client_entries[key]
 
                 self.logger.info("Shutdown executor " + str(self.executor))
-                self.executor.shutdown(cancel_futures=True)
+                self.executor.shutdown(wait=False)
 
                 for value in self.cache_map.values():
                     value.set_sync_with_server(False)

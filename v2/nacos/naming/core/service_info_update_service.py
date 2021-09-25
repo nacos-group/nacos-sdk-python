@@ -52,7 +52,7 @@ class ServiceInfoUpdateService(Closeable):
 
     def shutdown(self) -> None:
         self.logger.info("%s do shutdown begin" % self.__class__.__name__)
-        self.executor.shutdown()
+        self.executor.shutdown(wait=False)
         self.logger.info("%s do shutdown stop" % self.__class__.__name__)
 
     def __add_task(self, task: threading.Timer):
@@ -119,4 +119,4 @@ class ServiceInfoUpdateService(Closeable):
             finally:
                 due = min(delay_time << self.fail_count, ServiceInfoUpdateService.DEFAULT_DELAY * 60)
                 t = threading.Timer(due/1000, self.run)
-                # self.outer.executor.submit(t.start)
+                self.outer.executor.submit(t.start)
