@@ -30,26 +30,26 @@ from v2.nacos.remote.irequest_future import RequestFuture
 
 class ServerInfo:
     def __init__(self, server_ip=None, server_port=None):
-        self._server_ip = server_ip
-        self._server_port = server_port
+        self.server_ip = server_ip
+        self.server_port = server_port
 
     def get_address(self):
-        return self._server_ip + constants.Constants.COLON + str(self._server_port)
+        return self.server_ip + constants.Constants.COLON + str(self.server_port)
 
     def get_server_ip(self):
-        return self._server_ip
+        return self.server_ip
 
     def set_server_ip(self, server_ip):
-        self._server_ip = server_ip
+        self.server_ip = server_ip
 
     def get_server_port(self):
-        return self._server_port
+        return self.server_port
 
     def set_server_port(self, server_port):
-        self._server_port = server_port
+        self.server_port = server_port
 
     def __str__(self):
-        return "{serverIp='" + str(self._server_ip) + "', server main port=" + str(self._server_port) + "}"
+        return "{serverIp='" + str(self.server_ip) + "', server main port=" + str(self.server_port) + "}"
 
 
 class ConnectionEvent:
@@ -80,8 +80,6 @@ class RpcClient(Closeable, metaclass=ABCMeta):
     MAX_WORKERS = 3
 
     def __init__(self, logger, name: str = None, server_list_factory: ServerListFactory = None):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
 
         self.__server_list_factory = server_list_factory
@@ -91,7 +89,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         self._rpc_client_status = rpc_client_status["WAIT_INIT"]
 
         self._client_event_executor = ThreadPoolExecutor(max_workers=RpcClient.MAX_WORKERS)
-        self.__reconnection_signal = queue.Queue()
+        self.__reconnection_signal = queue.Queue(maxsize=1)
         self._current_connection = None
         self._labels = {}
         self.__name = name
@@ -202,7 +200,7 @@ class RpcClient(Closeable, metaclass=ABCMeta):
         if connect_to_server:
             self.logger.info("[%s]Success to connect to server [%s] on start up, connectionId=%s"
                              % (self.__class__.__name__, connect_to_server.get_server_info().get_address()
-                                , connect_to_server.get_connection_id))
+                                , connect_to_server.get_connection_id()))
             self._current_connection = connect_to_server
             with self.lock:
                 self._rpc_client_status = rpc_client_status["RUNNING"]

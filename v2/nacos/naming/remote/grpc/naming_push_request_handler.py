@@ -16,6 +16,5 @@ class NamingPushRequestHandler(ServerRequestHandler):
         if isinstance(request, NotifySubscriberRequest):
             self.service_info_holder.process_service_info(request.get_service_info())
             response = NotifySubscriberResponse()
-            response.set_request_id(request.get_request_id())
             return response
         return

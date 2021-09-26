@@ -4,6 +4,7 @@ from google.protobuf.any_pb2 import Any
 
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
+from v2.nacos.naming.dtos.service_info import ServiceInfo
 from v2.nacos.remote.requests.request import Request
 from v2.nacos.remote.responses.response import Response
 from v2.nacos.utils.net_utils import NetUtils
@@ -14,21 +15,19 @@ from v2.nacos.remote.requests import *
 
 
 class GrpcUtils:
+    SERVICE_INFO_KEY = "serviceInfo"
+
     @staticmethod
     def parse(payload: Payload) -> object:
         metadata_type = payload.metadata.type
         if metadata_type:
-            # method-1
-            # json_dict = json.loads(payload.body.value.decode('utf-8'))
-            # obj = from_dict(data_class=eval(metadata_type), data=json_dict)
-            # if isinstance(obj, Request):
-            #     obj.put_all_header(payload.metadata.headers)
-
-            # method-2
             json_dict = json.loads(payload.body.value.decode('utf-8'))
             obj = eval(metadata_type+"(**json_dict)")
             if isinstance(obj, Request):
                 obj.put_all_header(payload.metadata.headers)
+                if GrpcUtils.SERVICE_INFO_KEY in json_dict.keys():
+                    service_info = ServiceInfo.build(json_dict.get(GrpcUtils.SERVICE_INFO_KEY))
+                    obj.serviceInfo = service_info
             return obj
         else:
             raise NacosException(NacosException.SERVER_ERROR+"Unknown payload type:"+payload.metadata.type)

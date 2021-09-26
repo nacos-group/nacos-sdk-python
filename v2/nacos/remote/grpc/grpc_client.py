@@ -91,7 +91,8 @@ class GrpcClient(RpcClient):
                 self.logger.info("[%s] Stream server request receive, original info: %s"
                                  % (grpc_conn.get_connection_id(), str(payload)))
                 try:
-                    request = GrpcUtils.convert_request(payload)
+                    # request = GrpcUtils.convert_request(payload)
+                    request = GrpcUtils.parse(payload)
                     if request:
                         try:
                             response = self.handle_server_request(request)
