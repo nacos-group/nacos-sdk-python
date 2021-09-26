@@ -7,7 +7,6 @@ from concurrent.futures import ThreadPoolExecutor
 from threading import Thread
 
 from v2.nacos.common.lifecycle.closeable import Closeable
-from v2.nacos.common.utils import terminate_thread
 from v2.nacos.exception.nacos_exception import NacosException
 from v2.nacos.naming.cache.disk_cache import DiskCache
 from v2.nacos.naming.dtos.service_info import ServiceInfo

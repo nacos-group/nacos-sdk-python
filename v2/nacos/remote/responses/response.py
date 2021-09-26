@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from v2.nacos.remote import utils
 from v2.nacos.remote.utils import response_code
 from abc import abstractmethod, ABCMeta
 
@@ -11,6 +12,7 @@ class Response(BaseModel, metaclass=ABCMeta):
     errorCode: Optional[int]
     message: Optional[str]
     requestId: Optional[str]
+    resultCode = utils.response_code["success"]
 
     @abstractmethod
     def get_remote_type(self):
