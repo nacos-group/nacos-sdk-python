@@ -8,11 +8,10 @@ from abc import abstractmethod, ABCMeta
 
 
 class Response(BaseModel, metaclass=ABCMeta):
-    resultCode: Optional[int]
+    resultCode: int = utils.response_code["success"]
     errorCode: Optional[int]
     message: Optional[str]
     requestId: Optional[str]
-    resultCode = utils.response_code["success"]
 
     @abstractmethod
     def get_remote_type(self):

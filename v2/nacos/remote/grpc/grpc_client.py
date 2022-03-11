@@ -25,6 +25,7 @@ from v2.nacos.remote.utils import ConnectionType, rpc_client_status
 
 class GrpcClient(RpcClient):
     DEFAULT_MAX_INBOUND_MESSAGE_SIZE = 10 * 1024 * 1024
+
     DEFAULT_KEEP_ALIVE_TIME = 6 * 60 * 1000
 
     def get_connection_type(self) -> str:
@@ -87,27 +88,41 @@ class GrpcClient(RpcClient):
 
     def bind_request_stream(self, stream_stub: BiRequestStreamStub, grpc_conn: GrpcConnection):
         def job():
-            for payload in stream_stub.requestBiStream(grpc_conn.gen_message()):
-                self.logger.info("[%s] Stream server request receive, original info: %s"
-                                 % (grpc_conn.get_connection_id(), str(payload)))
-                try:
-                    # request = GrpcUtils.convert_request(payload)
-                    request = GrpcUtils.parse(payload)
-                    if request:
-                        try:
-                            response = self.handle_server_request(request)
-                            if response:
-                                response.set_request_id(request.get_request_id())
-                                self._send_response(response)
-                            else:
-                                self.logger.warning("[%s] Fail to process server request, ackId->%s"
-                                                    % (grpc_conn.get_connection_id(), request.get_request_id()))
-                        except NacosException as e:
-                            self.logger.error("[%s] Handle server request exception: %s, %s"
-                                              % (grpc_conn.get_connection_id(), str(payload), e))
-                except NacosException:
-                    self.logger.error("[%s] Error to process server push response: %s"
-                                      % (grpc_conn.get_connection_id(), str(payload.body)))
+            try:
+                for payload in stream_stub.requestBiStream(grpc_conn.gen_message()):
+                    self.logger.info("[%s] Stream server request receive, original info: %s"
+                                     % (grpc_conn.get_connection_id(), str(payload)))
+                    try:
+                        request = GrpcUtils.parse(payload)
+                        if request:
+                            try:
+                                response = self.handle_server_request(request)
+                                if response:
+                                    response.set_request_id(request.get_request_id())
+                                    self._send_response(response)
+                                else:
+                                    self.logger.warning("[%s] Fail to process server request, ackId->%s"
+                                                        % (grpc_conn.get_connection_id(), request.get_request_id()))
+                            except NacosException as e:
+                                self.logger.error("[%s] Handle server request exception: %s, %s"
+                                                  % (grpc_conn.get_connection_id(), str(payload), e))
+                    except NacosException:
+                        self.logger.error("[%s] Error to process server push response: %s"
+                                          % (grpc_conn.get_connection_id(), str(payload.body)))
+            except Exception as e:
+                is_running = self.is_running()
+                is_abandon = grpc_conn.is_abandon()
+                if is_running and not is_abandon:
+                    self.logger.error("[%s] Request stream error, switch server, error=%s" %
+                                      (grpc_conn.get_connection_id(), str(e))
+                                      )
+                    with self.lock:
+                        self._rpc_client_status = rpc_client_status["UNHEALTHY"]
+                        self.switch_server_async()
+                else:
+                    self.logger.warning("[%s]Ignore error event, isRunning:%s, isAbandon:%s"
+                                        % (grpc_conn.get_connection_id(), is_running, is_abandon)
+                                        )
 
         self._client_event_executor.submit(job)
 

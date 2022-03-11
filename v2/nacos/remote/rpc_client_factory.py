@@ -9,8 +9,6 @@ from v2.nacos.remote.utils import ConnectionType
 
 class RpcClientFactory:
     def __init__(self, logger):
-        # logging.basicConfig()
-        # self.logger = logging.getLogger(__name__)
         self.logger = logger
         self.__CLIENT_MAP = {}
 

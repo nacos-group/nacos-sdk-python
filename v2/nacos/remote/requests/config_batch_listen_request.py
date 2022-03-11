@@ -19,10 +19,10 @@ class ConfigBatchListenRequest(request.Request):
     class ConfigListenContext:
         def __init__(self, group: str, data_id: str, tenant: str, md5: str):
             self.group = group
-            self.data_id = data_id
+            self.dataId = data_id
             self.tenant = tenant
             self.md5 = md5
 
         def __str__(self):
-            return "ConfigListenContext{group='" + self.group + "', md5='" + self.md5 + "', data_id='" + self.data_id \
+            return "ConfigListenContext{group='" + self.group + "', md5='" + self.md5 + "', dataId='" + self.dataId \
                    + "', tenant='" + self.tenant + "'}"

@@ -46,7 +46,7 @@ class ClientWorker(Closeable):
         self.uuid = uuid.uuid4()
         self.timeout = None
         self.agent = ClientWorker.ConfigRpcTransportClient(
-            logger, properties, server_list_manager, self.cache_map, self
+            logger, properties, server_list_manager, self
         )
         self.task_penalty_time = None
         self.enable_remote_sync_config = False
@@ -60,7 +60,7 @@ class ClientWorker(Closeable):
         self.agent.start()
 
     def __init_properties(self, properties: dict) -> None:
-        # todo 尚未完善
+        # todo
         self.enable_remote_sync_config = properties.get(PropertyKeyConstants.ENABLE_REMOTE_SYNC_CONFIG)
         if not self.enable_remote_sync_config:
             self.enable_remote_sync_config = False
@@ -86,6 +86,10 @@ class ClientWorker(Closeable):
         group = self.__blank_2_default_group(group)
         tenant = self.agent.get_tenant()
         cache = self.add_cache_data_if_absent(data_id, group, tenant)
+
+        # debug
+        # print("at add_tenant_listener, cache_map:", str(self.cache_map))
+
         with self.lock:
             for listener in listeners:
                 cache.add_listener(listener)
@@ -127,7 +131,11 @@ class ClientWorker(Closeable):
     def remove_cache(self, data_id: str, group: str, tenant: str) -> None:
         group_key = GroupKey.get_key_tenant(data_id, group, tenant)
         with self.lock:
-            self.cache_map.pop(group_key)
+            # debug
+            # print("remove", group_key, "from:", self.cache_map)
+            copy = self.cache_map.copy()
+            copy.pop(group_key)
+            self.cache_map = copy
         self.logger.info("[%s] [unsubscribe] %s" % (self.agent.get_name(), group_key))
 
     def remove_config(self, data_id: str, group: str, tenant: str, tag: str):
@@ -145,8 +153,6 @@ class ClientWorker(Closeable):
             return cache
 
         key = GroupKey.get_key(data_id, group, tenant)
-        cache = CacheData(
-            self.logger, self.config_filter_chain_manager, self.agent.get_name(), data_id, group, "")
 
         with self.lock:
             cache_from_map = self.get_cache(data_id, group, tenant)
@@ -154,12 +160,21 @@ class ClientWorker(Closeable):
                 cache = cache_from_map
                 cache.set_sync_with_server(True)
             else:
+                cache = CacheData(
+                    self.logger, self.config_filter_chain_manager, self.agent.get_name(), data_id, group, tenant
+                )
                 task_id = len(self.cache_map) / CacheData.PER_TASK_CONFIG_SIZE
                 cache.set_task_id(int(task_id))
                 if self.enable_remote_sync_config:
                     response = self.get_server_config(data_id, group, tenant, 3000, False)
                     cache.set_content(response.get_content())
-            self.cache_map[key] = cache
+
+            copy = self.cache_map.copy()
+            copy[key] = cache
+            self.cache_map = copy
+
+            # debug
+            # print("add cache:", str(self.cache_map))
 
         self.logger.info("[%s] [subscribe] %s" % (self.agent.get_name(), key))
 
@@ -170,7 +185,8 @@ class ClientWorker(Closeable):
             raise NacosException()
         return self.cache_map.get(GroupKey.get_key_tenant(data_id, group, tenant))
 
-    def get_server_config(self, data_id: str, group: str, tenant: str, read_timeout: int, notify: bool) -> ConfigResponse:
+    def get_server_config(
+            self, data_id: str, group: str, tenant: str, read_timeout: int, notify: bool) -> ConfigResponse:
         if not group:
             group = Constants.DEFAULT_GROUP
         return self.agent.query_config(data_id, group, tenant, read_timeout, notify)
@@ -196,14 +212,13 @@ class ClientWorker(Closeable):
         RPC_AGENT_NAME = "config_rpc_client"
 
         def __init__(
-                self, logger, properties: dict, server_list_manager: ServerListManager, cache_map: dict, client_worker
+                self, logger, properties: dict, server_list_manager: ServerListManager, client_worker
         ):
             super().__init__(logger, properties, server_list_manager)
             self.listen_execute_bell = queue.Queue()
             self.bell_item = object()
             self.last_all_sync_time = get_current_time_millis()
             self.uuid = uuid.uuid4()
-            self.cache_map = cache_map
             self.lock = RLock()
             self.local_config_info_processor = LocalConfigInfoProcessor(logger)
             self.local_encrypted_data_key_processor = LocalEncryptedDataKeyProcessor(logger)
@@ -216,7 +231,10 @@ class ClientWorker(Closeable):
         def __start_run(self) -> None:
             while self.executor:
                 try:
-                    self.listen_execute_bell.get(timeout=5)
+                    try:
+                        self.listen_execute_bell.get(timeout=5)
+                    except Exception:
+                        pass
                     self.execute_config_listen()
                 except NacosException as e:
                     self.logger.error("[rpc listen execute] [rpc listen] exception " + str(e))
@@ -234,7 +252,11 @@ class ClientWorker(Closeable):
             need_all_sync = (now - self.last_all_sync_time) >= ClientWorker.ConfigRpcTransportClient.ALL_SYNC_INTERNAL
 
             # categorize cache_data
-            for cache in self.cache_map.values():
+
+            # debug
+            # print("at execute_config_listen, cache_map:", self.client_worker.cache_map)
+
+            for cache in self.client_worker.cache_map.values():
                 with self.lock:
                     if cache.is_sync_with_server():
                         cache.check_listener_md5()
@@ -281,7 +303,7 @@ class ClientWorker(Closeable):
                                         change_config.dataId, change_config.group, change_config.tenant
                                     )
                                     change_keys.append(change_key)
-                                    initializing = self.cache_map.get(change_key).is_initializing()
+                                    initializing = self.client_worker.cache_map.get(change_key).is_initializing()
                                     self.__refresh_content_and_check(change_key, not initializing)
 
                             for cache_data in listen_caches:
@@ -324,8 +346,8 @@ class ClientWorker(Closeable):
                 self.notify_listen_config()
 
         def __refresh_content_and_check(self, group_key: str, notify: bool) -> None:
-            if self.cache_map and group_key in self.cache_map.keys():
-                cache_data = self.cache_map.get(group_key)
+            if self.client_worker.cache_map and group_key in self.client_worker.cache_map.keys():
+                cache_data = self.client_worker.cache_map.get(group_key)
                 try:
                     response = self.get_server_config(cache_data.data_id, cache_data.group, cache_data.tenant, 3000,
                                                       notify)
@@ -402,7 +424,7 @@ class ClientWorker(Closeable):
             rpc_client = self.get_one_running_client()
 
             if notify:
-                cache_data = self.cache_map.get(GroupKey.get_key_tenant(data_id, group, tenant))
+                cache_data = self.client_worker.cache_map.get(GroupKey.get_key_tenant(data_id, group, tenant))
                 if cache_data:
                     rpc_client = self.__ensure_rpc_client(str(cache_data.get_task_id()))
 
@@ -425,7 +447,7 @@ class ClientWorker(Closeable):
                 return config_response
             elif response.get_error_code() == ConfigQueryResponse.CONFIG_NOT_FOUND:
                 self.local_config_info_processor.save_snapshot(self.get_name(), data_id, group, tenant, None)
-                LocalEncryptedDataKeyProcessor.save_snapshot(self.get_name(), data_id, group, tenant, None)
+                self.local_encrypted_data_key_processor.save_snapshot(self.get_name(), data_id, group, tenant, None)
                 return config_response
             elif response.get_error_code() == ConfigQueryResponse.CONFIG_QUERY_CONFLICT:
                 self.logger.error(
@@ -529,36 +551,22 @@ class ClientWorker(Closeable):
                 self.logger.info("Shutdown executor " + str(self.executor))
                 self.executor.shutdown(wait=False)
 
-                for value in self.cache_map.values():
+                for value in self.client_worker.cache_map.values():
                     value.set_sync_with_server(False)
 
         @staticmethod
         def __get_labels() -> dict:
-            # labels = {
-            #     RemoteConstants.LABEL_SOURCE: RemoteConstants.LABEL_SOURCE_SDK,
-            #     RemoteConstants.LABEL_MODULE: RemoteConstants.LABEL_MODULE_CONFIG,
-            #     Constants.APPNAME: AppNameUtils.get_app_name(),
-            #     Constants.VIPSERVER_TAG: EnvUtil.get_self_vip_server_tag(),
-            #     Constants.AMORY_TAG: EnvUtil.get_self_amory_tag(),
-            #     Constants.LOCATION_TAG: EnvUtil.get_self_location_tag()
-            # }
-            # return labels
-            # todo related utils is uncompleted.
+            # todo
             return {}
 
         def __init_rpc_client_handler(self, rpc_client_inner: RpcClient) -> None:
             rpc_client_inner.register_server_request_handler(ConfigChangeNotifyRequestHandler(
-                self.cache_map, self.notify_listen_config)
+                self.logger, self.client_worker.cache_map, self.notify_listen_config)
             )
 
-            # todo register ClientConfigMetricRequestHandler Q: necessary ?
-            # rpc_client_inner.register_server_request_handler(
-            #     ClientConfigMetricRequestHandler(self.get_metrics)
-            # )
-
             rpc_client_inner.register_connection_listener(
-                ConfigRpcConnectionEventListener(self.logger, rpc_client_inner, self.cache_map,
-                                                 self.listen_execute_bell)
+                ConfigRpcConnectionEventListener(self.logger, rpc_client_inner, self.client_worker.cache_map,
+                                                 self.notify_listen_config)
             )
 
             rpc_client_inner.set_server_list_factory(

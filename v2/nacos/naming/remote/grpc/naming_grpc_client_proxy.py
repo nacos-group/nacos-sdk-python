@@ -207,7 +207,7 @@ class NamingGrpcClientProxy(NamingClientProxy):
 
     def unsubscribe(self, service_name: str, group_name: str, clusters: str) -> None:
         request = SubscribeServiceRequest(
-            self.namespace, service_name, group_name, clusters, False
+            namespace=self.namespace, serviceName=service_name, groupName=group_name, clusters=clusters, subscribe=False
         )
         self.__request_to_server(request, SubscribeServiceResponse)
         self.naming_grpc_connection_event_listener.remove_subscriber_for_redo(

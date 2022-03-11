@@ -1,15 +1,8 @@
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.utils import get_current_time_millis
-from v2.nacos.config.abstract.abstract_config_change_listener import AbstractConfigChangeListener
-from v2.nacos.config.abstract.abstract_shared_listener import AbstractSharedListener
 from v2.nacos.config.filter_impl.config_response import ConfigResponse
-from v2.nacos.config.ilistener import Listener
-from v2.nacos.config.impl.config_change_event import ConfigChangeEvent
-from v2.nacos.config.impl.config_change_handler import ConfigChangeHandler
 from v2.nacos.config.impl.local_config_info_processor import LocalConfigInfoProcessor
 from v2.nacos.config.impl.local_encrypted_data_key_processor import LocalEncryptedDataKeyProcessor
 from v2.nacos.exception.nacos_exception import NacosException
@@ -38,7 +31,7 @@ class CacheData:
         self.use_local_config = False
         self.local_config_last_modified = None
 
-        self.encrypted_data_key = self.__load_encrypted_data_key_from_disk_local()
+        self.encrypted_data_key = self.__load_encrypted_data_key_from_disk_local(name, data_id, group, tenant)
         self.last_modified_ts = 0
         self.task_id = None
         self.initializing = True
@@ -90,9 +83,10 @@ class CacheData:
     def remove_listener(self, listener) -> None:
         if not listener:
             raise NacosException("[ArgumentException]Listener is None")
-        wrap = CacheData.ManagerListenerWrap(listener=listener)
         try:
-            self.listeners.remove(wrap)
+            for listener_wrap in self.listeners:
+                if listener_wrap.listener is listener:
+                    self.listeners.remove(listener_wrap)
             self.logger.info("[%s][remove-listener] ok, dataId=%s, group=%s, cnt=%s"
                              % (self.name, self.data_id, self.group, len(self.listeners)))
         except NacosException as e:
@@ -149,7 +143,7 @@ class CacheData:
 
     def __safe_notify_listener(
             self, data_id, group, content, config_type, md5, encrypted_dat_key, listener_wrap) -> None:
-        # todo uncompleted
+        # todo
         # def job():
         #     start = get_current_time_millis()
         #     try:
@@ -237,7 +231,7 @@ class CacheData:
             return Constants.NULL
         else:
             md5 = hashlib.md5()
-            md5.update(config)
+            md5.update(config.encode("utf-8"))
             return md5.hexdigest()
 
     def __load_cache_content_from_disk_local(self, name: str, data_id: str, group: str, tenant: str) -> str:

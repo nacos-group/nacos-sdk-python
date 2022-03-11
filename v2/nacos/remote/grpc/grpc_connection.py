@@ -34,20 +34,10 @@ class GrpcConnection(Connection):
 
     def send_request(self, request: Request) -> None:
         convert = GrpcUtils.convert_request(request)
-        # responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
-        # self.queue.put(responses)
         self.queue.put(convert)
-
-    # def request_future(self, request: Request) -> RequestFuture:
-    #     pass
-    #
-    # def async_request(self, request: Request, request_callback: RequestCallBack) -> None:
-    #     pass
 
     def send_response(self, response: Response) -> None:
         convert = GrpcUtils.convert_response(response)
-        # responses = self.bi_request_stream_stub.requestBiStream(iter((convert,)))
-        # self.queue.put(responses)
         self.queue.put(convert)
 
     def close(self) -> None:
@@ -69,7 +59,6 @@ class GrpcConnection(Connection):
     def gen_message(self):
         while True:
             try:
-                # payload = self.queue.get(timeout=GrpcConnection.TIMEOUT)
                 payload = self.queue.get()
                 yield payload
             except NacosException:
