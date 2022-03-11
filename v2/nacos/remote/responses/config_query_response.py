@@ -55,11 +55,11 @@ class ConfigQueryResponse(response.Response):
     def set_beta(self, beta: bool) -> None:
         self.isBeta = beta
 
-    def get_contend(self) -> str:
+    def get_content(self) -> str:
         return self.content
 
-    def set_contend(self, contend: str) -> None:
-        self.content = contend
+    def set_content(self, content: str) -> None:
+        self.content = content
 
     def get_encrypted_data_key(self) -> str:
         return self.encryptedDataKey

@@ -5,12 +5,11 @@ from v2.nacos.remote.rpc_client import RpcClient
 
 
 class ConfigRpcConnectionEventListener(ConnectionEventListener):
-    def __init__(self, logger, rpc_client_inner: RpcClient, cache_map: dict, listen_execute_bell: queue.Queue):
+    def __init__(self, logger, rpc_client_inner: RpcClient, cache_map: dict, notify_listen_config):
         self.logger = logger
         self.rpc_client = rpc_client_inner
         self.cache_map = cache_map
-        self.listen_execute_bell = listen_execute_bell
-        self.bell_item = object()
+        self.notify_listen_config = notify_listen_config
 
     def on_connected(self) -> None:
         self.logger.info("[%s] Connected, notify listen context..." % self.rpc_client.get_name())
@@ -22,9 +21,7 @@ class ConfigRpcConnectionEventListener(ConnectionEventListener):
             self.logger.info("[%s] Disconnected, clear listen context..." % self.rpc_client.get_name())
             for cache_data in self.cache_map.values():
                 if cache_data.task_id == int(task_id):
-                    cache_data.is_listen_success = False
+                    cache_data.set_sync_with_server(False)
                     continue
-                cache_data.is_listen_success = False
-
-    def notify_listen_config(self):
-        self.listen_execute_bell.put(self.bell_item)
+                else:
+                    cache_data.set_sync_with_server(False)

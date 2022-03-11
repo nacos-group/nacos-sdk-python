@@ -1,16 +1,13 @@
-import hashlib
 import sched
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.utils import get_current_time_millis
 from v2.nacos.config.filter_impl.config_response import ConfigResponse
 from v2.nacos.config.impl.server_list_manager import ServerListManager
 from v2.nacos.property_key_constants import PropertyKeyConstants
 from v2.nacos.security.security_proxy import SecurityProxy
-from v2.nacos.utils.param_utils import ParamUtils
 
 
 class AbstractConfigTransportClient(metaclass=ABCMeta):
@@ -62,20 +59,6 @@ class AbstractConfigTransportClient(metaclass=ABCMeta):
         return security_headers
 
     def _get_common_header(self) -> dict:
-        # ts = str(get_current_time_millis())
-        # md = hashlib.md5()
-        # md.update((ts + ParamUtil.get_app_key()).encode(Constants.ENCODE))
-        # token = md.hexdigest()
-        #
-        # headers = {
-        #     Constants.CLIENT_APPNAME_HEADER: ParamUtil.get_app_name(),
-        #     Constants.CLIENT_REQUEST_TS_HEADER: ts,
-        #     Constants.CLIENT_REQUEST_TOKEN_HEADER: token,
-        #     AbstractConfigTransportClient.CONFIG_INFO_HEADER: AbstractConfigTransportClient.DEFAULT_CONFIG_INFO,
-        #     Constants.CHARSET_KEY: self.encode
-        # }
-        #
-        # return headers
         # todo
         return {}
 

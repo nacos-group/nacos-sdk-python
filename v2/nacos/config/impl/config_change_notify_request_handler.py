@@ -11,21 +11,25 @@ from v2.nacos.remote.responses.response import Response
 
 
 class ConfigChangeNotifyRequestHandler(ServerRequestHandler):
-    def __init__(self, cache_map: dict, func):
+    def __init__(self, logger, cache_map: dict, func):
+        self.logger = logger
         self.cache_map = cache_map
         self.func = func
         self.lock = RLock()
 
     def request_reply(self, request: Request) -> Optional[Response]:
         if isinstance(request, ConfigChangeNotifyRequest):
+            print("ConfigChangeNotifyRequest!")
+            self.logger.info("[server-push] config changed. dataId=%s, group=%s, tenant=%s"
+                             % (request.get_data_id(), request.get_group(), request.get_tenant()))
             group_key = GroupKey.get_key_tenant(request.dataId, request.group, request.tenant)
 
-            if group_key in self.cache_map.keys():
-                cache_data = self.cache_map[group_key]
-                if cache_data:
-                    with self.lock:
-                        cache_data.set_last_modified_ts(get_current_time_millis())
-                        cache_data.set_sync_with_server(False)
-                        self.func()
+            cache_data = self.cache_map.get(group_key)
+            if cache_data:
+                with self.lock:
+                    cache_data.set_last_modified_ts(get_current_time_millis())
+                    cache_data.set_sync_with_server(False)
+                    self.func()
+
             return ConfigChangeNotifyResponse()
         return

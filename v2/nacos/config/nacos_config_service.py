@@ -24,7 +24,9 @@ class NacosConfigService:
         ValidatorUtils.check_init_param(properties)
 
         self.logger = logger
-        self.namespace = properties[PropertyKeyConstants.NAMESPACE]
+        self.namespace = properties.get(PropertyKeyConstants.NAMESPACE, None)
+        if not self.namespace:
+            self.namespace = ""
 
         self.config_filter_chain_manager = ConfigFilterChainManager()
         server_list_manager = ServerListManager(logger, properties)
@@ -48,7 +50,9 @@ class NacosConfigService:
         return self.__publish_config_inner(self.namespace, data_id, group, None, None, None, content, config_type, None)
 
     def publish_config_cas(self, data_id: str, group: str, content: str, cas_md5: str, config_type: str) -> bool:
-        return self.__publish_config_inner(self.namespace, data_id, group, None, None, content, config_type, cas_md5)
+        return self.__publish_config_inner(
+            self.namespace, data_id, group, None, None, None, content, config_type, cas_md5
+        )
 
     def remove_config(self, data_id: str, group: str) -> bool:
         return self.__remove_config_inner(self.namespace, data_id, group, None)

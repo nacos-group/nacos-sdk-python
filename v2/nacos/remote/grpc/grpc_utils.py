@@ -35,7 +35,6 @@ class GrpcUtils:
     @staticmethod
     def convert_request(request: Request) -> Payload:
         payload_body_bytes = json.dumps(request, default=GrpcUtils.to_json).encode('utf-8')
-        # payload_body_bytes = request.json().encode('utf-8') # error
         payload_body = Any(value=payload_body_bytes)
         payload_metadata = Metadata(type=request.get_remote_type(), clientIp=NetUtils().get_local_ip(),
                                     headers=request.get_headers())
@@ -46,7 +45,6 @@ class GrpcUtils:
     def convert_response(response: Response) -> Payload:
         payload_metadata = Metadata(type=response.get_remote_type())
         payload_body_bytes = bytes(json.dumps(response, default=GrpcUtils.to_json), encoding='utf-8')
-        # payload_body_bytes = bytes(response.json(), encoding='utf-8')
         payload_body = Any(value=payload_body_bytes)
         payload = Payload(metadata=payload_metadata, body=payload_body)
         return payload
