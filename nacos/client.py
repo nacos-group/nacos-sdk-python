@@ -6,6 +6,7 @@ import socket
 import json
 import platform
 import time
+import hmac
 
 try:
     import ssl
@@ -39,7 +40,7 @@ from .timer import NacosTimer, NacosTimerManager
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.6"
+VERSION = "0.1.7"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -770,7 +771,33 @@ class NacosClient:
                     watcher.last_md5 = md5
 
     def _get_common_headers(self, params, data):
-        return {}
+        headers = {}
+        if self.auth_enabled:
+            ts = str(int(time.time() * 1000))
+            ak, sk = self.ak, self.sk
+
+            headers.update({
+                "Spas-AccessKey": ak,
+                "timeStamp": ts,
+            })
+            sign_str = ""
+            # in case tenant or group is null
+            if not params and not data:
+                return headers
+
+            tenant = (params and params.get("tenant")) or (data and data.get("tenant"))
+            group = (params and params.get("group")) or (data and data.get("group"))
+
+            if tenant:
+                sign_str = tenant + "+"
+            if group:
+                sign_str = sign_str + group + "+"
+
+            if sign_str:
+                sign_str += ts
+                headers["Spas-Signature"] = base64.encodebytes(
+                    hmac.new(sk.encode(), sign_str.encode(), digestmod=hashlib.sha1).digest()).decode().strip()
+        return headers
 
     def _build_metadata(self, metadata, params):
         if metadata:
