@@ -702,7 +702,7 @@ class NacosClient:
             # if contains_init_key:
             #     headers["longPullingNoHangUp"] = "true"
 
-            data = {"Listening-Configs": probe_update_string}
+            data = {"Listening-Configs": probe_update_string, "tenant": self.namespace}
 
             changed_keys = list()
             try:
