@@ -34,7 +34,7 @@ NAMESPACE = "namespace id"
 # no auth mode
 client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
 # auth mode
-#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username="nacos", password="nacos")
+#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, ak="{ak}", sk="{sk}")
 
 # get config
 data_id = "config.nacos"
