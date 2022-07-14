@@ -41,7 +41,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -602,18 +602,18 @@ class NacosClient:
                 if isinstance(puller_info[0], Process):
                     puller_info[0].terminate()
 
-    def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET"):
-        if self.username and self.password:
-            if not params:
-                params = {}
-            params.update({"username": self.username, "password": self.password})
-        url = "?".join([url, urlencode(params)]) if params else url
-        all_headers = self._get_common_headers(params, data)
+    def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET", module="config"):
+        all_headers = {}
         if headers:
             all_headers.update(headers)
+        all_params = {}
+        if params:
+            all_params.update(params)
+        self._inject_auth_info(all_headers, all_params, data, module)
+        url = "?".join([url, urlencode(all_params)]) if all_params else url
         logger.debug(
             "[do-sync-req] url:%s, headers:%s, params:%s, data:%s, timeout:%s" % (
-                url, all_headers, params, data, timeout))
+                url, all_headers, all_params, data, timeout))
         tries = 0
         while True:
             try:
@@ -771,34 +771,61 @@ class NacosClient:
                             str(e), watcher.callback.__name__))
                     watcher.last_md5 = md5
 
-    def _get_common_headers(self, params, data):
-        headers = {}
-        if self.auth_enabled:
-            ts = str(int(time.time() * 1000))
-            ak, sk = self.ak, self.sk
+    def _inject_auth_info(self, headers, params, data, module="config"):
+        if self.username and self.password and params:
+            params.update({"username": self.username, "password": self.password})
+        if not self.auth_enabled:
+            return
+        # in case tenant or group is null
+        if not params and not data:
+            return
+        ts = str(int(time.time() * 1000))
+        ak, sk = self.ak, self.sk
 
+        sign_str = ""
+
+        params_to_sign = params or data or {}
+        # config signature
+        if "config" == module:
             headers.update({
                 "Spas-AccessKey": ak,
                 "timeStamp": ts,
             })
-            sign_str = ""
-            # in case tenant or group is null
-            if not params and not data:
-                return headers
 
-            tenant = (params and params.get("tenant")) or (data and data.get("tenant"))
-            group = (params and params.get("group")) or (data and data.get("group"))
+            tenant = params_to_sign.get("tenant")
+            group = params_to_sign.get("group")
 
             if tenant:
                 sign_str = tenant + "+"
             if group:
                 sign_str = sign_str + group + "+"
-
             if sign_str:
                 sign_str += ts
-                headers["Spas-Signature"] = base64.encodebytes(
-                    hmac.new(sk.encode(), sign_str.encode(), digestmod=hashlib.sha1).digest()).decode().strip()
-        return headers
+                headers["Spas-Signature"] = self.__do_sign(sign_str, sk)
+
+        # naming signature
+        else:
+            group = params_to_sign.get("groupName")
+            service_name = params_to_sign.get("serviceName")
+
+            if service_name:
+                if "@@" in service_name or group is None or group == "":
+                    sign_str = service_name
+                else:
+                    sign_str = group + "@@" + service_name
+                sign_str = ts + "@@" + sign_str
+            else:
+                sign_str = ts
+
+            params.update({
+                "ak": ak,
+                "data": sign_str,
+                "signature": self.__do_sign(sign_str, sk),
+            })
+
+    def __do_sign(self, sign_str, sk):
+        return base64.encodebytes(
+            hmac.new(sk.encode(), sign_str.encode(), digestmod=hashlib.sha1).digest()).decode().strip()
 
     def _build_metadata(self, metadata, params):
         if metadata:
@@ -830,7 +857,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST", "naming")
             c = resp.read()
             logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -863,7 +890,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "DELETE")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "DELETE", "naming")
             c = resp.read()
             logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -905,7 +932,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "PUT")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "PUT", "naming")
             c = resp.read()
             logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -946,7 +973,7 @@ class NacosClient:
             params['groupName'] = group_name
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance/list", None, params, None, self.default_timeout, "GET")
+            resp = self._do_sync_req("/nacos/v1/ns/instance/list", None, params, None, self.default_timeout, "GET", "naming")
             c = resp.read()
             logger.info("[list-naming-instance] service_name:%s, namespace:%s, server response:%s" %
                         (service_name, self.namespace, c))
@@ -978,7 +1005,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, None, self.default_timeout, "GET")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, None, self.default_timeout, "GET", "naming")
             c = resp.read()
             logger.info("[get-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" %
                         (ip, port, service_name, self.namespace, c))
@@ -1023,7 +1050,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance/beat", None, params, None, self.default_timeout, "PUT")
+            resp = self._do_sync_req("/nacos/v1/ns/instance/beat", None, params, None, self.default_timeout, "PUT", "naming")
             c = resp.read()
             logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" %
                         (ip, port, service_name, self.namespace, c))
