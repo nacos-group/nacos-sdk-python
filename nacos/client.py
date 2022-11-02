@@ -609,6 +609,7 @@ class NacosClient:
         all_params = {}
         if params:
             all_params.update(params)
+        self._inject_version_info(all_headers)
         self._inject_auth_info(all_headers, all_params, data, module)
         url = "?".join([url, urlencode(all_params)]) if all_params else url
         logger.debug(
@@ -770,6 +771,9 @@ class NacosClient:
                         logger.exception("[process-polling-result] exception %s occur while calling %s " % (
                             str(e), watcher.callback.__name__))
                     watcher.last_md5 = md5
+
+    def _inject_version_info(self, headers):
+        headers.update("User-Agent", "Nacos-Python-Client:v" + VERSION)
 
     def _inject_auth_info(self, headers, params, data, module="config"):
         if self.username and self.password and params:
