@@ -41,7 +41,7 @@ logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
-VERSION = "0.1.9"
+VERSION = "0.1.10"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -772,8 +772,9 @@ class NacosClient:
                             str(e), watcher.callback.__name__))
                     watcher.last_md5 = md5
 
-    def _inject_version_info(self, headers):
-        headers.update("User-Agent", "Nacos-Python-Client:v" + VERSION)
+    @staticmethod
+    def _inject_version_info(headers):
+        headers.update({"User-Agent": "Nacos-Python-Client:v" + VERSION})
 
     def _inject_auth_info(self, headers, params, data, module="config"):
         if self.username and self.password and params:
