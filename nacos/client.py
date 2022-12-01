@@ -15,7 +15,6 @@ except ImportError:
 
 from multiprocessing import Process, Manager, Queue, pool
 from threading import RLock, Thread
-from multiprocessing import RLock as PRLock
 
 try:
     # python3.6
@@ -252,19 +251,13 @@ class NacosClient:
         self.username = username
         self.password = password
 
-        if platform.system() == "windows":
-            self.server_list_lock = RLock()
-        else:
-            self.server_list_lock = PRLock()
+        self.server_list_lock = RLock()
         self.server_offset = 0
 
         self.watcher_mapping = dict()
         self.subscribed_local_manager = SubscribedLocalManager()
         self.subscribe_timer_manager = NacosTimerManager()
-        if platform.system() == "windows":
-            self.pulling_lock = RLock()
-        else:
-            self.pulling_lock = PRLock()
+        self.pulling_lock = RLock()
         self.puller_mapping = None
         self.notify_queue = None
         self.callback_tread_pool = None
@@ -1169,17 +1162,6 @@ class NacosClient:
         :return: 
         """
         self.subscribe_timer_manager.stop()
-
-    def __getstate__(self):
-        self_dict = self.__dict__.copy()
-        # pool object cannot be passed and there is no need to
-        del self_dict['callback_tread_pool']
-        # weak-ref object cannot be pickled and there is no need to
-        del self_dict['process_mgr']
-        return self_dict
-
-    def __setstate__(self, state):
-        self.__dict__.update(state)
 
 
 if DEBUG:
