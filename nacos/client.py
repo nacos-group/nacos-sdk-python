@@ -8,6 +8,8 @@ import platform
 import time
 import hmac
 
+from urllib3 import HTTPResponse
+
 try:
     import ssl
 except ImportError:
@@ -775,10 +777,18 @@ class NacosClient:
     @staticmethod
     def _inject_version_info(headers):
         headers.update({"User-Agent": "Nacos-Python-Client:v" + VERSION})
-
+    outtime=0
+    access_token=""
     def _inject_auth_info(self, headers, params, data, module="config"):
-        if self.username and self.password and params:
-            params.update({"username": self.username, "password": self.password})
+        if module=="login":
+            return
+        if self.username and self.password:
+            if time.time()>self.outtime:
+                data:HTTPResponse=self._do_sync_req("/nacos/v1/auth/login",None,None,{"username": self.username, "password": self.password},None,"POST","login")
+                body=json.loads(data.read())
+                self.access_token=body["accessToken"]
+                self.outtime=time.time()+body["tokenTtl"]-1
+            params["accessToken"]=self.access_token
         if not self.auth_enabled:
             return
         # in case tenant or group is null

@@ -1,4 +1,4 @@
-VALID_CHAR = set(['_', '-', '.', ':'])
+VALID_CHAR = {'_', '-', '.', ':'}
 PARAM_KEYS = ["data_id", "group"]
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 
