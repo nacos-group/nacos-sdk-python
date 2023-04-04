@@ -848,7 +848,7 @@ class NacosClient:
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
-        params = {
+        data = {
             "ip": ip,
             "port": port,
             "serviceName": service_name,
@@ -859,13 +859,17 @@ class NacosClient:
             "ephemeral": ephemeral,
             "groupName": group_name
         }
-        self._build_metadata(metadata, params)
+        self._build_metadata(metadata, data)
 
         if self.namespace:
-            params["namespaceId"] = self.namespace
+            data["namespaceId"] = self.namespace
+
+        params = {
+            "namespaceId": self.namespace
+        }
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, data, self.default_timeout, "POST", "naming")
             c = resp.read()
             logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
