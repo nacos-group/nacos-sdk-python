@@ -301,6 +301,40 @@ class TestClient(unittest.TestCase):
         client.stop_subscribe()
         print("subscribe has stopped")
 
+    def test_inject_version_info(self):
+        headers = {}
+        nacos.NacosClient._inject_version_info(headers)
+        self.assertTrue("User-Agent" in headers, msg="inject version info failed, User-Agent not found")
+
+    def test_auth_off(self):
+        headers = {}
+        params = {}
+        client_off_auth = nacos.NacosClient(SERVER_ADDRESSES)
+        self.assertTrue(client_off_auth.auth_enabled is None)
+        client_off_auth._inject_auth_info(headers, params, data=None, module="config")
+        self.assertEqual(0, len(headers))
+        self.assertEqual(0, len(params))
+
+    def test_inject_auth_info_of_config(self):
+        headers = {}
+        params = {"tenant": "abc", "group": "bbb"}
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, ak="1", sk="1")
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="config")
+        self.assertEqual("1", headers.get("Spas-AccessKey"))
+        self.assertTrue("timeStamp" in headers)
+        self.assertTrue("Spas-Signature" in headers)
+
+    def test_inject_auth_info_of_naming(self):
+        headers = {}
+        params = {"serviceName": "abc", "groupName": "bbb"}
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, ak="1", sk="1")
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="naming")
+        self.assertEqual("1", params.get("ak"))
+        self.assertTrue("data" in params)
+        self.assertTrue("signature" in params)
+
 
 if __name__ == '__main__':
     unittest.main()

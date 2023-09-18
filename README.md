@@ -34,7 +34,7 @@ NAMESPACE = "namespace id"
 # no auth mode
 client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE)
 # auth mode
-#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username="nacos", password="nacos")
+#client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, ak="{ak}", sk="{sk}")
 
 # get config
 data_id = "config.nacos"
@@ -44,11 +44,13 @@ print(client.get_config(data_id, group))
 
 ## Configuration
 ```
-client = NacosClient(server_addresses, namespace=your_ns)
+client = NacosClient(server_addresses, namespace=your_ns, ak=your_ak, sk=your_sk)
 ```
 
 * *server_addresses* - **required**  - Nacos server address, comma separated if more than 1.
 * *namespace* - Namespace. | default: `None`
+* *ak* - The accessKey to authenticate. | default: null
+* *sk* - The secretKey to authentication. | default: null
 
 #### Extra Options
 Extra option can be set by `set_options`, as following:
