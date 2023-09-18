@@ -37,7 +37,6 @@ from .exception import NacosException, NacosRequestException
 from .listener import Event, SimpleListenerManager
 from .timer import NacosTimer, NacosTimerManager
 
-logging.basicConfig()
 logger = logging.getLogger(__name__)
 
 DEBUG = False
