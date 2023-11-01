@@ -21,7 +21,7 @@ NAMESPACE = ""
 USERNAME = None
 PASSWORD = None
 
-client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
+client = nacos.NacosClient(endpoint="jmenv.tbsite.net")
 # Set the following option if http requests need through by proxy
 # client.set_options(proxies={"http":"192.168.56.1:809"})
 
