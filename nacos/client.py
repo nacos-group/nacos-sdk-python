@@ -1,12 +1,17 @@
 # -*- coding=utf-8 -*-
 import base64
+import functools
 import hashlib
 import logging
+import os
 import socket
 import json
 import platform
+import threading
 import time
 import hmac
+
+import nacos.client
 
 try:
     import ssl
@@ -37,7 +42,7 @@ from .exception import NacosException, NacosRequestException
 from .listener import Event, SimpleListenerManager
 from .timer import NacosTimer, NacosTimerManager
 
-logging.basicConfig()
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 DEBUG = False
@@ -45,7 +50,7 @@ VERSION = "0.1.11"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
-
+ADDRESS_SERVER_TIMEOUT = 3
 WORD_SEPARATOR = u'\x02'
 LINE_SEPARATOR = u'\x01'
 
@@ -106,7 +111,7 @@ class CacheData:
         self.md5 = hashlib.md5(local_value.encode("UTF-8")).hexdigest() if local_value else None
         self.is_init = True
         if not self.md5:
-            logger.debug("[init-cache] cache for %s does not have local value" % key)
+            logger.info("[init-cache] cache for %s does not have local value" % key)
 
 
 class SubscribedLocalInstance(object):
@@ -232,49 +237,117 @@ class NacosClient:
     def get_md5(content):
         return hashlib.md5(content.encode("UTF-8")).hexdigest() if content is not None else None
 
-    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None, sk=None, username=None, password=None):
-        self.server_list = list()
+    def get_server_from_url(self, url):
+      server_list_content = urlopen(url, timeout=ADDRESS_SERVER_TIMEOUT).read()
+      default_port = 8848
+      server_list_temp = list()
+      if server_list_content:
+        for server_info in server_list_content.decode().strip().split("\n"):
+          sp = server_info.strip().split(":")
+          if len(sp) == 1:
+            # endpoint中没有指定port
+            server_list_temp.append((sp[0], default_port))
+          else:
+            try:
+              port = sp.strip().split("/")[0]
+              server_list_temp.append((sp[0], int(port)))
+            except ValueError:
+              logger.warning(
+                  "[get-server-list] bad server address:%s ignored" % server_info)
+        if (self.server_list != server_list_temp):
+          self.server_list = server_list_temp
+      return server_list_temp
 
+
+    def get_server_from_url_task(self, url):
+      while (True):
         try:
-            for server_addr in server_addresses.split(","):
-                self.server_list.append(parse_nacos_server_addr(server_addr.strip()))
+          time.sleep(10)
+          self.get_server_from_url(url)
         except Exception as ex:
-            logger.exception("[init] bad server address for %s" % server_addresses)
-            raise ex
+          logger.exception("get_server_from_url_task %s" % ex)
 
-        self.current_server = self.server_list[0]
 
-        self.endpoint = endpoint
-        self.namespace = namespace or DEFAULT_NAMESPACE or ""
-        self.ak = ak
-        self.sk = sk
-        self.username = username
-        self.password = password
+    def initLog(self, logDir):
+      if logDir is None or logDir.strip() == "":
+        logDir = os.path.expanduser("~") + "/logs/nacos/"
+      if not logDir.endswith(os.path.sep):
+        logDir += os.path.sep
+      if not os.path.exists(logDir):
+        os.makedirs(logDir)
+      logPath = logDir + 'nacos-client-python.log'
+      file_handler = logging.FileHandler(logPath)
+      if nacos.NacosClient.debug:
+        file_handler.setLevel(logging.DEBUG)
+      else:
+        file_handler.setLevel(logging.INFO)
+      formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+      file_handler.setFormatter(formatter)
+      logger.addHandler(file_handler)
 
-        self.server_list_lock = RLock()
-        self.server_offset = 0
 
-        self.watcher_mapping = dict()
-        self.subscribed_local_manager = SubscribedLocalManager()
-        self.subscribe_timer_manager = NacosTimerManager()
-        self.pulling_lock = RLock()
-        self.puller_mapping = None
-        self.notify_queue = None
-        self.callback_tread_pool = None
-        self.process_mgr = None
+    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None,
+        sk=None, username=None, password=None, logDir=None):
+      self.server_list = list()
+      self.initLog(logDir)
+      try:
+        if server_addresses.strip() != "":
+          for server_addr in server_addresses.split(","):
+            self.server_list.append(parse_nacos_server_addr(server_addr.strip()))
+          logger.info("user server address  " + server_addresses)
+        elif endpoint is not None and endpoint.strip() != "":
+          url = endpoint
+          if ("?" not in endpoint):
+            url = url + "?namespace=" + namespace
+          else:
+            url = url + "&namespace=" + namespace
+          logger.info("address server url " + url)
+          self.get_server_from_url(url)
+          partial_task_function = functools.partial(self.get_server_from_url_task,
+                                                    url)
+          thread = threading.Thread(target=partial_task_function)
+          thread.daemon = True
+          thread.start()
+        else:
+          logger.exception("[init] server address & endpoint must not both none")
+          raise ValueError('server address & endpoint must not both none')
+      except Exception as ex:
+        logger.exception("[init] bad server address for %s" % server_addresses)
+        raise ex
 
-        self.default_timeout = DEFAULTS["TIMEOUT"]
-        self.auth_enabled = self.ak and self.sk
-        self.cai_enabled = True
-        self.pulling_timeout = DEFAULTS["PULLING_TIMEOUT"]
-        self.pulling_config_size = DEFAULTS["PULLING_CONFIG_SIZE"]
-        self.callback_thread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
-        self.failover_base = DEFAULTS["FAILOVER_BASE"]
-        self.snapshot_base = DEFAULTS["SNAPSHOT_BASE"]
-        self.no_snapshot = False
-        self.proxies = None
+      self.current_server = self.server_list[0]
 
-        logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
+      self.endpoint = endpoint
+      self.namespace = namespace or DEFAULT_NAMESPACE or ""
+      self.ak = ak
+      self.sk = sk
+      self.username = username
+      self.password = password
+
+      self.server_list_lock = RLock()
+      self.server_offset = 0
+
+      self.watcher_mapping = dict()
+      self.subscribed_local_manager = SubscribedLocalManager()
+      self.subscribe_timer_manager = NacosTimerManager()
+      self.pulling_lock = RLock()
+      self.puller_mapping = None
+      self.notify_queue = None
+      self.callback_tread_pool = None
+      self.process_mgr = None
+
+      self.default_timeout = DEFAULTS["TIMEOUT"]
+      self.auth_enabled = self.ak and self.sk
+      self.cai_enabled = True
+      self.pulling_timeout = DEFAULTS["PULLING_TIMEOUT"]
+      self.pulling_config_size = DEFAULTS["PULLING_CONFIG_SIZE"]
+      self.callback_thread_num = DEFAULTS["CALLBACK_THREAD_NUM"]
+      self.failover_base = DEFAULTS["FAILOVER_BASE"]
+      self.snapshot_base = DEFAULTS["SNAPSHOT_BASE"]
+      self.no_snapshot = False
+      self.proxies = None
+      self.logDir = logDir
+      logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
 
     def set_options(self, **kwargs):
         for k, v in kwargs.items():
@@ -291,7 +364,7 @@ class NacosClient:
             self.current_server = self.server_list[self.server_offset]
 
     def get_server(self):
-        logger.info("[get-server] use server:%s" % str(self.current_server))
+        logger.debug("[get-server] use server:%s" % str(self.current_server))
         return self.current_server
 
     def remove_config(self, data_id, group, timeout=None):
@@ -361,6 +434,9 @@ class NacosClient:
             return c == b"true"
         except HTTPError as e:
             if e.code == HTTPStatus.FORBIDDEN:
+                logger.info(
+                  "[publish] publish content fail result code :403, group:%s, data_id:%s" % (
+                    group, data_id))
                 raise NacosException("Insufficient privilege.")
             else:
                 raise NacosException("Request Error, code is %s" % e.code)
@@ -371,7 +447,7 @@ class NacosClient:
     def get_config(self, data_id, group, timeout=None, no_snapshot=None):
         no_snapshot = self.no_snapshot if no_snapshot is None else no_snapshot
         data_id, group = process_common_config_params(data_id, group)
-        logger.info("[get-config] data_id:%s, group:%s, namespace:%s, timeout:%s" % (
+        logger.debug("[get-config] data_id:%s, group:%s, namespace:%s, timeout:%s" % (
             data_id, group, self.namespace, timeout))
 
         params = {
@@ -423,7 +499,7 @@ class NacosClient:
             return content
 
         if content is not None:
-            logger.info(
+            logger.debug(
                 "[get-config] content from server:%s, data_id:%s, group:%s, namespace:%s, try to save snapshot" % (
                     truncate(content), data_id, group, self.namespace))
             try:
@@ -433,13 +509,13 @@ class NacosClient:
                     data_id, group, self.namespace, str(e)))
             return content
 
-        logger.error("[get-config] get config from server failed, try snapshot, data_id:%s, group:%s, namespace:%s" % (
+        logger.info("[get-config] get config from server failed, try snapshot, data_id:%s, group:%s, namespace:%s" % (
             data_id, group, self.namespace))
         content = read_file_str(self.snapshot_base, cache_key)
         if content is None:
-            logger.warning("[get-config] snapshot is not exist for %s." % cache_key)
+            logger.info("[get-config] snapshot is not exist for %s." % cache_key)
         else:
-            logger.debug("[get-config] get %s from snapshot directory, content is %s" % (cache_key, truncate(content)))
+            logger.info("[get-config] get %s from snapshot directory, content is %s" % (cache_key, truncate(content)))
             return content
 
     def get_configs(self, timeout=None, no_snapshot=None, group="", page_no=1, page_size=1000):
@@ -708,7 +784,7 @@ class NacosClient:
                 resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, None, data,
                                          self.pulling_timeout + 10, "POST")
                 changed_keys = [group_key(*i) for i in parse_pulling_result(resp.read())]
-                logger.debug("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
+                logger.info("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
             except NacosException as e:
                 logger.error("[do-pulling] nacos exception: %s, waiting for recovery" % str(e))
                 time.sleep(1)
@@ -742,7 +818,7 @@ class NacosClient:
     def _process_polling_result(self):
         while True:
             cache_key, content, md5 = self.notify_queue.get()
-            logger.debug("[process-polling-result] receive an event:%s" % cache_key)
+            logger.info("[process-polling-result] receive an event:%s" % cache_key)
             wl = self.watcher_mapping.get(cache_key)
             if not wl:
                 logger.warning("[process-polling-result] no watcher on %s, ignored" % cache_key)
@@ -760,9 +836,9 @@ class NacosClient:
             }
             for watcher in wl:
                 if not watcher.last_md5 == md5:
-                    logger.debug(
-                        "[process-polling-result] md5 changed since last call, calling %s with changed params: %s"
-                        % (watcher.callback.__name__, params))
+                    logger.info(
+                        "[process-polling-result] md5 changed since last call, calling %s with changed md5: %s ,params: %s"
+                        % (watcher.callback.__name__,md5, params))
                     try:
                         self.callback_tread_pool.apply(watcher.callback, (params,))
                     except Exception as e:
