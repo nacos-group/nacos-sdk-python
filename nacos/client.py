@@ -286,17 +286,17 @@ class NacosClient:
       logger.addHandler(file_handler)
 
 
-    def __init__(self, server_addresses, endpoint=None, namespace=None, ak=None,
+    def __init__(self, server_addresses=None, endpoint=None, namespace=None, ak=None,
         sk=None, username=None, password=None, logDir=None):
       self.server_list = list()
       self.initLog(logDir)
       try:
-        if server_addresses.strip() != "":
-          for server_addr in server_addresses.split(","):
+        if server_addresses is not None and server_addresses.strip() != "":
+          for server_addr in server_addresses.strip().split(","):
             self.server_list.append(parse_nacos_server_addr(server_addr.strip()))
           logger.info("user server address  " + server_addresses)
         elif endpoint is not None and endpoint.strip() != "":
-          url = endpoint
+          url = endpoint.strip()
           if ("?" not in endpoint):
             url = url + "?namespace=" + namespace
           else:
