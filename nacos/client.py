@@ -780,8 +780,11 @@ class NacosClient:
             data = {"Listening-Configs": probe_update_string}
 
             changed_keys = list()
+            params = {
+                "tenant": self.namespace,
+            }
             try:
-                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, None, data,
+                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, params, data,
                                          self.pulling_timeout + 10, "POST")
                 changed_keys = [group_key(*i) for i in parse_pulling_result(resp.read())]
                 logger.info("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
@@ -919,7 +922,7 @@ class NacosClient:
         logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
             ip, port, service_name, self.namespace))
 
-        params = {
+        data = {
             "ip": ip,
             "port": port,
             "serviceName": service_name,
@@ -930,13 +933,17 @@ class NacosClient:
             "ephemeral": ephemeral,
             "groupName": group_name
         }
-        self._build_metadata(metadata, params)
+        self._build_metadata(metadata, data)
 
         if self.namespace:
-            params["namespaceId"] = self.namespace
+            data["namespaceId"] = self.namespace
+
+        params = {
+            "namespaceId": self.namespace
+        }
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, data, self.default_timeout, "POST", "naming")
             c = resp.read()
             logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
