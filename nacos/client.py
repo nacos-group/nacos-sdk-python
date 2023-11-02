@@ -380,7 +380,7 @@ class NacosClient:
             params["tenant"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, params, None,
                                      timeout or self.default_timeout, "DELETE")
             c = resp.read()
             logger.info("[remove] remove group:%s, data_id:%s, server response:%s" % (
@@ -426,7 +426,7 @@ class NacosClient:
             params["type"] = config_type
 
         try:
-            resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, params, None,
                                      timeout or self.default_timeout, "POST")
             c = resp.read()
             logger.info("[publish] publish content, group:%s, data_id:%s, server response:%s" % (
@@ -850,9 +850,19 @@ class NacosClient:
     def _inject_version_info(headers):
         headers.update({"User-Agent": "Nacos-Python-Client:v" + VERSION})
 
+    outtime = 0                     # nacos鉴权开启，需要补充的内容
+    access_token = ""               # nacos鉴权开启，需要补充的内容
     def _inject_auth_info(self, headers, params, data, module="config"):
+        if module == 'login':       # nacos鉴权开启，需要补充的内容
+            return                  # nacos鉴权开启，需要补充的内容
         if self.username and self.password and params:
-            params.update({"username": self.username, "password": self.password})
+            # params.update({"username": self.username, "password": self.password})
+            if time.time() > self.outtime:                          # nacos鉴权开启，需要补充的内容
+                dataHTTPResponse = self._do_sync_req("/nacos/v1/auth/login", None, {"username": self.username, "password": self.password}, None, None, "POST", "login")    # nacos鉴权开启，需要补充的内容
+                body = json.loads(dataHTTPResponse.read())          # nacos鉴权开启，需要补充的内容
+                self.access_token = body["accessToken"]             # nacos鉴权开启，需要补充的内容
+                self.outtime = time.time() + body["tokenTtl"] - 1   # nacos鉴权开启，需要补充的内容
+            params["accessToken"] = self.access_token               # nacos鉴权开启，需要补充的内容
         if not self.auth_enabled:
             return
         # in case tenant or group is null
@@ -936,7 +946,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, None, self.default_timeout, "POST", "naming")
             c = resp.read()
             logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -969,7 +979,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "DELETE", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, None, self.default_timeout, "DELETE", "naming")
             c = resp.read()
             logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -1011,7 +1021,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "PUT", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, params, None, self.default_timeout, "PUT", "naming")
             c = resp.read()
             logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
