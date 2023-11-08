@@ -6,6 +6,7 @@ import logging
 import os
 import socket
 import json
+import jsonpath
 import platform
 import threading
 import time
@@ -376,11 +377,14 @@ class NacosClient:
             "dataId": data_id,
             "group": group,
         }
+        queryparams = {
+            "accessToken": self.get_access_token()
+        }
         if self.namespace:
             params["tenant"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, queryparams, params,
                                      timeout or self.default_timeout, "DELETE")
             c = resp.read()
             logger.info("[remove] remove group:%s, data_id:%s, server response:%s" % (
@@ -415,6 +419,9 @@ class NacosClient:
             "group": group,
             "content": content.encode("UTF-8"),
         }
+        queryparams = {
+            "accessToken": self.get_access_token()
+        }
 
         if self.namespace:
             params["tenant"] = self.namespace
@@ -426,7 +433,7 @@ class NacosClient:
             params["type"] = config_type
 
         try:
-            resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, queryparams, params,
                                      timeout or self.default_timeout, "POST")
             c = resp.read()
             logger.info("[publish] publish content, group:%s, data_id:%s, server response:%s" % (
@@ -453,6 +460,7 @@ class NacosClient:
         params = {
             "dataId": data_id,
             "group": group,
+            "accessToken": self.get_access_token()
         }
         if self.namespace:
             params["tenant"] = self.namespace
@@ -529,6 +537,7 @@ class NacosClient:
             "search": "accurate",
             "pageNo": page_no,
             "pageSize": page_size,
+            "accessToken": self.get_access_token()
         }
         if self.namespace:
             params["tenant"] = self.namespace
@@ -778,10 +787,11 @@ class NacosClient:
             #     headers["longPullingNoHangUp"] = "true"
 
             data = {"Listening-Configs": probe_update_string}
+            queryparams = {"accessToken": self.get_access_token()}
 
             changed_keys = list()
             try:
-                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, None, data,
+                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, queryparams, data,
                                          self.pulling_timeout + 10, "POST")
                 changed_keys = [group_key(*i) for i in parse_pulling_result(resp.read())]
                 logger.info("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
@@ -913,6 +923,24 @@ class NacosClient:
             else:
                 params["metadata"] = metadata
 
+    def get_access_token(self):
+        params = {
+            "username": self.username,
+            "password": self.password
+        }
+        try:
+            resp = self._do_sync_req("/nacos/v1/auth/login", None, None, params, self.default_timeout, "POST", "gettoken")
+            c = resp.read()
+            accesstoken = jsonpath.jsonpath(json.loads(c.decode("UTF-8")),"$..accessToken")
+            return accesstoken[0]
+        except HTTPError as e:
+            if e.code == HTTPStatus.FORBIDDEN:
+                raise NacosException("Insufficient privilege.")
+            else:
+                raise NacosException("Request Error, code is %s" % e.code)
+        except Exception as e:
+            logger.exception("[list-naming-instance] exception %s occur" % str(e))
+            raise
 
     def add_naming_instance(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None,
                             enable=True, healthy=True, ephemeral=True,group_name=DEFAULT_GROUP_NAME):
@@ -930,13 +958,16 @@ class NacosClient:
             "ephemeral": ephemeral,
             "groupName": group_name
         }
+        queryparams = {
+            "accessToken": self.get_access_token()
+        }
         self._build_metadata(metadata, params)
 
         if self.namespace:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "POST", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, queryparams, params, self.default_timeout, "POST", "naming")
             c = resp.read()
             logger.info("[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -961,6 +992,10 @@ class NacosClient:
             "ephemeral": ephemeral,
             "groupName":group_name
         }
+        
+        queryparams = {
+            "accessToken": self.get_access_token()
+        }
 
         if cluster_name is not None:
             params["clusterName"] = cluster_name
@@ -969,7 +1004,7 @@ class NacosClient:
             params["namespaceId"] = self.namespace
 
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "DELETE", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, queryparams, params, self.default_timeout, "DELETE", "naming")
             c = resp.read()
             logger.info("[remove-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -1010,8 +1045,12 @@ class NacosClient:
         if self.namespace:
             params["namespaceId"] = self.namespace
 
+        queryparams = {
+            "accessToken": self.get_access_token()
+        }
+
         try:
-            resp = self._do_sync_req("/nacos/v1/ns/instance", None, None, params, self.default_timeout, "PUT", "naming")
+            resp = self._do_sync_req("/nacos/v1/ns/instance", None, queryparams, params, self.default_timeout, "PUT", "naming")
             c = resp.read()
             logger.info("[modify-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                 ip, port, service_name, self.namespace, c))
@@ -1037,7 +1076,8 @@ class NacosClient:
 
         params = {
             "serviceName": service_name,
-            "healthyOnly": healthy_only
+            "healthyOnly": healthy_only,
+            "accessToken": self.get_access_token()
         }
 
         if clusters is not None:
@@ -1074,6 +1114,7 @@ class NacosClient:
             "serviceName": service_name,
             "ip": ip,
             "port": port,
+            "accessToken": self.get_access_token()
         }
 
         if cluster_name is not None:
@@ -1122,7 +1163,8 @@ class NacosClient:
         params = {
             "serviceName": service_name,
             "beat": json.dumps(beat_data),
-            "groupName": group_name
+            "groupName": group_name,
+            "accessToken": self.get_access_token()
         }
 
         if self.namespace:
