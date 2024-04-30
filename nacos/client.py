@@ -287,7 +287,7 @@ class NacosClient:
 
 
     def __init__(self, server_addresses=None, endpoint=None, namespace=None, ak=None,
-        sk=None, username=None, password=None, logDir=None):
+        sk=None, username=None, password=None, logDir=None, auth_key=None, auth_value=None):
       self.server_list = list()
       self.initLog(logDir)
       try:
@@ -323,7 +323,10 @@ class NacosClient:
       self.sk = sk
       self.username = username
       self.password = password
-
+      if auth_key and auth_value:
+          self.auth_headers = {auth_key: auth_value}
+      else:
+          self.auth_headers = {}
       self.server_list_lock = RLock()
       self.server_offset = 0
 
@@ -677,7 +680,7 @@ class NacosClient:
                     puller_info[0].terminate()
 
     def _do_sync_req(self, url, headers=None, params=None, data=None, timeout=None, method="GET", module="config"):
-        all_headers = {}
+        all_headers = self.auth_headers
         if headers:
             all_headers.update(headers)
         all_params = {}
