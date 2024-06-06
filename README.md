@@ -51,6 +51,8 @@ client = NacosClient(server_addresses, namespace=your_ns, ak=your_ak, sk=your_sk
 * *namespace* - Namespace. | default: `None`
 * *ak* - The accessKey to authenticate. | default: null
 * *sk* - The secretKey to authentication. | default: null
+* *log_level* - Log level. | default: null
+* *log_rotation_backup_count* - The number of log files to keep. | default: `7`
 
 #### Extra Options
 Extra option can be set by `set_options`, as following:
@@ -142,7 +144,7 @@ Publish one data item to Nacos.
 Remove one data item from Nacos.
 
 ### Register Instance
->`NacosClient.add_naming_instance(service_name, ip, port, cluster_name, weight, metadata, enable, healthy)`
+>`NacosClient.add_naming_instance(service_name, ip, port, cluster_name, weight, metadata, enable, healthy,ephemeral,group_name,heartbeat_interval)`
 * `param` *service_name*  **required** Service name to register to.
 * `param` *ip*  **required** IP of the instance.
 * `param` *port* **required** Port of the instance.
@@ -152,6 +154,7 @@ Remove one data item from Nacos.
 * `param` *enable* A bool value to determine whether instance is enabled or not.
 * `param` *healthy* A bool value to determine whether instance is healthy or not.
 * `param` *ephemeral* A bool value to determine whether instance is ephemeral or not.
+* `param` *heartbeat_interval* Auto daemon heartbeat interval in seconds.
 * `return` True if success or an exception will be raised.
 
 ### Deregister Instance
@@ -229,7 +232,6 @@ Debugging mode if useful for getting more detailed log on console.
 
 Debugging mode can be set by:
 ```
-NacosClient.set_debugging()
-# only effective within the current process
+client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username=USERNAME, password=PASSWORD,log_level="DEBUG")
 ```
 
