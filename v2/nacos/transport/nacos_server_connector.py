@@ -7,13 +7,14 @@ import hashlib
 import base64
 from typing import List, Dict, Optional
 
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.config.client_config import ClientConfig
 
 
 class NacosServerConnector:
     def __init__(self, client_config: ClientConfig, http_agent, endpoint_query_header: Dict[str, str]):
-        if not server_list and not endpoint:
-            raise ValueError("both server list and endpoint are empty")
+        if not client_config.server_address and not client_config.endpoint:
+            raise NacosException(INVALID_PARAM, "both server list and endpoint are empty")
 
         self.security_login = AuthClient(client_cfg, server_list, http_agent)
         self.server_address = client_config.server_address
