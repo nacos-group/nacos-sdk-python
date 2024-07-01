@@ -1,6 +1,6 @@
-from v2.nacos.config.client_config import ClientConfig
-from v2.nacos.config.client_config import TLSConfig
-from v2.nacos.config.client_config import KMSConfig
+from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.common.client_config import TLSConfig
+from v2.nacos.common.client_config import KMSConfig
 
 
 class ClientConfigBuilder:

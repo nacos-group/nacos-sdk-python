@@ -1,9 +1,15 @@
 class Constants:
+    NAMING_MODULE = "naming"
+
+    CONFIG_MODULE = "config"
+
     CLIENT_VERSION = "Nacos-Python-Client:v2.0.0"
 
     DATA_IN_BODY_VERSION = 204
 
     DEFAULT_GROUP = "DEFAULT_GROUP"
+
+    WEB_CONTEXT = "/nacos"
 
     APPNAME = "AppName"
 
@@ -18,6 +24,8 @@ class Constants:
     DATAID = "dataId"
 
     GROUP = "group"
+
+    DEFAULT_HEARTBEAT_INTERVAL = 5
 
     LAST_MODIFIED = "Last-Modified"
 
@@ -46,6 +54,8 @@ class Constants:
     SPACING_INTERVAL = "client-spacing-interval"
 
     BASE_PATH = "/v1/cs"
+
+    SERVICE_BASE_PATH = "/v1/ns"
 
     CONFIG_CONTROLLER_PATH = BASE_PATH + "/configs"
 
@@ -165,3 +175,9 @@ class Constants:
     LOCATION_TAG = "Location-Tag"
 
     CHARSET_KEY = "charset"
+
+    GROUP_NAME_KEY = "groupName"
+
+    SERVICE_NAME_KEY = "serviceName"
+
+    DEFAULT_PORT = 8848

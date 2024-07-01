@@ -1,26 +1,24 @@
-import logging
-
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
-from v2.nacos.config.client_config import ClientConfig
+from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.nacos_client import NacosClient
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_request import RegisterInstanceRequest, \
-    BatchRegisterInstanceRequest, DeregisterInstanceRequest, UpdateInstanceRequest
+    BatchRegisterInstanceRequest, DeregisterInstanceRequest
 from v2.nacos.naming.remote.naming_client_proxy_delegate import NamingClientProxyDelegate
 
 
 class NacosNamingService(NacosClient):
     def __init__(self, client_config: ClientConfig):
         super().__init__(client_config)
-        self.logger = logging.getLogger(__name__)
         self.namespace_id = client_config.namespace_id
         self.service_info_holder = ServiceInfoCache(client_config)
-        self.client_proxy_delegate = NamingClientProxyDelegate(client_config, self.service_info_holder)
+        self.client_proxy_delegate = NamingClientProxyDelegate(client_config, self.http_agent,
+                                                               self.service_info_holder)
 
     def register_instance(self, request: RegisterInstanceRequest) -> bool:
-        if not request.service_name:
+        if not request.service_name or not request.serviceName.strip():
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
         if not request.group_name:
@@ -88,22 +86,19 @@ class NacosNamingService(NacosClient):
 
         return self.client_proxy_delegate.deregister_instance(request.service_name, request.group_name, instance)
 
-    def get_all_instances(self, service_name: str, group_name: str, clusters: List[str], subscribe: bool) -> List[
-        Instance]:
+    def get_all_instances(self):
         pass
 
-    def select_instances(self, service_name: str, group_name: str, clusters: List[str], healthy: bool,
-                         subscribe: bool) -> List[Instance]:
+    def select_instances(self):
         pass
 
-    def select_one_healthy_instance(self, service_name: str, group_name: str, clusters: List[str],
-                                    subscribe: bool) -> Instance:
+    def select_one_healthy_instance(self):
         pass
 
-    def subscribe(self, service_name: str, group_name: str, clusters: List[str], listener: EventListener) -> None:
+    def subscribe(self):
         pass
 
-    def unsubscribe(self, service_name: str, group_name: str, clusters: List[str], listener: EventListener) -> None:
+    def unsubscribe(self):
         pass
 
     def get_services_of_server(self):

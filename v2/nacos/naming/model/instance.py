@@ -1,7 +1,7 @@
 import re
 
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.nacos_exception import NacosException, ErrorCode
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.common.preserved_metadata_key import PreservedMetadataKeys
 
 
@@ -57,7 +57,7 @@ class Instance:
         if self.get_instance_heart_beat_timeout() < self.get_instance_heart_beat_interval() or \
                 self.get_ip_delete_timeout() < self.get_instance_heart_beat_interval():
             raise NacosException(
-                ErrorCode.INVALID_PARAM,
+                INVALID_PARAM,
                 "Instance 'heart beat interval' must less than 'heart beat timeout' and 'ip delete timeout'."
             )
 

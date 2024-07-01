@@ -1,6 +1,9 @@
 import logging
 import os
 
+from v2.nacos.common.constants import Constants
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
+
 
 class KMSConfig:
     def __init__(self, enabled=False, appointed=False, ak='', sk='',
@@ -25,19 +28,31 @@ class TLSConfig:
 
 
 class ClientConfig:
-    def __init__(self, server_address=None, endpoint=None, namespace_id='', access_key=None,
-                 secret_key=None, username=None, password=None):
-        self.server_address = server_address
+    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
+                 secret_key=None, username=None, password=None, app_name='', log_dir='', log_level=None,
+                 log_rotation_backup_count=None):
+        self.server_list = []
+        try:
+            if server_addresses is not None and server_addresses.strip() != "":
+                for server_address in server_addresses.strip().split(','):
+                    self.server_list.append(server_address.strip())
+        except Exception:
+            raise NacosException(INVALID_PARAM, "server_addresses is invalid")
+
         self.endpoint = endpoint
+        self.endpoint_context_path = Constants.WEB_CONTEXT
         self.namespace_id = namespace_id
         self.access_key = access_key
+        self.context_path = context_path
         self.secret_key = secret_key
         self.username = username  # the username for nacos auth
         self.password = password  # the password for nacos auth
+        self.app_name = app_name
 
         self.cache_dir = ''
-        self.log_dir = ''
-        self.log_level = logging.INFO
+        self.log_dir = log_dir
+        self.log_level = logging.INFO if log_level is None else log_level  # the log level for nacos client, default value is logging.INFO: log_level
+        self.log_rotation_backup_count = 7 if log_rotation_backup_count is None else log_rotation_backup_count
         self.timeout_ms = 10 * 1000  # timeout for requesting Nacos server, default value is 10000ms
         self.heart_beat_interval = 5 * 1000  # the time interval for sending beat to server,default value is 5000ms
         self.kms_config = None
@@ -74,4 +89,8 @@ class ClientConfig:
 
     def set_not_load_cache_at_start(self, not_load_cache_at_start):
         self.not_load_cache_at_start = not_load_cache_at_start
+        return self
+
+    def set_endpoint_context_path(self, endpoint_context_path):
+        self.endpoint_context_path = endpoint_context_path
         return self

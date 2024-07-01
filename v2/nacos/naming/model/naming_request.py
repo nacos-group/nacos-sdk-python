@@ -1,42 +1,36 @@
-from typing import List, Callable
+from typing import List, Callable, Optional
 
 from v2.nacos.common.constants import Constants
+from pydantic import BaseModel
 
 
-class RegisterInstanceRequest:
-    def __init__(self, service_name: str, ip: str, port: int, cluster_name: str, metadata, enable: bool = True,
-                 healthy: bool = True,
-                 ephemeral: bool = False, weight: float = 1.0, group_name: str = Constants.DEFAULT_GROUP):
-        self.service_name = service_name
-        self.ip = ip
-        self.port = port
-        self.cluster_name = cluster_name
-        self.metadata = metadata if metadata else {}
-        self.weight = weight
-        self.enable = enable
-        self.healthy = healthy
-        self.group_name = group_name
-        self.ephemeral = ephemeral
+class RegisterInstanceRequest(BaseModel):
+    instance_id: Optional[str]
+    ip: str
+    port: int
+    weight: float = 1.0
+    healthy: bool = True
+    enable: bool = True
+    ephemeral: bool = True
+    cluster_name: str
+    serviceName: str
+    groupName: str = Constants.DEFAULT_GROUP
+    metadata: dict = {}
 
 
-class BatchRegisterInstanceRequest:
-    def __init__(self, service_name: str, instances: List[RegisterInstanceRequest],
-                 group_name: str = Constants.DEFAULT_GROUP):
-        self.service_name = service_name
-        self.group_name = group_name
-        self.instances = instances
+class BatchRegisterInstanceRequest(BaseModel):
+    service_name: str
+    instances: List[RegisterInstanceRequest]
+    group_name: str = Constants.DEFAULT_GROUP
 
 
-class DeregisterInstanceRequest:
-    def __init__(self, service_name: str, ip: str, port: int, cluster_name: str = "",
-                 group_name: str = Constants.DEFAULT_GROUP,
-                 ephemeral: bool = False):
-        self.ip = ip
-        self.port = port
-        self.cluster_name = cluster_name
-        self.service_name = service_name
-        self.group_name = group_name
-        self.ephemeral = ephemeral
+class DeregisterInstanceRequest(BaseModel):
+    ip: str
+    port: int
+    cluster_name: str
+    service_name: str
+    group_name: str = Constants.DEFAULT_GROUP
+    ephemeral: bool = True
 
 
 class UpdateInstanceRequest(RegisterInstanceRequest):
