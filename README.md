@@ -16,7 +16,7 @@ Python 3.7
 ### Supported Nacos version
 Nacos 0.8.0+
 Nacos 1.x
-Nacos 2.x
+Nacos 2.x with http protocol
 
 
 ## Installation
