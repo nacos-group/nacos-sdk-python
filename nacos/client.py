@@ -342,7 +342,8 @@ class NacosClient:
         self.logDir = logDir
 
         self.heartbeats: Dict[str, HeartbeatTask] = {}
-        self.get_access_token()
+        if self.username and self.password:
+            self.get_access_token()
         logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
 
     def set_options(self, **kwargs):
