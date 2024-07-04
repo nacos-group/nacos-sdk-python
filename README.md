@@ -1,7 +1,7 @@
 # nacos-sdk-python
 A Python implementation of Nacos OpenAPI.
 
-see: https://nacos.io/zh-cn/docs/open-API.html
+see: https://nacos.io/docs/latest/guide/user/open-api/
 
 [![Pypi Version](https://badge.fury.io/py/nacos-sdk-python.svg)](https://badge.fury.io/py/nacos-sdk-python)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/nacos-group/nacos-sdk-python/blob/master/LICENSE)
@@ -14,7 +14,9 @@ Python 3.6
 Python 3.7
 
 ### Supported Nacos version
-Nacos 0.8.0 ~ 1.3.2
+Nacos 0.8.0+
+Nacos 1.x
+Nacos 2.x with http protocol
 
 
 ## Installation
