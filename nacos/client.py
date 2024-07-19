@@ -259,7 +259,7 @@ class NacosClient:
         if not logDir.endswith(os.path.sep):
             logDir += os.path.sep
         if not os.path.exists(logDir):
-            os.makedirs(logDir)
+            os.makedirs(logDir, exist_ok=True)
 
         if log_rotation_backup_count is None:
             log_rotation_backup_count = 7
