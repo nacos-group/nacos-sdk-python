@@ -1152,6 +1152,9 @@ class NacosClient:
                        group_name=DEFAULT_GROUP_NAME):
         logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
                                                                                         self.namespace))
+        if "@@" not in service_name and group_name:
+            service_name = group_name + "@@" + service_name
+
         beat_data = {
             "serviceName": service_name,
             "ip": ip,
