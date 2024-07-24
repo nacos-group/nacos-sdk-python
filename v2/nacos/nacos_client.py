@@ -20,7 +20,7 @@ class NacosClient:
         self.client_config = client_config
         self.http_agent = HttpAgent(self.logger, client_config.tls_config, client_config.timeout_ms)
 
-    def init_log(self, client_config: ClientConfig, log_file):
+    def init_log(self, client_config: ClientConfig, module):
         log_level = client_config.log_level or logging.INFO
         logging.basicConfig(
             level=log_level,
@@ -39,8 +39,8 @@ class NacosClient:
             client_config.log_dir += os.path.sep
 
         os.makedirs(client_config.log_dir, exist_ok=True)
-        log_path = client_config.log_dir + log_file
-        self.logger = logging.getLogger(log_file)
+        log_path = client_config.log_dir + module + ".log"
+        self.logger = logging.getLogger(module)
         if not self.logger.hasHandlers():
             file_handler = TimedRotatingFileHandler(log_path, when="midnight", interval=1,
                                                     backupCount=client_config.log_rotation_backup_count,

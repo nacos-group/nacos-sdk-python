@@ -11,7 +11,7 @@ from v2.nacos.naming.remote.naming_client_proxy_delegate import NamingClientProx
 
 class NacosNamingService(NacosClient):
     def __init__(self, client_config: ClientConfig):
-        super().__init__(client_config)
+        super().__init__(client_config, Constants.NAMING_MODULE)
         self.namespace_id = client_config.namespace_id
         self.service_info_holder = ServiceInfoCache(client_config)
         self.client_proxy_delegate = NamingClientProxyDelegate(client_config, self.http_agent,
