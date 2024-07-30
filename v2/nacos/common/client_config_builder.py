@@ -63,5 +63,9 @@ class ClientConfigBuilder:
         self._config.kms_config = kms_config
         return self
 
+    def not_load_cache_at_start(self, not_load_cache_at_start: bool) -> "ClientConfigBuilder":
+        self._config.not_load_cache_at_start = not_load_cache_at_start
+        return self
+
     def build(self):
         return self._config

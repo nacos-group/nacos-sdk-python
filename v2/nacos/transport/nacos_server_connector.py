@@ -15,7 +15,7 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, SERVER_ERROR
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.naming.util.naming_client_util import get_group_name
-from v2.nacos.naming.util.utils import get_current_time_millis
+from v2.nacos.utils.common_util import get_current_time_millis
 from v2.nacos.transport.auth_client import AuthClient
 from v2.nacos.transport.http_agent import HttpAgent
 
