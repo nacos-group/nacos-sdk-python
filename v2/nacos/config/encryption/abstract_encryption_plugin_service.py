@@ -1,7 +1,8 @@
-from abc import ABC, abstractmethod #该类需考虑兼容问题
+from abc import ABC, abstractmethod
 
-# 加密插件服务接口
+
 class AbstractEncryptionPluginService(ABC):
+
     @abstractmethod
     def encrypt(self, secret_key, content):
         pass

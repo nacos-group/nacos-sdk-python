@@ -1,13 +1,14 @@
-import json
 from datetime import datetime
 from typing import List
-from .rpc_response import Response
-from ..model.config import ConfigContext
+from v2.nacos.common.model.response import Response
+from .config import ConfigContext
+
 
 class ConfigChangeBatchListenResponse(Response):
+
     def __init__(self):
-        super().__init__()  
-        self.changed_configs = [] #这边要用ConfigContext约束
+        super().__init__()
+        self.changed_configs = []
 
     @staticmethod
     def new_config_change_batch_listen_response():
@@ -16,14 +17,16 @@ class ConfigChangeBatchListenResponse(Response):
     def get_response_type(self) -> str:
         return "ConfigChangeBatchListenResponse"
 
+
 class ConfigQueryResponse(Response):
+
     def __init__(self):
-        super().__init__()  # 调用父类Response的构造方法
+        super().__init__()
         self.content = ""
         self.encrypted_data_key = ""
         self.content_type = ""
         self.md5 = ""
-        self.last_modified = 0  # 假设为Unix时间戳
+        self.last_modified = 0
         self.is_beta = False
         self.tag = False
 
@@ -34,9 +37,11 @@ class ConfigQueryResponse(Response):
     def get_response_type(self) -> str:
         return "ConfigQueryResponse"
 
+
 class ConfigPublishResponse(Response):
+
     def __init__(self):
-        super().__init__()  # 调用父类Response的构造方法
+        super().__init__()
 
     @staticmethod
     def new_config_publish_response():
@@ -45,7 +50,9 @@ class ConfigPublishResponse(Response):
     def get_response_type(self) -> str:
         return "ConfigPublishResponse"
 
+
 class ConfigRemoveResponse:
+
     def __init__(self):
         super().__init__()
 

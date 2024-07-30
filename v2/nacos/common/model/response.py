@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from ....util import commom
+from v2.nacos.utils.common_util import to_json_string
 
 class IResponse(ABC):
     @abstractmethod
@@ -46,7 +46,7 @@ class Response:
         self.request_id = request_id
 
     def get_body(self) -> str:
-        return commom.to_json_string(self.__dict__)
+        return to_json_string(self.__dict__)
 
     def is_success(self) -> bool:
         return self.success
@@ -62,9 +62,3 @@ class Response:
 
     def get_message(self) -> str:
         return self.message
-
-def get_grpc_response_status_code(response):
-    if response is not None:
-        return str(response.get_result_code())
-    else:
-        return "NA"

@@ -26,7 +26,7 @@ class ConnectionType(Enum):
 
 
 class RpcClientStatus(Enum):
-    INITIALIZED = auto()  #硬编码1234也可以
+    INITIALIZED = auto()  
     STARTING = auto()
     UNHEALTHY = auto()
     RUNNING = auto()
@@ -40,15 +40,15 @@ class ConnectionStatus(Enum):
 
 def wait_reconnect(timeout_millis, retry_times: int,
                    request: rpc_request.IRequest
-                   ):  #这里的err需要更改一下,retry_times原来用的指针，python需要回传
+                   ):  
     logging.error(
         f"Send request fail, request={request.get_request_type()}, body={request.get_body()}, retryTimes={retry_times}"
     )
     sleep_time = min(100, int(timeout_millis / 3))
-    time.sleep(sleep_time / 1000.0)  # 将毫秒转换为秒
+    time.sleep(sleep_time / 1000.0)  
     retry_times += 1
     return retry_times
-    
+
 
 
 class IRpcClient(ABC):
@@ -74,7 +74,7 @@ class IRpcClient(ABC):
         pass
 
 
-class ServerInfo:  #缺一个默认初始值
+class ServerInfo: 
 
     def __init__(self, server_ip: str, server_port: int,
                  server_grpc_port: int):
@@ -102,10 +102,6 @@ class ReconnectContext:
         self.server_info = server_info
 
 
-class ClientMap:
-
-    def __init__(self):
-        self.client_map = {}
 
 
 class RpcClient:
@@ -118,17 +114,17 @@ class RpcClient:
         self.rpc_client_status = RpcClientStatus.INITIALIZED
         self.event_chan = asyncio.Queue()
         self.reconnection_chan = asyncio.Queue()
-        self.connection_event_listeners = []  #需要原子操作
-        self.last_active_timestamp = None  #需要原子操作
+        self.connection_event_listeners = []  
+        self.last_active_timestamp = None 
         self.execute_client: IRpcClient = None
-        self.nacos_server = None  #nacos_server，固定为本地服务器
+        self.nacos_server = None  
         self.server_request_handler_mapping = {}
-        #少了这两个
+        
         self.client_abilities = None
         self.tenant = None
         self.lock = asyncio.Lock()  #mux
         self.loop = asyncio.get_event_loop()
-        # 使用 asyncio.Queue 来模拟 Go 中的 channel
+        
 
     # def get_name(self):
     #     return self.name
@@ -141,15 +137,13 @@ class RpcClient:
 
     async def event_listener(self):
         while True:
-            if self.ctx.is_closed():  #这个判断实现原来的done，return
+            if self.ctx.is_closed(): 
                 break
             try:
-                # 使用 asyncio.wait_for 设置超时，以检查是否需要停止
                 event = await asyncio.wait_for(self.event_chan.get(),
-                                               timeout=1)  #时间需要斟酌
+                                               timeout=1)  
                 await self._notify_connection_event(event)
             except asyncio.TimeoutError:
-                # 这里检查是否需要停止事件循环
                 pass
 
     async def health_check_delay(self):
@@ -160,19 +154,19 @@ class RpcClient:
     async def reconnection_handler(self):
         # self.health_check_timer = asyncio.create_task(self.health_check_delay())
         while True:
-            if self.ctx.is_closed():  #这个判断实现原来的done，return
+            if self.ctx.is_closed():  
                 break
             done, pending = await asyncio.wait(
                 [
                     self.reconnection_chan.get(),
                     asyncio.ensure_future(self.health_check_delay()),
                     asyncio.ensure_future(
-                        self.nacos_server.notify_server_src_change())  #这里需要改
+                        self.nacos_server.notify_server_src_change()) 
                 ],
                 return_when=asyncio.FIRST_COMPLETED)
 
             if self.reconnection_chan.get() in done:
-                rc = await self.reconnection_chan.get()  #这里的await感觉有点多余
+                rc = await self.reconnection_chan.get()  
                 if rc.server_info != ServerInfo():
                     server_exist = False
                     for server in self.nacos_server.get_server_list():
@@ -220,7 +214,7 @@ class RpcClient:
                     f"[RpcClient.Start] {self.name} trying to connect to server on start up, server: {server_info}"
                 )
                 connection, err = self.execute_client.connect_to_server(
-                    server_info)  #err要改
+                    server_info) 
                 if err:
                     logging.warning(
                         f"[RpcClient.Start] {self.name} failed to connect to server on start up, error message={err}, start up retry times left={start_up_retry_times}"
@@ -242,7 +236,7 @@ class RpcClient:
         else:
             self._switch_server_async(ServerInfo(), False)
 
-    #补充几个基础函数
+    
     async def is_wait_initiated(self):
         async with self.lock:
             rpc_client_status = self.rpc_client_status
@@ -283,7 +277,7 @@ class RpcClient:
 
         cur_server_info = self.current_connection.get_server_info()
         found = False
-        for server in self.nacos_server.get_server_list():  #这里测试时可以固定为本地
+        for server in self.nacos_server.get_server_list():  
             if server.ip_addr == cur_server_info.server_ip:
                 found = True
                 break
@@ -306,23 +300,23 @@ class RpcClient:
     async def register_server_request_handler(
             self, request: rpc_request.IRequest,
             handler: server_request_handler.IServerRequestHandler) -> None:
-        # 使用request函数创建请求实例
+        
         request_instance = request
         request_type = request_instance.get_request_type()
 
-        # 检查handler是否为None或request_type是否为空
+        
         if not handler or not request_type:
             logging.error(
                 f"{self.name} register server push request handler missing required parameters, request: {request_type}, handler: {handler.name() if handler else 'None'}"
             )
             return
 
-        # 记录调试信息
+        
         logging.debug(
             f"{self.name} register server push request: {request_type} handler: {handler.name()}"
         )
 
-        # 存储请求处理程序映射
+        
         async with self.lock:
             self.server_request_handler_mapping[
                 request_type] = ServerRequestHandlerMapping(request, handler)
@@ -335,7 +329,7 @@ class RpcClient:
             f"{self.name} register connection listener [{type(listener).__name__}] to current client"
         )
 
-        # 将监听器添加到列表中
+       
         async with self.lock:
             self.connection_event_listeners.append(listener)
 
@@ -349,20 +343,20 @@ class RpcClient:
 
     def _next_rpc_server(self) -> ServerInfo:
         # Placeholder for getting the next server info
-        #这里还需要细改
+        
         server_config = self.nacos_server.get_next_server()
         if server_config:
             return ServerInfo(
                 server_ip=server_config.ip_addr,
                 server_port=server_config.port,
-                server_grpc_port=server_config.grpc_port  # 使用get方法提供默认值
+                server_grpc_port=server_config.grpc_port  
             )
         return ServerInfo()
 
     async def request(self, request: rpc_request.IRequest,
                       timeout_millis: int):
         retry_times = 0
-        start = commom.current_millis()  # 转换成毫秒
+        start = commom.current_millis()  
         # current_err = None
 
         while retry_times < Const.REQUEST_DOMAIN_RETRY_TIME and commom.current_millis(
@@ -373,7 +367,7 @@ class RpcClient:
                 continue
             try:
                 response = self.current_connection.request(
-                    request, timeout_millis)  #判断err的机制得改，可以用try代替
+                    request, timeout_millis)  
             except Exception as err:
                 retry_times = wait_reconnect(timeout_millis, retry_times,
                                              request)
@@ -381,7 +375,7 @@ class RpcClient:
 
             if isinstance(response, naming_response.ErrorResponse):
                 if response.get_error_code() == Const.UN_REGISTER:
-                    async with self.lock:  #锁要改
+                    async with self.lock:  
                         if self._compare_and_swap_status(
                                 RpcClientStatus.RUNNING,
                                 RpcClientStatus.UNHEALTHY):
@@ -412,7 +406,7 @@ class RpcClient:
 
     async def shutdown(self):
         async with self.lock:
-            self.rpc_client_status = RpcClientStatus.SHUTDOWN  #这边可能有点问题 设置状态需要原子化 考虑用multiprocessing.Value实现
+            self.rpc_client_status = RpcClientStatus.SHUTDOWN  
         self._close_connection()
 
     def _close_connection(self):
@@ -431,14 +425,14 @@ class RpcClient:
             if event.is_connected() else listener.on_disconnect()
             for listener in listeners
         ]
-        # await asyncio.gather(*tasks) #这里需要斟酌一下
+        # await asyncio.gather(*tasks) 
 
     async def health_check(self):
         async with self.lock:
-            last_active_time = self.last_active_timestamp  #需要判断一下None
+            last_active_time = self.last_active_timestamp  
         if last_active_time is not None and (
                 time.time() - last_active_time.timestamp()
-        ) < Const.KEEP_ALIVE_TIME:  #这里时间格式可能需要改变
+        ) < Const.KEEP_ALIVE_TIME:  
             return
 
         if await self._send_health_check():
@@ -455,7 +449,7 @@ class RpcClient:
             async with self.lock:
                 self.rpc_client_status = RpcClientStatus.UNHEALTHY
             reconnect_context = ReconnectContext(
-                server_info=None, on_request_fail=True)  #server_info设置默认值比较好
+                server_info=None, on_request_fail=True) 
 
         await self.reconnect(reconnect_context.server_info,
                              reconnect_context.on_request_fail)
@@ -488,7 +482,7 @@ class RpcClient:
             self._notify_connection_change(ConnectionStatus.CONNECTED)
             return
 
-        server_info_flag = False  #这里要确认一下
+        server_info_flag = False  
         re_connect_times, retry_turns = 0, 0
         err = None
         if server_info == ServerInfo():

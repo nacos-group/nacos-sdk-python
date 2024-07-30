@@ -1,7 +1,10 @@
 from typing import Dict
 from abc import ABC, abstractmethod
-from ....util import commom
+from v2.nacos.utils.common_util import to_json_string
+
+
 class Request:
+
     def __init__(self):
         self._headers: Dict[str, str] = {}
         self._request_id: str = ""
@@ -32,8 +35,7 @@ class Request:
         return self._headers
 
     def get_body(self) -> str:
-        # 假设这里将请求对象序列化为JSON字符串
-        return commom.to_json_string(self.__dict__)
+        return to_json_string(self.__dict__)
 
     def get_request_id(self) -> str:
         return self._request_id
@@ -43,6 +45,7 @@ class Request:
 
 
 class IRequest(ABC):
+
     @abstractmethod
     def get_headers(self) -> Dict[str, str]:
         pass
@@ -65,18 +68,4 @@ class IRequest(ABC):
 
     @abstractmethod
     def get_string_to_sign(self) -> str:
-        pass
-
-
-class IConfigRequest(ABC):
-    @abstractmethod
-    def get_data_id(self):
-        pass
-
-    @abstractmethod
-    def get_group(self):
-        pass
-
-    @abstractmethod
-    def get_tenant(self):
         pass

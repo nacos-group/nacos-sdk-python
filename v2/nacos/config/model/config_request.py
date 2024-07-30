@@ -1,5 +1,22 @@
-from .rpc_request import Request, IConfigRequest
-from ..model.config import ConfigListenContext 
+from abc import ABC, abstractmethod
+from v2.nacos.common.model.request import Request
+from .config import ConfigListenContext 
+
+class IConfigRequest(ABC):
+
+    @abstractmethod
+    def get_data_id(self):
+        pass
+
+    @abstractmethod
+    def get_group(self):
+        pass
+
+    @abstractmethod
+    def get_tenant(self):
+        pass
+
+
 class ConfigRequest(Request):
     def __init__(self, group, data_id, tenant):
         super().__init__()
@@ -23,9 +40,9 @@ class ConfigRequest(Request):
 
 class ConfigBatchListenRequest(ConfigRequest):
     def __init__(self, cache_len):
-        super().__init__("", "", "")  # 调用父类ConfigRequest的构造方法
+        super().__init__("", "", "")  
         self.listen = True
-        self.config_listen_contexts = [ConfigListenContext() for _ in range(cache_len)]  # 创建指定长度的列表
+        self.config_listen_contexts = [ConfigListenContext() for _ in range(cache_len)]  
 
     @staticmethod
     def new_config_batch_listen_request(cache_len):
@@ -36,7 +53,7 @@ class ConfigBatchListenRequest(ConfigRequest):
 
 class ConfigChangeNotifyRequest(ConfigRequest):
     def __init__(self, group, data_id, tenant):
-        super().__init__(group, data_id, tenant)  # 调用父类的构造方法
+        super().__init__(group, data_id, tenant) 
 
     @staticmethod
     def new_config_change_notify_request(group, data_id, tenant):
