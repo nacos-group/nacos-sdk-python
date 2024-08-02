@@ -8,7 +8,9 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common import disk_cache
 
 from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.naming.util.naming_client_util import get_service_cache_key, get_group_name
 
 
 class ServiceInfoCache:
@@ -73,6 +75,14 @@ class ServiceInfoCache:
     def get_service_cache_key(self, service):
         # 生成服务的缓存键
         return f"{service['Name']}@{service['Clusters']}"
+
+    def get_service_info(self, service_name, group_name, clusters) -> ServiceInfo:
+        cache_key = get_service_cache_key(get_group_name(service_name, group_name), clusters)
+        service, ok = self.service_info_map.get(cache_key)
+        if ok:
+            return service, ok
+        else:
+            return {}, ok
 
     def check_instance_changed(self, old_domain, service):
         if old_domain is None:

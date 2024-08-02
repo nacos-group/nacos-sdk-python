@@ -37,11 +37,15 @@ class UpdateInstanceRequest(RegisterInstanceRequest):
     pass
 
 
-class GetServiceParam:
-    def __init__(self, service_name: str, clusters: List[str] = None, group_name: str = "DEFAULT_GROUP"):
-        self.service_name = service_name
-        self.clusters = clusters if clusters else []
-        self.group_name = group_name
+class ExpressionSelector(BaseModel):
+    type: str
+    expression: str
+
+
+class GetServiceRequest(BaseModel):
+    service_name: str
+    group_name: str = Constants.DEFAULT_GROUP
+    clusters: List[str] = []
 
 
 class GetAllServiceInfoParam:
