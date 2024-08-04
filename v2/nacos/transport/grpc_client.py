@@ -1,434 +1,278 @@
-# 需要大改
-
-from collections import deque
-from datetime import timedelta
-import json
-import certifi
-from rpc_client import RpcClient, ServerInfo, RpcClientStatus, IConnectionEventListener
-import time
-import contextlib
-import os
-import logging
-import ssl
-from tls import TLSConfig
+import concurrent.futures
+import threading
+from connection import Connection
+import re
 import grpc
-from grpc import ssl_channel_credentials, aio
-import keepalive
-# from nacos.common.constant import constants
-# import rpc_response
-from threading import Lock
-from v2.nacos.transport.grpc_connection import GrpcConnection
-import v2.nacos.transport.proto.nacos_grpc_service_pb2 as nacos_grpc_service_pb2
-import v2.nacos.transport.proto.nacos_grpc_service_pb2_grpc as nacos_grpc_service_pb2_grpc
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import asyncio
+import json
+from rpc_client import RpcClient, ConnectionType
+import time
+import ssl
+from ..util.grpc_util import GrpcUtils
+from ..common.model.request import Request
+from ..common.model.response import Response
+from ..common.constants import Constants
+from grpc_connection import GrpcConnection
+import proto.nacos_grpc_service_pb2_grpc as ngs
 
 
 class GrpcClient(RpcClient):
-    def __init__(self, rpc_client, tls_config, ctx, name: str):
-        super().__init__(ctx, name)
-        self.rpc_client = rpc_client
+
+    def __init__(self, logger, name, client_config, tls_config, ability_mode, client_version):
+        super().__init__(name)
+        self.rpc_client = RpcClient(name)
+        self.logger = logger
+        self.client_config = client_config
+        self.grpc_executor = None
+        self.rec_ability_context = self.RecAbilityContext(None)
+        self.server_list_factory = None
         self.tls_config = tls_config
+        self.ability_mode = ability_mode
+        self.client_version = client_version
 
-    # ctx如何转为python的实现
-    def new_grpc_client(self, ctx, client_name, nacos_server):
-        """
-        创建并返回一个新的 gRPC 客户端实例。
-        :param client_name: 客户端的名称，用于标识客户端。
-        :param nacos_server: Nacos服务端(见rpc入参注释)。
-        :param tls_config: TLS 配置信息。
-        :return: GrpcClient 实例。
-        """
-        self.rpc_client = RpcClient(
-            # 按rpc传参修改
-            ctx=None,
-            name=client_name,
-            label=dict(),
-            rpc_client_status=constants.INITIALIZED,
-            event_chan=deque(),  # 线程安全的通道
-            reconnection_chan=deque(),
-            nacos_server=nacos_server,
-            mux=Lock(),
-            tls_config=self.tls_config
-        )
-        # RpcClient最后一次活跃的时间戳
-        self.rpc_client.lastActiveTimestamp = time.time()
+    def get_connection_type(self):
+        return ConnectionType.GRPC
 
-        listeners = [IConnectionEventListener() for _ in range(8)]
-        with contextlib.suppress(KeyError):
-            self.rpc_client.connectionEventListeners[listeners] = None
+    def _create_grpc_executor(self, server_ip):
+        server_ip = re.sub(r'%', '-', server_ip)
+        grpc_executor = concurrent.futures.ThreadPoolExecutor(max_workers=self.client_config.thread_pool_size,
+                                                              thread_name_prefix='nacos-grpc_executor-' + server_ip)
+        return grpc_executor
 
-        grpc_client = GrpcClient(ctx, self.rpc_client, self.tls_config)
-        return grpc_client
+    def _create_new_managed_channel(self, server_ip, server_port):
+        self.logger.info("grpc client connection server:{} ip,serverPort:{},grpcTslConfig:{}", server_ip, server_port,
+                         json.dumps(self.client_config.tlsConfig()))
+        ssl_context = self._get_tls_credentials(server_ip)
+        managed_channel = self._build_channel(server_ip, server_port, ssl_context)
 
-    def get_max_call_recv_msg_size(self):
-        """
-        获取 gRPC 调用接收消息的最大尺寸。
-        """
-        max_call_recv_msg_size_str = os.getenv("nacos.remote.client.grpc.maxinbound.message.size")
-        if max_call_recv_msg_size_str is None:
-            return 10 * 1024 * 1024  # 默认值 10MB
+        return managed_channel
+
+    def _build_channel(self, server_ip, server_port, ssl_context=None):
+        if ssl_context:
+            credentials = grpc.ssl_channel_credentials(root_certificates=ssl_context.root_certificates,
+                                                       private_key=ssl_context.private_key,
+                                                       certificate_chain=ssl_context.certificate_chain)
+            options = [
+                ('grpc.max_receive_message_length', self.client_config().max_inbound_message_size()),
+                ('grpc.keepalive_time_ms', self.client_config().channel_keep_alive()),
+                ('grpc.keepalive_timeout_ms', self.client_config().channel_keep_alive_timeout())
+            ]
+            channel = grpc.secure_channel(server_ip, credentials=credentials, options=options)
+        else:
+            channel = grpc.insecure_channel(f'{server_ip}:{server_port}')
+        return channel
+
+    async def _create_async_stub(self, channel):
+        async_stub = ngs.RequestStub(channel)
+        return async_stub
+
+    async def _server_check(self, server_ip, server_port, async_stub):
+        server_check_request = Request
+        grpc_request = GrpcUtils.convert(server_check_request)
         try:
-            max_call_recv_msg_size = int(max_call_recv_msg_size_str)
-            return max_call_recv_msg_size
-        except ValueError:
-            return 10 * 1024 * 1024
+            # Send a request and wait for a response
+            response = await asyncio.wait_for(
+                async_stub.request(grpc_request),
+                self.client_config.server_check_time_out() / 1000.0
+            )
+            return GrpcUtils.parse(response)
+        except TimeoutError:
+            self.logger.error(f"Server check timed out for {server_ip}:{server_port}")
+        except Exception as e:
+            self.logger.error(f"Server check fail for {server_ip}:{server_port}, error = {e}")
+            if (hasattr(self.client_config,
+                        'tls_config') and self.client_config.tls_config()
+                    and self.client_config.tls_config().get_enable_tls()):
+                self.logger.error("Current client requires tls encrypted, server must support tls, please check.")
+        return None
 
-    def get_initial_window_size(self):
-        """
-        初始化GRPC传输窗口
-        """
-        initial_window_size_str = os.getenv("nacos.remote.client.grpc.initial.window.size")
-        if initial_window_size_str is None:
-            return 10 * 1024 * 1024  # 默认值 10MB
+    def connect_to_server(self, server_info):
         try:
-            initial_window_size = int(initial_window_size_str)
-            return initial_window_size
-        except ValueError:
-            return 10 * 1024 * 1024
+            if self.grpc_executor is None:
+                self.grpc_executor = self._create_grpc_executor(
+                    server_info.server_ip)
+                port = server_info.port + self.rpc_client.rpc_port_offset()
+            # Establish a channel
+            managed_channel = self._create_new_managed_channel(server_info.server_ip, port)
+            # Create a stub
+            channel_stub = self._create_async_stub(managed_channel)
+            response = self._server_check(server_info.server_ip, server_info.server_port, channel_stub)
+            server_check_response = Response(response)
+            connection_id = server_check_response.get_connection_id()
 
-    def get_initial_conn_window_size(self):
-        """
-        初始化连接窗口
-        """
-        initial_conn_window_size_str = os.getenv("nacos.remote.client.grpc.initial.conn.window.size")
-        if initial_conn_window_size_str is None:
-            return 10 * 1024 * 1024  # 默认值 10MB
-        try:
-            initial_conn_window_size = int(initial_conn_window_size_str)
-            return initial_conn_window_size
-        except ValueError:
-            return 10 * 1024 * 1024
+            bi_request_stream_stub = ngs.BiRequestStreamStub(
+                managed_channel)
 
-    def get_tls_credentials(self, server_info):
-        """
-        构建用于连接服务器的TLS配置并返回TransportCredentials对象。
-        :param server_info: 服务器信息的对象
-        :return: TransportCredentials对象
-        """
-        logger.info("build tls config for connecting to server %s, tlsConfig = %s", server_info['server_ip'],
-                    self.tls_config)
+            grpc_conn = GrpcConnection(server_info, self.grpc_executor)
+            grpc_conn.set_connection_id(connection_id)
 
-        # 获取系统证书池
+            if server_check_response.is_support_ability_negotiation:  # If the server supports ability negotiation
+                self.rec_ability_context.reset(grpc_conn)  # Reset the ability context
+                grpc_conn.set_ability_table(None)  # Set the ability table to None
+
+            payload_stream_observer = self._bind_request_stream(bi_request_stream_stub,
+                                                                grpc_conn)
+            grpc_conn.set_payload_stream_observer(payload_stream_observer)
+
+            # Set the gRPC future service stub and channel
+            grpc_conn.set_grpc_future_service_stub(channel_stub)
+            grpc_conn.set_channel(managed_channel)
+
+            # Send a setup request
+            con_setup_request = Request()
+            con_setup_request.set_client_version(self.client_version)
+            con_setup_request.set_labels(self.labels)
+            con_setup_request.set_ability_table(self.client_abilities(self.ability_mode))
+            con_setup_request.set_tenant(self.tenant)
+            grpc_conn.send_request(con_setup_request)
+
+            # Wait for a response
+            if self.rec_ability_context.is_need_to_sync():
+                # Try to wait for a notification response
+                self.rec_ability_context.rec_await(self.client_config.capability_negotiation_timeout())
+                # If the server's abilities are not received, reconnect
+                if not self.rec_ability_context.check(grpc_conn):
+                    return None
+            else:
+                # Adapt to the old version of the server
+                # Consider the registration successful within 100ms after the connection is registered
+                time.sleep(0.1)
+
+            return grpc_conn
+        except Exception as e:
+            # Log the error
+            self.logger.error(f"[{self.name}] Fail to connect to server!, error={e}")
+            # Remove and notify
+            self.rec_ability_context.release(None)
+
+        return None
+
+    def _get_tls_credentials(self, server_ip):
+        self.logger.info("build tls config for connecting to server %s, tlsConfig = %s", server_ip,
+                         self.tls_config)
+
+        # Obtain the system certificate pool
         cert_pool = ssl.create_default_context().get_ca_certs()
         if not cert_pool:
             raise Exception("load root cert pool fail")
 
-        # 如果配置中指定了CA文件，则加载该文件中的证书
+        # If the CA file is specified in the configuration, the certificate in the file is loaded
         if self.tls_config.ca_file:
             try:
                 with open(self.tls_config['ca_file'], 'rb') as f:
                     ca_cert = f.read()
                     ssl_context = ssl.create_default_context(cadata=ca_cert)
             except Exception as e:
-                logger.error("Failed to load CA file: %v", e)
+                self.logger.error("Failed to load CA file: %v", e)
                 raise e
-        # else:
-            # 使用了python库certifi默认的证书
-            # ssl_context = ssl.create_default_context(cafile=certifi.where())
 
-        # 设置是否信任所有证书
+        # Set whether to trust all certificates
         ssl_context.check_hostname = not self.tls_config.get('trust_all', False)
         ssl_context.verify_mode = ssl.CERT_REQUIRED if not self.tls_config.get('trust_all', False) else ssl.CERT_NONE
 
-        # 如果配置中指定了客户端证书和私钥文件，则加载这些文件
+        # If the client certificate and private key files are specified in the configuration, these files are loaded
         if self.tls_config.cert_file and self.tls_config.key_file:
             try:
                 ssl_context.load_cert_chain(certfile=self.tls_config.cert_file, keyfile=self.tls_config.key_file)
             except Exception as e:
-                logger.error("Failed to load client cert and key: %v", e)
+                self.logger.error("Failed to load client cert and key: %v", e)
                 raise e
 
         return ssl_context
 
-    def get_initial_grpc_timeout(self):
-        """
-        获取 gRPC 连接的初始超时时间（毫秒）。
-
-        如果环境变量 "nacos.remote.client.grpc.timeout" 存在，则尝试将其转换为整数。
-        如果转换失败，则返回默认的超时时间。
-        """
-        try:
-            # 从环境变量中获取超时时间字符串
-            timeout_str = os.getenv("nacos.remote.client.grpc.timeout", str(constants.DEFAULT_TIMEOUT_MILLS))
-            # 将字符串转换为整数
-            initial_grpc_timeout = int(timeout_str)
-        except ValueError:
-            # 如果转换失败，返回默认的超时时间
-            initial_grpc_timeout = constants.DEFAULT_TIMEOUT_MILLS
-
-        return initial_grpc_timeout
-
-    def get_keep_alive_time_millis(self):
-        """
-        长连接存活时间keep_alive_time
-        """
-        try:
-            # 从环境变量中获取 keepalive 时间字符串
-            keep_alive_str = os.getenv("nacos.remote.grpc.keep.alive.millis", "60000")
-            # 将字符串转换为整数
-            keep_alive_time_millis = int(keep_alive_str)
-        except ValueError:
-            # 如果转换失败，使用默认的 keepalive 时间（60秒）
-            keep_alive_time_millis = 60 * 1000
-
-        # 60s
-        keep_alive_time = timedelta(seconds=keep_alive_time_millis/1000)
-
-        # 创建并返回keepalive，自己写了一个keepalive类参数
-        return keepalive.ClientParameters(
-            time=keep_alive_time,  # 如果没有活动，每60秒发送一次ping
-            timeout=timedelta(seconds=20),  # 等待20秒以接收ping的回应，然后认为连接断开
-            permit_without_stream=True  # 即使没有活动流，也发送ping
-        )
-
-    async def create_new_connection(self, server_info):
-        options = [
-            ('grpc.max_receive_message_length', self.get_max_call_recv_msg_size()),
-            ('grpc.keepalive_time_ms', self.get_keep_alive_time_millis().time.total_seconds() * 1000),  # 这里要测下时间戳对不对
-            ('grpc.initial_window_size', self.get_initial_window_size()),
-            ('grpc.initial_connection_window_size', self.get_initial_conn_window_size())
-        ]
-
-        self.get_env_tls_config(self.tls_config)
-        rpc_port = server_info.get('serverGrpcPort', 0)
-        if rpc_port == 0:
-            rpc_port = server_info['serverPort'] + self.rpc_client.rpc_port_offset
-
-        if self.tls_config.enable:
-            logging.info(f"TLS enabled, trying to connect to server {server_info['serverIp']} with TLS config {self.tls_config}")
-            credentials = grpc.ssl_channel_credentials(self.get_tls_credentials(self.tls_config, server_info))
-            return await aio.secure_channel(f"{server_info['serverIp']}:{rpc_port}", credentials, options)
-        else:
-            return await aio.insecure_channel(f"{server_info['serverIp']}:{rpc_port}", options)
-
-    def get_env_tls_config(self, config):
-        """
-        从环境变量中获取TLS配置。
-        :param config: TLSConfig对象
-        """
-        logger.info("check tls config %s", config)
-
-        # 如果TLS配置已经指定，直接返回
-        if config.appointed:
-            return
-
-        logger.info("try to get tls config from env")
-
-        # 获取启用TLS的环境变量值
-        enable_tls = os.getenv("nacos_remote_client_rpc_tls_enable")
-        if enable_tls:
-            config.enable = True
-            logger.info("get tls config from env, key = enableTls value = %s", enable_tls)
-
-        # 如果未启用TLS，直接返回
-        if not config.enable:
-            logger.info("tls config from env is not enabled")
-            return
-
-        # 获取信任所有证书的环境变量值
-        trust_all = os.getenv("nacos_remote_client_rpc_tls_trustAll")
-        if trust_all is not None:
-            config.trust_all = trust_all.lower() in ['true', '1']
-            logger.info("get tls config from env, key = trustAll value = %s", trust_all)
-
-        # 获取CA文件路径的环境变量值
-        config.ca_file = os.getenv("nacos_remote_client_rpc_tls_trustCollectionChainPath")
-        logger.info("get tls config from env, key = trustCollectionChainPath value = %s", config.ca_file)
-
-        # 获取证书文件路径的环境变量值
-        config.cert_file = os.getenv("nacos_remote_client_rpc_tls_certChainFile")
-        logger.info("get tls config from env, key = certChainFile value = %s", config.cert_file)
-
-        # 获取私钥文件路径的环境变量值
-        config.key_file = os.getenv("nacos_remote_client_rpc_tls_certPrivateKey")
-        logger.info("get tls config from env, key = certPrivateKey value = %s", config.key_file)
-
-    # 以上部分上传
-    async def connect_to_server(self, server_info):
-        conn = await self.create_new_connection(server_info)
-        if conn is None:
-            raise Exception("gRPC create new connection failed")
-
-        # 有问题
-        client = nacos_grpc_service_pb2_grpc.RequestClient(conn)
-        response = self.server_check(client)
-        if response is None:
-            await conn.close()
-            raise Exception("Server check request failed")
-
-        server_check_response = response
-
-        # 有问题
-        bi_stream_client = nacos_grpc_service_pb2_grpc.BiRequestStreamClient(conn)
-        bi_stream_request_client = await bi_stream_client.RequestBiStream(aio.insecure_channel)
-        if bi_stream_request_client is None:
-            raise Exception("Create biStreamRequestClient failed")
-
-        grpc_conn = GrpcConnection(server_info, server_check_response.connection_id, conn, client, bi_stream_request_client)
-        await self.bind_bi_request_stream(bi_stream_request_client, grpc_conn)
-        await self.send_connection_setup_request(grpc_conn)
-
-        return grpc_conn
-
-    def send_connection_setup_request(self, grpc_conn):
-        """
-        发送连接设置请求。
-        :param grpc_conn: GrpcConnection对象
-        :return: 错误信息或None
-        """
-        # 创建ConnectionSetupRequest对象
-        csr = self.new_connection_setup_request()
-
-        # 设置ConnectionSetupRequest的属性
-        csr['client_version'] = '1.0.0'  # constant.CLIENT_VERSION
-        csr['tenant'] = self.tenant
-        csr['labels'] = self.labels
-        csr['client_abilities'] = self.client_abilities
-
-        # 发送请求并处理错误
-        err = grpc_conn['bi_stream_send'](self.convert_request(csr))
-        if err is not None:
-            logger.warning("send connectionSetupRequest error: %s", err)
-
-        # 等待100毫秒
-        time.sleep(0.1)
-
-        return err
-
-    def get_connection_type(self):
-        """
-        获取连接类型。
-        :return: 连接类型
-        """
-        return 'GRPC'
-
-    def rpc_port_offset(self):
-        """
-        获取RPC端口偏移量。
-        :return: RPC端口偏移量
-        """
-        return constants.RpcPortOffset
-
-    async def bind_bi_request_stream(self, stream_client, grpc_conn):
-        async for payload in stream_client:
-            if payload:
-                self.handle_server_request(payload, grpc_conn)
-            else:
-                print(f"ConnectionId {grpc_conn.connection_id} stream client closed")
-
-    # def bind_bi_request_stream(self, stream_client, grpc_conn):
-    #     """
-    #     绑定双向请求流。
-    #     :param stream_client: 双向请求流客户端
-    #     :param grpc_conn: gRPC连接对象
-    #     """
-    #
-    #     def stream_listener():
-    #         while True:
-    #             try:
-    #                 # 接收服务器发送的数据
-    #                 payload = stream_client.recv()
-    #                 self.handle_server_request(payload, grpc_conn)
-    #             except grpc.RpcError as err:
-    #                 # 处理接收错误
-    #                 if stream_client.done().is_set():
-    #                     logger.warning("connectionId %s stream client close", grpc_conn.get_connection_id())
-    #                     break
-    #                 running = self.is_running()
-    #                 abandon = grpc_conn.get_abandon()
-    #                 if running and not abandon:
-    #                     if err.code() == grpc.StatusCode.CANCELLED:
-    #                         logger.info("connectionId %s request stream onCompleted, switch server",
-    #                                     grpc_conn.get_connection_id())
-    #                     else:
-    #                         logger.error("connectionId %s request stream error, switch server, error=%s",
-    #                                      grpc_conn.get_connection_id(), err)
-    #                     # 常量字段和雨龙对一下
-    #                     if self.rpc_client_status == RpcClientStatus.RUNNING:
-    #                         self.rpc_client_status = RpcClientStatus.UNHEALTHY
-    #                         self.switch_server_async(ServerInfo(), False)
-    #                         break
-    #                 else:
-    #                     logger.error("connectionId %s received error event, isRunning: %s, isAbandon: %s, error: %s",
-    #                                  grpc_conn.get_connection_id(), running, abandon, err)
-    #                     break
-    #
-    #     # 使用线程池执行stream_listener方法
-    #     self.executor.submit(stream_listener)
-
-    def server_check(self, client):
-        """
-        执行服务器检查。
-        :param client: 请求客户端
-        :return: 服务器检查响应或错误
-        """
-        response = rpc_response.ServerCheckResponse
-        timeout = self.get_initial_grpc_timeout()
-
-        for i in range(31):
-            with grpc.insecure_channel("localhost:50051") as channel:
-                stub = client(channel)
-                request = self.rpc_client.convert_request(self.rpc_client.new_server_check_request())
-                try:
-                    # 设置上下文超时
-                    payload = stub.Request(request, timeout=timeout / 1000.0)
-                except grpc.RpcError as e:
-                    return None, e
-
-                # 解析响应
-                try:
-                    response = json.loads(payload.body.value)
-                except json.JSONDecodeError as e:
-                    return None, e
-
-                # 检查服务器是否准备好
-                if 300 <= response.get("error_code", 0) < 400:
-                    if i == 30:
-                        return None, Exception(
-                            "the nacos server is not ready to work in 30 seconds, connect to server failed")
-                    time.sleep(1)
-                    continue
-                break
-        return response, None
-
-    def handle_server_request(self, payload, grpc_conn):
-        """
-        处理服务器请求。
-        :param payload: 服务器发送的负载
-        :param grpc_conn: gRPC连接对象grpc_connection
-        """
-        client = self.rpc_client.get_rpc_client()
+    def _handle_server_request(self, payload, grpc_conn):
+        client = self.get_rpc_client()
         payload_type = payload.get("metadata").get("type")
-
-        # 获取处理器映射
         handler_mapping = client.server_request_handler_mapping.get(payload_type)
         if not handler_mapping:
-            logger.error("%s Unsupported payload type", grpc_conn.get_connection_id())
+            self.logger.error("%s Unsupported payload type", grpc_conn.get_connection_id())
             return
 
-        # 获取服务器请求对象并反序列化
+        # Gets the server request object and deserializes it
         server_request = handler_mapping["server_request"]()
         try:
             json.loads(payload.get("body").get("value"), object_hook=lambda d: server_request.update(d))
         except json.JSONDecodeError as err:
-            logger.error("%s Fail to json Unmarshal for request:%s, ackId->%s", grpc_conn.get_connection_id(),
-                         server_request.get("request_type"), server_request.get("request_id"))
+            self.logger.error("%s Fail to json Unmarshal for request:%s, ackId->%s", grpc_conn.get_connection_id(),
+                              server_request.get("request_type"), server_request.get("request_id"))
             return
 
-        # 添加所有头信息到服务器请求对象
         server_request["headers"] = payload.get("metadata").get("headers")
-
-        # 处理请求并发送响应
         response = handler_mapping["handler"].request_reply(server_request, client)
         if not response:
-            logger.warning("%s Fail to process server request, ackId->%s", grpc_conn.get_connection_id(),
-                           server_request.get("request_id"))
+            self.logger.warning("%s Fail to process server request, ackId->%s", grpc_conn.get_connection_id(),
+                                server_request.get("request_id"))
             return
 
         response["request_id"] = server_request.get("request_id")
         err = grpc_conn.bi_stream_send(grpc_conn.convert_response(response))
         if err and err != EOFError:
-            logger.warning("%s Fail to send response:%s,ackId->%s", grpc_conn.get_connection_id(),
-                           response.get("response_type"), server_request.get("request_id"))
+            self.logger.warning("%s Fail to send response:%s,ackId->%s", grpc_conn.get_connection_id(),
+                                response.get("response_type"), server_request.get("request_id"))
+
+    class RecAbilityContext:
+        def __init__(self, logger, connection: Connection):
+            self.logger = logger
+            self.connection = connection
+            self.blocker = threading.Event()
+            self.need_to_sync = False
+
+        def is_need_to_sync(self) -> bool:
+            return self.need_to_sync
+
+        def reset(self, connection: Connection):
+            self.connection = connection
+            self.blocker.clear()  # Equivalent to CountDownLatch reset
+            self.need_to_sync = True
+
+        def release(self, abilities: dict[str, bool]):
+            if self.connection:
+                self.connection.set_ability_table(abilities)
+                self.connection = None  # Avoid duplicate Settings
+            if self.blocker:
+                self.blocker.set()  # Release wait
+            self.need_to_sync = False
+
+        def rec_await(self, timeout: int):
+            if self.blocker:
+                self.blocker.wait(timeout)
+                self.need_to_sync = False
+
+        def check(self, connection: Connection) -> bool:
+            if not connection.is_abilities_set():
+                self.logger.info(
+                    "Client don't receive server abilities table even empty table but server supports ability negotiation."
+                    " You can check if it is need to adjust the timeout of ability negotiation by property: "
+                    + "if always fail to connect.")
+                connection.set_abandon(True)
+                connection.close()
+                return False
+            return True
+
+    async def _bind_request_stream(self, stream_stub, grpc_conn):
+        async def request_stream_handler(request):
+            try:
+                request = GrpcUtils.parse(request)
+                if request:
+                    response = await self._handle_server_request(request)
+                    if response:
+                        response.request_id = request.request_id
+                        await self._send_response(response)
+                    else:
+                        self.logger.warning(
+                            f"[{grpc_conn.connection_id}] Fail to process server request, ackId->{request.request_id}")
+            except Exception as e:
+                self.logger.error(f"[{grpc_conn.connection_id}] Handle server request exception: {e}")
+                err_response = Response.build(Constants.CLIENT_ERROR, "Handle server request error")
+                err_response.request_id = request.request_id
+                await self._send_response(err_response)
+
+        return stream_stub.requestBiStream(request_stream_handler)
+
+    def _send_response(self, response):
+        try:
+            self.current_connection.send_response(response)
+        except Exception as e:
+            self.logger.error(
+                f"[{self.current_connection.connection_id}] Error to send ack response, ackId-> {response.request_id}",
+                exc_info=True)

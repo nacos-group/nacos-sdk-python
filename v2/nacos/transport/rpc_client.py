@@ -1,4 +1,3 @@
-#这个文件需要重点修
 from .connection import IConnection
 from .remote import rpc_request
 from .remote import rpc_response
