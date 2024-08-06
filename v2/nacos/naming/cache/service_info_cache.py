@@ -76,6 +76,7 @@ class ServiceInfoCache:
         # 生成服务的缓存键
         return f"{service['Name']}@{service['Clusters']}"
 
+
     def get_service_info(self, service_name, group_name, clusters) -> ServiceInfo:
         cache_key = get_service_cache_key(get_group_name(service_name, group_name), clusters)
         service, ok = self.service_info_map.get(cache_key)
