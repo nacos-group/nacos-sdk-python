@@ -775,10 +775,11 @@ class NacosClient:
             #     headers["longPullingNoHangUp"] = "true"
 
             data = {"Listening-Configs": probe_update_string}
+            params = {"namespaceId": self.namespace, "tenant": self.namespace}
 
             changed_keys = list()
             try:
-                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, None, data,
+                resp = self._do_sync_req("/nacos/v1/cs/configs/listener", headers, params, data,
                                          self.pulling_timeout + 10, "POST")
                 changed_keys = [group_key(*i) for i in parse_pulling_result(resp.read())]
                 logger.info("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
