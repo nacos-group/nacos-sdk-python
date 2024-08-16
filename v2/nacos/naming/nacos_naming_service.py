@@ -5,7 +5,7 @@ from v2.nacos.nacos_client import NacosClient
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_request import RegisterInstanceRequest, \
-    BatchRegisterInstanceRequest, DeregisterInstanceRequest
+    BatchRegisterInstanceRequest, DeregisterInstanceRequest, UpdateInstanceRequest, GetServiceRequest
 from v2.nacos.naming.remote.naming_client_proxy_delegate import NamingClientProxyDelegate
 
 
@@ -85,6 +85,37 @@ class NacosNamingService(NacosClient):
                             )
 
         return self.client_proxy_delegate.deregister_instance(request.service_name, request.group_name, instance)
+
+    def update_instance(self, request: UpdateInstanceRequest):
+        if not request.service_name or not request.serviceName.strip():
+            raise NacosException(INVALID_PARAM, "service_name can not be empty")
+
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
+
+        if request.metadata is None:
+            request.metadata = {}
+
+        instance = Instance(ip=request.ip,
+                            port=request.port,
+                            metadata=request.metadata,
+                            cluster_name=request.cluster_name,
+                            healthy=request.healthy,
+                            enable=request.enable,
+                            weight=request.weight,
+                            ephemeral=request.ephemeral,
+                            )
+
+        instance.check_instance_is_legal()
+
+        return self.client_proxy_delegate.register_instance(request.service_name, request.group_name, instance)
+
+    def get_service(self, request: GetServiceRequest)->:
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
+
+        clusters = ",".join(request.clusters)
+        self.service_info_holder.g
 
     def get_all_instances(self):
         pass

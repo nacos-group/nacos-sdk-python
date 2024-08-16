@@ -9,7 +9,7 @@ class NamingClientProxy(ABC):
         pass
 
     @abstractmethod
-    def batch_register_instance(self, service_name: str, group_name: str, instances: list):
+    def batch_register_instance(self, service_name: str, group_name: str, instances: list) -> bool:
         pass
 
     @abstractmethod

@@ -11,6 +11,7 @@ from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.remote.http.heart_beat_reactor import HeartbeatReactor, HeartbeatInfo
 from v2.nacos.naming.remote.naming_client_proxy import NamingClientProxy
+from v2.nacos.naming.util.naming_client_util import get_group_name
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
 
 
@@ -28,7 +29,7 @@ class NamingHttpClientProxy(NamingClientProxy):
 
         self.server_port = NamingHttpClientProxy.DEFAULT_SERVER_PORT
         self.namespace_id = client_config.namespace_id
-        self.heartbeatReactor = HeartbeatReactor(client_config, nacos_server_connector)
+        self.beat_reactor = HeartbeatReactor(client_config, nacos_server_connector)
 
     def register_instance(self, service_name: str, group_name: str, instance: Instance) -> bool:
         self.logger.info("[register_instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
@@ -52,10 +53,10 @@ class NamingHttpClientProxy(NamingClientProxy):
 
         params["metadata"] = json.dumps(instance.metadata)
         try:
-            resp = self.nacos_server_connector.req_api("/nacos/v1/ns/instance", None, None, params, "POST")
+            resp = self.nacos_server_connector.req_api("/nacos/v1/ns/instance", None, params, None, "POST")
             c = resp.read()
             self.logger.info(
-                "[add-naming-instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
+                "[register_instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
                     instance.ip, instance.port, service_name, self.namespace_id, c))
             res = c == b"ok"
 
@@ -71,7 +72,7 @@ class NamingHttpClientProxy(NamingClientProxy):
                                           heartbeat_interval,
                                           instance.metadata
                                           )
-                self.heartbeatReactor.add_beat_info(service_name, beat_info)
+                self.beat_reactor.add_beat_info(service_name, beat_info)
             return res
         except HTTPError as e:
             if e.code == HTTPStatus.FORBIDDEN:
@@ -81,3 +82,57 @@ class NamingHttpClientProxy(NamingClientProxy):
         except Exception as e:
             self.logger.exception("[add-naming-instance] exception %s occur" % str(e))
             raise
+
+    def batch_register_instance(self, service_name: str, group_name: str, instances: list) -> bool:
+        raise NotImplementedError("This method needs to be implemented.")
+
+    def deregister_instance(self, service_name: str, group_name: str, instance: Instance):
+        service_name = get_group_name(service_name, group_name)
+        self.logger.info("[deregister_instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
+            instance.ip, instance.port, service_name, self.namespace_id))
+
+        self.beat_reactor.remove_beat_info(service_name, instance.ip, instance.port)
+
+        params = {
+            "ip": instance.ip,
+            "port": instance.port,
+            "serviceName": service_name,
+            "ephemeral": instance.ephemeral,
+            "groupName": group_name,
+        }
+
+        if instance.cluster_name is not None:
+            params["clusterName"] = instance.cluster_name
+
+        if self.namespace_id:
+            params["namespaceId"] = self.namespace_id
+
+        try:
+            resp = self.nacos_server_connector.req_api("/nacos/v1/ns/instance", None, params, None, "DELETE")
+            c = resp.read()
+            self.logger.info(
+                "[deregister_instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
+                    instance.ip, instance.port, service_name, self.namespace_id, c))
+            return c == b"ok"
+        except HTTPError as e:
+            if e.code == HTTPStatus.FORBIDDEN:
+                raise NacosException(NO_RIGHT, "Insufficient privilege.")
+            else:
+                raise NacosException(SERVER_ERROR, "Request Error, code is %s" % e.code)
+        except Exception as e:
+            self.logger.exception("[deregister_instance] exception %s occur" % str(e))
+            raise
+
+    def get_service_list(self, page_no, page_size, group_name, namespace_id, selector):
+        params = {
+            "namespaceId": namespace_id,
+            "groupName": group_name,
+            "pageNo": str(page_no),
+            "pageSize": str(page_size)
+        }
+
+        if selector and selector.get('type') == "label":
+            params["selector"] = json.dumps(selector)
+
+
+        pass
