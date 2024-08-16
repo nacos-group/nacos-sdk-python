@@ -1,19 +1,16 @@
 import base64
+import logging
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from Crypto.Random import get_random_bytes
 from Crypto.Protocol.KDF import PBKDF2
 from v2.nacos.config.encryption.abstract_encryption_plugin_service import AbstractEncryptionPluginService
-import logging
+
 #pip install pycryptodome
 
-# 设置日志配置
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
 
 
 class EncryptionPluginService(AbstractEncryptionPluginService):
-    # class EncryptionPluginService:
     def __init__(self):
         self.ALGORITHM = 'AES'
         self.AES_PKCS5P = 'AES/ECB/PKCS5Padding'

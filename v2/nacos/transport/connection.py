@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
-from grpc import Channel
-from  v2.nacos.common.model.request import IRequest
-from  v2.nacos.common.model.response import IResponse
-from  v2.nacos.transport.rpc_client import RpcClient
+from v2.nacos.common.model.request import IRequest
+from v2.nacos.common.model.response import IResponse
+from v2.nacos.transport.rpc_client import RpcClient
 
 class IConnection(ABC):
     @abstractmethod
@@ -14,11 +13,11 @@ class IConnection(ABC):
         pass
 
     @abstractmethod
-    def get_connection_id(self) -> str:
+    def get_connection_id(self):
         pass
 
     @abstractmethod
-    def get_server_info(self) -> ServerInfo:
+    def get_server_info(self):
         pass
 
     @abstractmethod
@@ -26,18 +25,18 @@ class IConnection(ABC):
         pass
 
     @abstractmethod
-    def get_abandon(self) -> bool:
+    def get_abandon(self):
         pass
 
 
 class Connection(IConnection):
-    def __init__(self, conn: Channel, connection_id: str, server_info: ServerInfo):
+    def __init__(self, conn, connection_id, server_info, abandon):
         self._conn = conn  
         self._connection_id = connection_id
-        self._abandon = False
+        self._abandon = abandon
         self._server_info = server_info
 
-    def request(self, request: IRequest, timeout_mills: int, client: RpcClient) -> IResponse:
+    def request(self, request, timeout_mills, client):
         pass 
 
     def close(self):
@@ -47,11 +46,11 @@ class Connection(IConnection):
     def get_connection_id(self) -> str:
         return self._connection_id
 
-    def get_server_info(self) -> ServerInfo:
+    def get_server_info(self):
         return self._server_info
 
     def set_abandon(self, flag: bool):
         self._abandon = flag
 
-    def get_abandon(self) -> bool:
+    def get_abandon(self):
         return self._abandon

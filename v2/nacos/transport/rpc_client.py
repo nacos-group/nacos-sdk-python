@@ -1,23 +1,20 @@
-from .connection import IConnection
-from .remote import rpc_request
-from .remote import rpc_response
-from .remote import naming_response
-from .remote import internal_request
-from connection_event_listener import IConnectionEventListener
-from ...common.constant.const import Const
-from ...util import commom
-import server_request_handler
-import os
 import time
-import math
-import threading
+import random
 import logging
-from concurrent.futures import ThreadPoolExecutor
 from enum import Enum, auto
 from abc import ABC, abstractmethod
-from typing import Dict, Callable, Any
+from typing import Dict, Any
 import asyncio
-from asyncio import Lock
+from v2.nacos.common.model import request
+from v2.nacos.common.model import response
+from v2.nacos.common.model import error_response
+from v2.nacos.transport.model import internal_request
+from v2.nacos.transport.connection import IConnection
+from v2.nacos.common.constants import Constants
+from v2.nacos.utils import common_util
+from v2.nacos.transport.nacos_server_connector import NacosServerConnector
+from v2.nacos.transport import server_request_handler
+from v2.nacos.transport.model.server_info import ServerInfo
 
 
 class ConnectionType(Enum):
@@ -37,56 +34,6 @@ class ConnectionStatus(Enum):
     CONNECTED = auto()
 
 
-def wait_reconnect(timeout_millis, retry_times: int,
-                   request: rpc_request.IRequest
-                   ):  
-    logging.error(
-        f"Send request fail, request={request.get_request_type()}, body={request.get_body()}, retryTimes={retry_times}"
-    )
-    sleep_time = min(100, int(timeout_millis / 3))
-    time.sleep(sleep_time / 1000.0)  
-    retry_times += 1
-    return retry_times
-
-
-
-class IRpcClient(ABC):
-
-    @abstractmethod
-    def connect_to_server(self):
-        pass
-
-    @abstractmethod
-    def get_connection_type(self):
-        pass
-
-    @abstractmethod
-    def put_all_labels(self):
-        pass
-
-    @abstractmethod
-    def rpc_port_offset(self):
-        pass
-
-    @abstractmethod
-    def get_rpc_client(self):
-        pass
-
-
-class ServerInfo: 
-
-    def __init__(self, server_ip: str, server_port: int,
-                 server_grpc_port: int):
-        self.server_ip = server_ip
-        self.server_port = server_port
-        self.server_grpc_port = server_grpc_port
-
-    def __eq__(self, other):
-        if isinstance(other, ServerInfo):
-            return self.__dict__ == other.__dict__
-        return False 
-
-
 class ServerRequestHandlerMapping:
 
     def __init__(self, server_request, handler):
@@ -101,12 +48,9 @@ class ReconnectContext:
         self.server_info = server_info
 
 
-
-
 class RpcClient:
 
-    def __init__(self, name: str):
-        self.ctx = asyncio.get_running_loop()
+    def __init__(self, name: str, nacos_server):
         self.name = name
         self.labels = {}
         self.current_connection: IConnection = None
@@ -114,123 +58,111 @@ class RpcClient:
         self.event_chan = asyncio.Queue()
         self.reconnection_chan = asyncio.Queue()
         self.connection_event_listeners = []  
-        self.last_active_timestamp = None 
-        self.execute_client: IRpcClient = None
         self.nacos_server = None  
         self.server_request_handler_mapping = {}
         
         self.client_abilities = None
         self.tenant = None
-        self.lock = asyncio.Lock()  #mux
-        self.loop = asyncio.get_event_loop()
-        
-
-    # def get_name(self):
-    #     return self.name
+        self.lock = asyncio.Lock()
+        self.last_active_timestamp = common_util.get_current_time_millis()
 
     def put_all_labels(self, labels: Dict[str, str]):
         self.labels.update(labels)
 
-    def get_rpc_client(self) -> 'RpcClient':
-        return self
-
     async def event_listener(self):
         while True:
-            if self.ctx.is_closed(): 
-                break
+            if self.is_shutdown(): 
+                return
             try:
-                event = await asyncio.wait_for(self.event_chan.get(),
-                                               timeout=1)  
-                await self._notify_connection_event(event)
-            except asyncio.TimeoutError:
+                event = await self.event_chan.get()
+                self._notify_connection_event(event)
+            except Exception as e:
                 pass
 
     async def health_check_delay(self):
-        # await asyncio.sleep(5)
-        # await self.health_check()
-        await asyncio.gather(asyncio.sleep(5), self.health_check())
+        await asyncio.sleep(5)
 
     async def reconnection_handler(self):
-        # self.health_check_timer = asyncio.create_task(self.health_check_delay())
         while True:
-            if self.ctx.is_closed():  
-                break
-            done, pending = await asyncio.wait(
-                [
-                    self.reconnection_chan.get(),
-                    asyncio.ensure_future(self.health_check_delay()),
-                    asyncio.ensure_future(
-                        self.nacos_server.notify_server_src_change()) 
-                ],
-                return_when=asyncio.FIRST_COMPLETED)
+            try:
+                if self.is_shutdown(): 
+                    return
+                reconnect = None
+                async def get_reconnection_chan_with_timout(queue,timeout):
+                    try:
+                        return await asyncio.wait_for(queue.get(), timeout)
+                    except asyncio.TimeoutError:
+                        print("Timeout occurred while trying to get from the queue")
+                        return None
+                reconnect = await get_reconnection_chan_with_timout(self.reconnection_chan,5)
+                if not reconnect:
+                    if common_util.get_current_time_millis() - self.last_active_timestamp >= Constants.KEEP_ALIVE_TIME:
+                        if not self.health_check():
+                            if not self.current_connection:
+                                logging.info(f"[{self.name}] Server healthy check fail, currentConnection = {self.current_connection}")
+                            async with self.lock:
+                                rpc_client_status = self.rpc_client_status
+                            if rpc_client_status == RpcClientStatus.SHUTDOWN:
+                                break
+                            if self._compare_and_swap_status(rpc_client_status, RpcClientStatus.UNHEALTHY):
+                                reconnect = ReconnectContext(on_request_fail=False)
+                            else:
+                                continue
+                        else:
+                            self.last_active_timestamp = common_util.get_current_time_millis()
+                    else:
+                        continue
 
-            if self.reconnection_chan.get() in done:
-                rc = await self.reconnection_chan.get()  
-                if rc.server_info != ServerInfo():
+                if reconnect.server_info:
                     server_exist = False
-                    for server in self.nacos_server.get_server_list():
-                        if rc.server_info.server_ip == server.server_ip:
-                            rc.server_info.serve_port = server.server_port
-                            rc.server_info.server_grpc_port = server.server_grpc_port
+                    for _, v in self.nacos_server.get_server_list():
+                        if reconnect.server_info.server_ip == v.ip_addr:
+                            reconnect.server_info.server_port == v.port
+                            reconnect.server_info.server_grpc_port == v.grpc_port
                             server_exist = True
                             break
-                    if not server_exist:
-                        logging.info(
-                            f"{self.name} recommend server is not in server list, ignore recommend server {rc.serverInfo}"
-                        )
-                        rc.serverInfo = ServerInfo()
-                await self.reconnect(rc.server_info, rc.on_request_fail)
-
-            elif asyncio.ensure_future(self.health_check_delay()) in done:
-                # timer = asyncio.sleep(5)  # Reset the timer
-                # await self.health_check()
+                        if not server_exist:
+                            logging.info(f"[{self.name}] Recommend server is not in server list, ignore recommend server {reconnect.server_info.get_address()}")
+                            reconnect.server_info = None
+                self.reconnect(reconnect.server_info,reconnect.on_request_fail)
+            except Exception as e:
                 pass
+    
+    def connect_to_server(self, server_info):
+        pass
+            
 
-            elif asyncio.ensure_future(
-                    self.nacos_server.notify_server_src_change()) in done:
-                await self.notify_server_srv_change()
-
-            for task in pending:
-                task.cancel()
-
-    def start(self):
+    async def start(self):
         if not self._compare_and_swap_status(RpcClientStatus.INITIALIZED,
                                              RpcClientStatus.STARTING):
             return
         self.register_server_request_handlers()
-        # threading.Thread(target=self._handle_events).start()
-        # threading.Thread(target=self._reconnect_loop).start()
-        self.loop.create_task(self.event_listener())
-        self.loop.create_task(self.reconnection_handler())
-
-        current_connection: IConnection = None
-        start_up_retry_times = Const.REQUEST_DOMAIN_RETRY_TIME
-        while start_up_retry_times > 0 and self.current_connection is None:
-            start_up_retry_times -= 1
+        asyncio.create_task(self.event_listener())
+        asyncio.create_task(self.reconnection_handler())
+        connect_to_server = None
+        async with self.lock:
+            self.rpc_client_status = RpcClientStatus.STARTING
+        start_up_retry_times = Constants.MAX_RETRY
+        while start_up_retry_times >= 0 and connect_to_server is None:
             try:
+                start_up_retry_times -= 1
                 server_info = self._next_rpc_server()
                 logging.info(
                     f"[RpcClient.Start] {self.name} trying to connect to server on start up, server: {server_info}"
                 )
-                connection, err = self.execute_client.connect_to_server(
+                connect_to_server = self.connect_to_server(
                     server_info) 
-                if err:
-                    logging.warning(
-                        f"[RpcClient.Start] {self.name} failed to connect to server on start up, error message={err}, start up retry times left={start_up_retry_times}"
-                    )
-                else:
-                    self.current_connection = connection
-                    break
             except Exception as e:
-                logging.error(f"[RpcClient.nextRpcServer], error: {e}")
-                break
+                logging.warning(
+                        f"[RpcClient.Start] {self.name} failed to connect to server on start up, error message={e}, start up retry times left={start_up_retry_times}")
 
-        if self.current_connection is not None:
+        if connect_to_server :
             logging.info(
                 f"{self.name} successfully connected to server {self.current_connection.get_server_info()}, connection_id={self.current_connection.get_connection_id()}"
             )
-            self.current_connection = self.current_connection
-            self.rpc_client_status = RpcClientStatus.RUNNING
+            self.current_connection = connect_to_server
+            async with self.lock:
+                self.rpc_client_status = RpcClientStatus.RUNNING
             self._notify_connection_change(ConnectionStatus.CONNECTED)
         else:
             self._switch_server_async(ServerInfo(), False)
@@ -250,21 +182,6 @@ class RpcClient:
         async with self.lock:
             rpc_client_status = self.rpc_client_status
         return rpc_client_status == RpcClientStatus.SHUTDOWN
-
-    # def _handle_events(self):
-    #     while True:
-    #         event = self.event_chan.pop(0) if self.event_chan else None
-    #         if event:
-    #             self._notify_connection_event(event)
-
-    # def _reconnect_loop(self):
-    #     timer = threading.Timer(5, self._health_check)
-    #     timer.start()
-    #     while True:
-    #         reconnect_context = self.reconnection_chan.pop(0) if self.reconnection_chan else None
-    #         if reconnect_context:
-    #             self._reconnect(reconnect_context)
-    #         time.sleep(1)
 
     def _notify_connection_change(self, event_type: ConnectionStatus):
         self.event_chan.put(ConnectionEvent(event_type))
@@ -297,7 +214,7 @@ class RpcClient:
             server_request_handler.ClientDetectionRequestHandler())
 
     async def register_server_request_handler(
-            self, request: rpc_request.IRequest,
+            self, request: request.IRequest,
             handler: server_request_handler.IServerRequestHandler) -> None:
         
         request_instance = request
@@ -310,19 +227,15 @@ class RpcClient:
             )
             return
 
-        
         logging.debug(
             f"{self.name} register server push request: {request_type} handler: {handler.name()}"
         )
 
-        
         async with self.lock:
             self.server_request_handler_mapping[
                 request_type] = ServerRequestHandlerMapping(request, handler)
 
     async def register_connection_listener(self, listener):
-        # if not isinstance(listener, IConnectionEventListener):
-        #     raise TypeError("listener must be an instance of IConnectionEventListener")
 
         logging.debug(
             f"{self.name} register connection listener [{type(listener).__name__}] to current client"
@@ -352,49 +265,44 @@ class RpcClient:
             )
         return ServerInfo()
 
-    async def request(self, request: rpc_request.IRequest,
+    async def request(self, request: request.IRequest,
                       timeout_millis: int):
         retry_times = 0
-        start = commom.current_millis()  
-        # current_err = None
+        start = common_util.get_current_time_millis()  
 
-        while retry_times < Const.REQUEST_DOMAIN_RETRY_TIME and commom.current_millis(
-        ) * 1000 < start + timeout_millis:
-            if not self.current_connection or not await self.is_running():
-                retry_times = wait_reconnect(timeout_millis, retry_times,
-                                             request)
-                continue
+        while (retry_times < Constants.REQUEST_DOMAIN_RETRY_TIME) and (timeout_millis < 0 or common_util.get_current_time_millis() < start + timeout_millis):
+            wait_reconnect = False
             try:
+                if not self.current_connection or not await self.is_running():
+                    wait_reconnect = True
+                    raise
                 response = self.current_connection.request(
                     request, timeout_millis)  
-            except Exception as err:
-                retry_times = wait_reconnect(timeout_millis, retry_times,
-                                             request)
-                continue
+                if not response:
+                    raise
 
-            if isinstance(response, naming_response.ErrorResponse):
-                if response.get_error_code() == Const.UN_REGISTER:
-                    async with self.lock:  
-                        if self._compare_and_swap_status(
-                                RpcClientStatus.RUNNING,
-                                RpcClientStatus.UNHEALTHY):
-                            logging.info(
-                                "Connection is unregistered, switch server, connectionId=%s, request=%s",
-                                self.current_connection.get_connection_id(),
-                                request.get_request_type())
-                            self._switch_server_async(ServerInfo(), False)
-                retry_times = wait_reconnect(timeout_millis, retry_times,
-                                             request)
-                continue
-
-            if response and not response.is_success():
-                logging.warn(
-                    "%s request received fail response, error code: %d, result code: %d, message: [%s]",
-                    request.get_request_type(), response.get_error_code(),
-                    response.get_result_code(), response.get_message())
-            async with self.lock:
-                self.last_active_timestamp = time.time()
-            return response
+                if isinstance(response, error_response.ErrorResponse):
+                    if response.get_error_code() == Constants.UN_REGISTER:
+                        async with self.lock:
+                            wait_reconnect = True  
+                            if self._compare_and_swap_status(
+                                    RpcClientStatus.RUNNING,
+                                    RpcClientStatus.UNHEALTHY):
+                                logging.error(
+                                    "Connection is unregistered, switch server, connectionId=%s, request=%s",
+                                    self.current_connection.get_connection_id(),
+                                    request.get_request_type())
+                                self._switch_server_async(ServerInfo(), False)
+                    raise
+                self.last_active_timestamp = common_util.get_current_time_millis()
+                return response
+            except Exception as e:
+                if wait_reconnect:
+                    try:
+                        sleep_time = min(100, timeout_millis // 3)
+                        await asyncio.sleep(sleep_time/1000)
+                    except Exception:
+                        pass
 
         async with self.lock:
             if self._compare_and_swap_status(RpcClientStatus.RUNNING,
@@ -419,128 +327,96 @@ class RpcClient:
         if not listeners or len(listeners) == 0:
             return
         logging.info(f"{self.name} notify {str(event)} event to listeners")
-        tasks = [
-            listener.on_connected()
-            if event.is_connected() else listener.on_disconnect()
-            for listener in listeners
-        ]
-        # await asyncio.gather(*tasks) 
-
+        for _, v in listeners:
+            if event.is_connected():
+                v.on_connected()
+            if event.is_disconnected():
+                v.on_dis_connected()
+    
     async def health_check(self):
-        async with self.lock:
-            last_active_time = self.last_active_timestamp  
-        if last_active_time is not None and (
-                time.time() - last_active_time.timestamp()
-        ) < Const.KEEP_ALIVE_TIME:  
-            return
-
-        if await self._send_health_check():
-            async with self.lock:
-                self.last_active_timestamp = time.time()
-            return
-        else:
-            if self.current_connection is None or await self.is_shutdown():
-                return
-
-            logging.info(
-                f"{self.name} server healthy check fail, current_connection={self.current_connection.get_connection_id()}"
-            )
-            async with self.lock:
-                self.rpc_client_status = RpcClientStatus.UNHEALTHY
-            reconnect_context = ReconnectContext(
-                server_info=None, on_request_fail=True) 
-
-        await self.reconnect(reconnect_context.server_info,
-                             reconnect_context.on_request_fail)
-        # await asyncio.sleep(constant.KEEP_ALIVE_TIME)
-
-    def _send_health_check(self) -> bool:
-        if self.current_connection is None:
+        health_check_request = internal_request.HealthCheckRequest().new_health_check_request()
+        if not self.current_connection:
             return False
-        try:
-            response = self.current_connection.request(
-                internal_request.HealthCheckRequest().new_health_check_request(
-                ), Const.DEFAULT_TIMEOUT_MILLS)
-        except Exception as err:
-            logging.error("client send_health_check failed, err=%s", str(err))
-            return False
-
-        if not response.is_success():
-            if 300 <= response.get_error_code() < 400:
-                return True
-            return False
-        return True
+        re_try_times = Constants.MAX_RETRY
+        random.seed()  
+        while re_try_times >= 0:
+            re_try_times -= 1
+            try:
+                if re_try_times > 1:
+                    await asyncio.sleep(random.randint(0, 500) / 1000.0)  
+                response = self.current_connection.request(health_check_request, Constants.DEFAULT_TIMEOUT_MILLS)
+                return response.is_success() and not response is None 
+            except Exception as e:
+                # 忽略异常
+                pass
+        return False
 
     async def reconnect(self, server_info: ServerInfo, on_request_fail: bool):
-        if on_request_fail and self._send_health_check():
-            logging.info(
-                f"{self.name} server check success, currentServer is {self.current_connection.get_server_info()}"
-            )
-            async with self.lock:
-                self.rpc_client_status = RpcClientStatus.RUNNING
-            self._notify_connection_change(ConnectionStatus.CONNECTED)
-            return
-
-        server_info_flag = False  
-        re_connect_times, retry_turns = 0, 0
-        err = None
-        if server_info == ServerInfo():
-            server_info_flag = True
-            logging.info(
-                f"{self.name} try to re connect to a new server, server is not appointed, will choose a random server."
-            )
-
-        while not await self.is_shutdown():
-            if server_info_flag:
-                try:
-                    server_info = self._next_rpc_server()
-                except Exception as err:
-                    logging.error(
-                        f"[RpcClient.next_rpc_server], err: {str(err)}")
-                    break
-            try:
-                connection_new = self.execute_client.connect_to_server(
-                    server_info)
-            except Exception as err:
-                logging.error(
-                    f"[RpcClient.execute_client.next_rpc_server], err: {str(err)}"
-                )
-            if connection_new:
+        try:
+            if on_request_fail and self._send_health_check():
                 logging.info(
-                    f"{self.name} success to connect a server {server_info}, connectionId={connection_new.get_connection_id()}"
+                    f"{self.name} server check success, currentServer is {self.current_connection.get_server_info()}"
                 )
-
-                if self.current_connection:
-                    logging.info(
-                        f"{self.name} abandon prev connection, server is {server_info}, connectionId is {self.current_connection.get_connection_id()}"
-                    )
-                    self.current_connection.set_abandon(True)
-                    self._close_connection()
-                self.current_connection = connection_new
                 async with self.lock:
                     self.rpc_client_status = RpcClientStatus.RUNNING
                 self._notify_connection_change(ConnectionStatus.CONNECTED)
                 return
+ 
+            switch_success = False
+            re_connect_times, retry_turns = 0, 0
 
-            if self.is_shutdown():
-                self._close_connection()
+            while not await self.is_shutdown() and not switch_success:
+                server_info = None
+                try:
+                    server_info = self._next_rpc_server()
+                    connection_new = self.connect_to_server(
+                        server_info)
+                    if connection_new:
+                        logging.info(f"[{self.name}] Success to connect a server [{server_info.get_address()}], connectionId = {connection_new.get_connection_id()}")
+                        if self.current_connection:
+                            logging.info(f"[{self.name}] Abandon prev connection, server is {self.current_connection.server_info.get_address()}, connectionId is {self.current_connection.get_connection_id()}")
+                            self.current_connection.set_abandon(True)
+                            self._close_connection()
+                        self.current_connection = connection_new
+                        async with self.lock:
+                            self.rpc_client_status = RpcClientStatus.RUNNING
+                        switch_success = True
+                        self._notify_connection_change(ConnectionStatus.CONNECTED)
+                        return
 
-            if re_connect_times > 0 and re_connect_times % len(
-                    self.nacos_server.get_server_list()) == 0:
+                    if self.is_shutdown():
+                        self._close_connection()
+                    
+                    last_exception = None
+                
+                except Exception as e:
+                    logging.error(f"Fail to connect server, error = {str(e)}")
+                    last_exception = str(e)
+                finally:
+                    pass
+
+                if not self.nacos_server.get_server_list():
+                    raise
+
+                if re_connect_times > 0 and re_connect_times % len(
+                        self.nacos_server.get_server_list()) == 0:
+                    err_info = last_exception if last_exception else "unknown"
+                    logging.warning(
+                        f"{self.name} fail to connect server, after trying {re_connect_times} times, last try server is {server_info}, error={err_info}"
+                    )
+                    if retry_turns < 50:
+                        retry_turns += 1
+
+                re_connect_times += 1
+                if not await self.is_running():
+                    sleep_time = min(retry_turns, 50) * 100
+                    time.sleep(sleep_time / 1000)
+
+            if await self.is_shutdown():
                 logging.warning(
-                    f"{self.name} fail to connect server, after trying {re_connect_times} times, last try server is {server_info}, error={err}"
-                )
-                if retry_turns < 50:
-                    retry_turns += 1
-
-            re_connect_times += 1
-            if not await self.is_running():
-                sleep_time = min(retry_turns, 50) * 100
-                time.sleep(sleep_time / 1000)
-
-        if await self.is_shutdown():
-            logging.warning(
-                f"{self.name} client is shutdown, stop reconnect to server")
+                    f"{self.name} client is shutdown, stop reconnect to server")
+        except Exception as e:
+            logging.warning(f"[{self.name}] Fail to reconnect to server, error is {str(e)}")
 
     def _switch_server_async(self, recommend_server_info: ServerInfo,
                              on_request_fail: bool):
@@ -551,7 +427,6 @@ class RpcClient:
 class ConnectionEvent:
 
     def __init__(self, event_type: ConnectionStatus):
-        # self.event_type = event_type
         self.event_type = event_type
 
     def is_connected(self) -> bool:

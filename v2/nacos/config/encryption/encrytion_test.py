@@ -1,5 +1,5 @@
-from v2.nacos.config.encryption.encryption_plugin_service import EncryptionPluginService
-from v2.nacos.config.encryption.encryption_plugin_manager import EncryptionPluginManager
+from v2.nacos.config.encryption.encrytion_plugin_service import EncryptionPluginService
+from v2.nacos.config.encryption.encrytion_plugin_manager import EncryptionPluginManager
 from v2.nacos.config.encryption.encryption_handler import EncryptionHandler
 import logging
 

@@ -1,10 +1,8 @@
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Tuple
-from v2.nacos.config.encryption.encryption_plugin_manager import EncryptionPluginManager
+from v2.nacos.config.encryption.encrytion_plugin_manager import EncryptionPluginManager
 
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
 
 
 class EncryptionHandler:

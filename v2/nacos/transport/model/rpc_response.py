@@ -34,7 +34,7 @@ class IResponse(ABC):
     def get_message(self) -> str:
         pass
 
-class Response(IResponse):
+class Response:
     def __init__(self):
         self.result_code = 0
         self.error_code = 0
@@ -62,6 +62,15 @@ class Response(IResponse):
 
     def get_message(self) -> str:
         return self.message
-    
+
+class ServerCheckResponse(Response):
+    def __init__(self):
+        super().__init__()
+        self.connection_id: str = ""
+
+    @staticmethod
+    def new_server_check_response():
+        return ServerCheckResponse()
+
     def get_response_type(self) -> str:
-        pass
+        return "ServerCheckResponse"

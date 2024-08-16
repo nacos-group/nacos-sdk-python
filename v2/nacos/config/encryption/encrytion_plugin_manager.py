@@ -1,9 +1,7 @@
 import logging
 from threading import Lock
-from v2.nacos.config.encryption.encryption_plugin_service import EncryptionPluginService
+from v2.nacos.config.encryption.encrytion_plugin_service import EncryptionPluginService
 
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
 
 
 class EncryptionPluginManager:

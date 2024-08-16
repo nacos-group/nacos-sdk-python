@@ -2,8 +2,33 @@ from typing import Dict
 from abc import ABC, abstractmethod
 from v2.nacos.utils.common_util import to_json_string
 
+class IRequest(ABC):
 
-class Request:
+    @abstractmethod
+    def get_headers(self) -> Dict[str, str]:
+        pass
+
+    @abstractmethod
+    def get_request_type(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_body(self) -> str:
+        pass
+
+    @abstractmethod
+    def put_all_headers(self, headers: Dict[str, str]):
+        pass
+
+    @abstractmethod
+    def get_request_id(self) -> str:
+        pass
+
+    @abstractmethod
+    def get_string_to_sign(self) -> str:
+        pass
+
+class Request(IRequest):
 
     def __init__(self):
         self._headers: Dict[str, str] = {}
@@ -42,30 +67,6 @@ class Request:
 
     def get_string_to_sign(self) -> str:
         return ""
-
-
-class IRequest(ABC):
-
-    @abstractmethod
-    def get_headers(self) -> Dict[str, str]:
-        pass
-
-    @abstractmethod
+    
     def get_request_type(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_body(self) -> str:
-        pass
-
-    @abstractmethod
-    def put_all_headers(self, headers: Dict[str, str]):
-        pass
-
-    @abstractmethod
-    def get_request_id(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_string_to_sign(self) -> str:
         pass
