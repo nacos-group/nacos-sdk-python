@@ -1,41 +1,39 @@
-from typing import List
+from typing import Optional
+
+from pydantic import BaseModel
 
 
-class ConfigItem:
-
-    def __init__(self, id: int, data_id: str, group: str, content: str,
-                 md5: str, tenant: str, appname: str):
-        self.id = id
-        self.data_id = data_id
-        self.group = group
-        self.content = content
-        self.md5 = md5
-        self.tenant = tenant
-        self.appname = appname
+class ConfigItem(BaseModel):
+    id: str = ''
+    dataId: str = ''
+    group: str = ''
+    content: str = ''
+    md5: Optional[str] = ''
+    tenant: str = ''
+    appname: str = ''
 
 
-class ConfigPage:
-
-    def __init__(self, total_count: int, page_number: int,
-                 pages_available: int, page_items: List[ConfigItem]):
-        self.total_count = total_count
-        self.page_number = page_number
-        self.pages_available = pages_available
-        self.page_items = page_items
+class ConfigPage(BaseModel):
+    totalCount: int = 0
+    pageNumber: int = 0
+    pagesAvailable: int = 0
+    pageItems: list[ConfigItem] = []
 
 
-class ConfigListenContext:
-
-    def __init__(self, group: str, md5: str, data_id: str, tenant: str):
-        self.group = group
-        self.md5 = md5
-        self.data_id = data_id
-        self.tenant = tenant
+class ConfigListenContext(BaseModel):
+    group: str = ''
+    md5: str = ''
+    dataId: str = ''
+    tenant: str = ''
 
 
-class ConfigContext:
+class ConfigContext(BaseModel):
+    group: str = ''
+    dataId: str = ''
+    tenant: str = ''
 
-    def __init__(self, group: str, data_id: str, tenant: str):
-        self.group = group
-        self.data_id = data_id
-        self.tenant = tenant
+
+class CacheDataListener:
+    def __init__(self, listener, last_md5):
+        self.listener = listener
+        self.last_md5 = last_md5

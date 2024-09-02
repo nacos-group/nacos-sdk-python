@@ -1,6 +1,6 @@
 from v2.nacos.common.client_config import ClientConfig, GRPCConfig
-from v2.nacos.common.client_config import TLSConfig
 from v2.nacos.common.client_config import KMSConfig
+from v2.nacos.common.client_config import TLSConfig
 
 
 class ClientConfigBuilder:

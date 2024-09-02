@@ -2,13 +2,13 @@ import asyncio
 
 import grpc
 
-from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
+from v2.nacos.common.nacos_exception import NacosException
 from v2.nacos.transport.connection import Connection
 from v2.nacos.transport.grpc_util import GrpcUtils
-from v2.nacos.transport.model.rpc_request import Request
-from v2.nacos.transport.model.rpc_response import Response
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2_grpc import RequestStub, BiRequestStreamStub
+from v2.nacos.transport.model.rpc_request import Request
+from v2.nacos.transport.model.rpc_response import Response
 
 
 class GrpcConnection(Connection):

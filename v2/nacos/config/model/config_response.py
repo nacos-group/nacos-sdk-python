@@ -1,38 +1,23 @@
-from datetime import datetime
-from typing import List
-from v2.nacos.common.model.response import Response
-from .config import ConfigContext
+from typing import Optional
+
+from v2.nacos.transport.model.rpc_response import Response
 
 
 class ConfigChangeBatchListenResponse(Response):
-
-    def __init__(self):
-        super().__init__()
-        self.changed_configs = []
-
-    @staticmethod
-    def new_config_change_batch_listen_response():
-        return ConfigChangeBatchListenResponse()
+    changedConfigs: list = []
 
     def get_response_type(self) -> str:
         return "ConfigChangeBatchListenResponse"
 
 
 class ConfigQueryResponse(Response):
-
-    def __init__(self):
-        super().__init__()
-        self.content = ""
-        self.encrypted_data_key = ""
-        self.content_type = ""
-        self.md5 = ""
-        self.last_modified = 0
-        self.is_beta = False
-        self.tag = False
-
-    @staticmethod
-    def new_config_query_response():
-        return ConfigQueryResponse()
+    content: Optional[str] = ''
+    encryptedDataKey: Optional[str] = ''
+    contentType: Optional[str] = ''
+    md5: Optional[str] = ''
+    lastModified: Optional[int] = ''
+    isBeta: bool = False
+    tag: bool = False
 
     def get_response_type(self) -> str:
         return "ConfigQueryResponse"
@@ -40,25 +25,11 @@ class ConfigQueryResponse(Response):
 
 class ConfigPublishResponse(Response):
 
-    def __init__(self):
-        super().__init__()
-
-    @staticmethod
-    def new_config_publish_response():
-        return ConfigPublishResponse()
-
     def get_response_type(self) -> str:
         return "ConfigPublishResponse"
 
 
-class ConfigRemoveResponse:
-
-    def __init__(self):
-        super().__init__()
-
-    @staticmethod
-    def new_config_remove_response():
-        return ConfigRemoveResponse()
+class ConfigRemoveResponse(Response):
 
     def get_response_type(self) -> str:
         return "ConfigRemoveResponse"

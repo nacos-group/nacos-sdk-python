@@ -1,9 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from pydantic import BaseModel
-
-from v2.nacos.utils.common_util import to_json_string
 
 
 class Response(BaseModel, ABC):
@@ -24,6 +21,15 @@ class Response(BaseModel, ABC):
 
     def is_success(self) -> bool:
         return self.errorCode == 0
+
+    def get_error_code(self) -> int:
+        return self.errorCode
+
+    def get_result_code(self) -> int:
+        return self.resultCode
+
+    def get_message(self) -> str:
+        return self.message
 
     def __str__(self):
         return "Response{resultCode=" + str(self.resultCode) + ", errorCode=" + str(self.errorCode) + ", message='" \

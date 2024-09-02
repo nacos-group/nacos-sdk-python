@@ -1,68 +1,38 @@
-import logging
-from abc import ABC, abstractmethod
-from typing import Optional, Tuple
+from v2.nacos.common.constants import Constants
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, NOT_FOUND
 from v2.nacos.config.encryption.encrytion_plugin_manager import EncryptionPluginManager
-
+from v2.nacos.config.model.config_param import HandlerParam
 
 
 class EncryptionHandler:
-    PREFIX = "cipher-"
 
     @staticmethod
     def check_cipher(data_id: str) -> bool:
-        return data_id.startswith(EncryptionHandler.PREFIX
-                                  ) and not data_id == EncryptionHandler.PREFIX
+        return data_id.startswith(Constants.CIPHER_PRE_FIX) and not data_id == Constants.CIPHER_PRE_FIX
 
     @staticmethod
-    def parse_algorithm_name(data_id: str) -> Optional[str]:
-        parts = data_id.split("-")
-        return parts[1] if len(parts) > 1 else None
-
-    @staticmethod
-    def encrypt_handler(data_id: str, content: str) -> Tuple[str, str]:
-        if not EncryptionHandler.check_cipher(data_id):
-            return "", content
-
-        algorithm_name = EncryptionHandler.parse_algorithm_name(data_id)
-        if not algorithm_name:
-            LOGGER.warn(
-                f"[EncryptionHandler] [encryptHandler] No algorithm name found in dataId: {data_id}"
-            )
-            return "", content
+    def encrypt_handler(handler_param: HandlerParam):
+        if not EncryptionHandler.check_cipher(handler_param.data_id):
+            raise NacosException(INVALID_PARAM, "the prefix of data_id must be cipher when encrypting.")
 
         manager = EncryptionPluginManager.get_instance()
-        service = manager.find_encryption_service(algorithm_name)
+        service = manager.find_encryption_service(handler_param.data_id)
         if not service:
-            LOGGER.warn(
-                f"[EncryptionHandler] [encryptHandler] No encryption service found for algorithm name: {algorithm_name}"
-            )
-            return "", content
+            raise NacosException(NOT_FOUND, f"encryption plugin service not found, data_id:{handler_param.data_id}")
 
-        secret_key = service.generate_secret_key()
-        encrypt_content = service.encrypt(secret_key, content)
-        return service.encrypt_secret_key(secret_key), encrypt_content
+        service.generate_secret_key(handler_param)
+        service.encrypt(handler_param)
+        service.encrypt_secret_key(handler_param)
 
     @staticmethod
-    def decrypt_handler(data_id: str, secret_key: str,
-                        content: str) -> Tuple[str, str]:
-        if not EncryptionHandler.check_cipher(data_id):
-            return secret_key, content
-
-        algorithm_name = EncryptionHandler.parse_algorithm_name(data_id)
-        if not algorithm_name:
-            LOGGER.warn(
-                f"[EncryptionHandler] [decryptHandler] No algorithm name found in dataId: {data_id}"
-            )
-            return secret_key, content
+    def decrypt_handler(handler_param: HandlerParam):
+        if not EncryptionHandler.check_cipher(handler_param.data_id):
+            raise NacosException(INVALID_PARAM, "the prefix of data_id must be cipher when decrypting.")
 
         manager = EncryptionPluginManager.get_instance()
-        service = manager.find_encryption_service(algorithm_name)
+        service = manager.find_encryption_service(handler_param.data_id)
         if not service:
-            LOGGER.warn(
-                f"[EncryptionHandler] [decryptHandler] No encryption service found for algorithm name: {algorithm_name}"
-            )
-            return secret_key, content
+            raise NacosException(NOT_FOUND, f"encryption plugin service not found, data_id:{handler_param.data_id}")
 
-        decrypt_secret_key = service.decrypt_secret_key(secret_key)
-        decrypt_content = service.decrypt(decrypt_secret_key, content)
-        return decrypt_secret_key, decrypt_content
+        service.decrypt_secret_key(handler_param)
+        service.decrypt(handler_param)

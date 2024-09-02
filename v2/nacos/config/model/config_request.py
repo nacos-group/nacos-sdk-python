@@ -1,100 +1,58 @@
 from abc import ABC, abstractmethod
-from v2.nacos.common.model.request import Request
-from .config import ConfigListenContext 
+from typing import Optional
 
-class IConfigRequest(ABC):
+from v2.nacos.config.model.config import ConfigListenContext
+from v2.nacos.transport.model.rpc_request import Request
 
-    @abstractmethod
-    def get_data_id(self):
-        pass
-
-    @abstractmethod
-    def get_group(self):
-        pass
-
-    @abstractmethod
-    def get_tenant(self):
-        pass
+CONFIG_CHANGE_NOTIFY_REQUEST_TYPE = "ConfigChangeNotifyRequest"
 
 
-class ConfigRequest(Request):
-    def __init__(self, group, data_id, tenant):
-        super().__init__()
-        self.Group = group
-        self.DataId = data_id
-        self.Tenant = tenant
-        self.Module = "config"
+class AbstractConfigRequest(Request, ABC):
+    group: Optional[str]
+    dataId: Optional[str]
+    tenant: Optional[str]
 
-    @staticmethod
-    def new_config_request(group, data_id, tenant):
-        return ConfigRequest(group, data_id, tenant)
+    def get_module(self):
+        return "config"
 
-    def GetDataId(self):
-        return self.DataId
+    def get_request_type(self) -> str:
+        """
+        提供一个默认实现或抛出NotImplementedError，明确指示子类需要覆盖此方法。
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
 
-    def GetGroup(self):
-        return self.Group
 
-    def GetTenant(self):
-        return self.Tenant
+class ConfigBatchListenRequest(AbstractConfigRequest):
+    listen: bool = True
+    configListenContexts: list[ConfigListenContext] = []
 
-class ConfigBatchListenRequest(ConfigRequest):
-    def __init__(self, cache_len):
-        super().__init__("", "", "")  
-        self.listen = True
-        self.config_listen_contexts = [ConfigListenContext() for _ in range(cache_len)]  
-
-    @staticmethod
-    def new_config_batch_listen_request(cache_len):
-        return ConfigBatchListenRequest(cache_len)
-
-    def GetRequestType(self):
+    def get_request_type(self):
         return "ConfigBatchListenRequest"
 
-class ConfigChangeNotifyRequest(ConfigRequest):
-    def __init__(self, group, data_id, tenant):
-        super().__init__(group, data_id, tenant) 
 
-    @staticmethod
-    def new_config_change_notify_request(group, data_id, tenant):
-        return ConfigChangeNotifyRequest(group, data_id, tenant)
+class ConfigChangeNotifyRequest(AbstractConfigRequest):
 
     def get_request_type(self):
         return "ConfigChangeNotifyRequest"
 
-class ConfigQueryRequest(ConfigRequest):
-    def __init__(self, group, data_id, tenant, tag):
-        super().__init__(group, data_id, tenant)
-        self.tag = tag
 
-    @staticmethod
-    def new_config_query_request(group, data_id, tenant, tag):
-        return ConfigQueryRequest(group, data_id, tenant, tag)
+class ConfigQueryRequest(AbstractConfigRequest):
+    tag: Optional[str] = ''
 
     def get_request_type(self):
         return "ConfigQueryRequest"
 
-class ConfigPublishRequest(ConfigRequest):
-    def __init__(self, group, data_id, tenant, content, cas_md5, addition_map=None):
-        super().__init__(group, data_id, tenant)
-        self.content = content
-        self.cas_md5 = cas_md5
-        self.addition_map = addition_map if addition_map is not None else {}
 
-    @staticmethod
-    def new_config_publish_request(group, data_id, tenant, content, cas_md5):
-        return ConfigPublishRequest(group, data_id, tenant, content, cas_md5)
+class ConfigPublishRequest(AbstractConfigRequest):
+    content: Optional[str]
+    casMd5: Optional[str]
+    additionMap: dict = {}
 
     def get_request_type(self):
         return "ConfigPublishRequest"
 
-class ConfigRemoveRequest(ConfigRequest):
-    def __init__(self, group, data_id, tenant):
-        super().__init__(group, data_id, tenant)
 
-    @staticmethod
-    def new_config_remove_request(group, data_id, tenant):
-        return ConfigRemoveRequest(group, data_id, tenant)
+class ConfigRemoveRequest(AbstractConfigRequest):
 
     def get_request_type(self):
         return "ConfigRemoveRequest"

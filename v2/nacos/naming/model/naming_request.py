@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional
+from typing import Optional, Any
 
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service_info import ServiceInfo

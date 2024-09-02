@@ -1,3 +1,4 @@
+import asyncio
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
@@ -53,11 +54,20 @@ class NacosNamingService(NacosClient):
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
-        if not request.group_name:
-            request.group_name = Constants.DEFAULT_GROUP
+    # async def deregister_instance(self, request: DeregisterInstanceRequest) -> None:
+    #     if not request.service_name:
+    #         raise NacosException(INVALID_PARAM, "service_name can not be empty")
+    #
+    #     if not request.group_name:
+    #         request.group_name = Constants.DEFAULT_GROUP
+    #
+    #     instance = Instance(ip=request.ip,
+    #                         port=request.port,
+    #                         cluster_name=request.cluster_name,
+    #                         ephemeral=request.ephemeral,
+    #                         )
 
-        if len(request.instances) == 0:
-            raise NacosException(INVALID_PARAM, "instances can not be empty")
+    # return await self.grpc_client_proxy.deregister_instance(request.service_name, request.group_name, instance)
 
         instance_list = []
         for instance in request.instances:
