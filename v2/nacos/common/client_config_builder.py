@@ -1,4 +1,4 @@
-from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.common.client_config import ClientConfig, GRPCConfig
 from v2.nacos.common.client_config import TLSConfig
 from v2.nacos.common.client_config import KMSConfig
 
@@ -8,7 +8,9 @@ class ClientConfigBuilder:
         self._config = ClientConfig()
 
     def server_address(self, server_address) -> "ClientConfigBuilder":
-        self._config.server_address = server_address
+        if server_address is not None and server_address.strip() != "":
+            for server_address in server_address.strip().split(','):
+                self._config.server_list.append(server_address.strip())
         return self
 
     def endpoint(self, endpoint) -> "ClientConfigBuilder":
@@ -35,19 +37,19 @@ class ClientConfigBuilder:
         self._config.log_dir = log_dir
         return self
 
-    def access_key(self, access_key) -> "ClientConfigBuilder":
+    def access_key(self, access_key: str) -> "ClientConfigBuilder":
         self._config.access_key = access_key
         return self
 
-    def secret_key(self, secret_key) -> "ClientConfigBuilder":
+    def secret_key(self, secret_key: str) -> "ClientConfigBuilder":
         self._config.secret_key = secret_key
         return self
 
-    def username(self, username) -> "ClientConfigBuilder":
+    def username(self, username: str) -> "ClientConfigBuilder":
         self._config.username = username
         return self
 
-    def password(self, password) -> "ClientConfigBuilder":
+    def password(self, password: str) -> "ClientConfigBuilder":
         self._config.password = password
         return self
 
@@ -61,6 +63,10 @@ class ClientConfigBuilder:
 
     def kms_config(self, kms_config: KMSConfig) -> "ClientConfigBuilder":
         self._config.kms_config = kms_config
+        return self
+
+    def grpc_config(self, grpc_config: GRPCConfig) -> "ClientConfigBuilder":
+        self._config.grpc_config = grpc_config
         return self
 
     def not_load_cache_at_start(self, not_load_cache_at_start: bool) -> "ClientConfigBuilder":

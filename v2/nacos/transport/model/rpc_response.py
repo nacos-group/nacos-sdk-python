@@ -1,76 +1,43 @@
 from abc import ABC, abstractmethod
+from typing import Optional
+
+from pydantic import BaseModel
+
 from v2.nacos.utils.common_util import to_json_string
 
-class IResponse(ABC):
-    @abstractmethod
-    def get_response_type(self) -> str:
-        pass
 
-    @abstractmethod
-    def set_request_id(self, request_id: str):
-        pass
+class Response(BaseModel, ABC):
+    resultCode: int = 200
+    errorCode: int = 0
+    message: str = ''
+    requestId: str = ''
 
-    @abstractmethod
-    def get_body(self) -> str:
-        pass
-
-    @abstractmethod
-    def get_error_code(self) -> int:
-        pass
-
-    @abstractmethod
-    def is_success(self) -> bool:
-        pass
-
-    @abstractmethod
-    def set_success(self, success: bool):
-        pass
-
-    @abstractmethod
-    def get_result_code(self) -> int:
-        pass
-
-    @abstractmethod
-    def get_message(self) -> str:
-        pass
-
-class Response:
-    def __init__(self):
-        self.result_code = 0
-        self.error_code = 0
-        self.success = False
-        self.message = ""
-        self.request_id = ""
+    @classmethod
+    def convert(cls, obj: object):
+        new_obj = cls()
+        for key, value in obj.__dict__.items():
+            new_obj.__dict__[key] = value
+        return new_obj
 
     def set_request_id(self, request_id: str):
-        self.request_id = request_id
-
-    def get_body(self) -> str:
-        return to_json_string(self.__dict__)
+        self.requestId = request_id
 
     def is_success(self) -> bool:
-        return self.success
-
-    def set_success(self, success: bool):
-        self.success = success
+        return self.errorCode == 0
 
     def get_error_code(self) -> int:
-        return self.error_code
+        return self.errorCode
 
     def get_result_code(self) -> int:
-        return self.result_code
+        return self.resultCode
 
     def get_message(self) -> str:
         return self.message
 
-class ServerCheckResponse(Response):
-    def __init__(self):
-        super().__init__()
-        self.connection_id: str = ""
+    def __str__(self):
+        return "Response{resultCode=" + str(self.resultCode) + ", errorCode=" + str(self.errorCode) + ", message='" \
+            + self.message + "'" + ", requestId='" + self.requestId + "'}"
 
-    @staticmethod
-    def new_server_check_response():
-        return ServerCheckResponse()
-
+    @abstractmethod
     def get_response_type(self) -> str:
-        return "ServerCheckResponse"
+        pass

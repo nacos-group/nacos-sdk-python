@@ -26,9 +26,25 @@ class TLSConfig:
         self.key_file = key_file  # 私钥文件的路径
         self.server_name_override = server_name_override  # 服务器名称覆盖（用于测试）
 
+    def __str__(self):
+        return str(self.__dict__)
+
+
+class GRPCConfig:
+    def __init__(self, max_receive_message_length=Constants.GRPC_MAX_RECEIVE_MESSAGE_LENGTH,
+                 max_keep_alive_ms=Constants.GRPC_KEEPALIVE_TIME_MILLS,
+                 initial_window_size=Constants.GRPC_INITIAL_WINDOW_SIZE,
+                 initial_conn_window_size=Constants.GRPC_INITIAL_CONN_WINDOW_SIZE,
+                 grpc_timeout=Constants.DEFAULT_GRPC_TIMEOUT_MILLS):
+        self.max_receive_message_length = max_receive_message_length
+        self.max_keep_alive_ms = max_keep_alive_ms
+        self.initial_window_size = initial_window_size
+        self.initial_conn_window_size = initial_conn_window_size
+        self.grpc_timeout = grpc_timeout
+
 
 class ClientConfig:
-    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
+    def __init__(self, server_addresses=None, endpoint=None, namespace_id='public', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', log_dir='', log_level=None,
                  log_rotation_backup_count=None):
         self.server_list = []
@@ -56,7 +72,8 @@ class ClientConfig:
         self.timeout_ms = 10 * 1000  # timeout for requesting Nacos server, default value is 10000ms
         self.heart_beat_interval = 5 * 1000  # the time interval for sending beat to server,default value is 5000ms
         self.kms_config = None
-        self.tls_config = None
+        self.tls_config = TLSConfig(enabled=False)
+        self.grpc_config = GRPCConfig()
         self.not_load_cache_at_start = False
 
     def set_log_level(self, log_level):
@@ -85,6 +102,10 @@ class ClientConfig:
 
     def set_kms_config(self, kms_config: KMSConfig):
         self.kms_config = kms_config
+        return self
+
+    def set_grpc_config(self, grpc_config: GRPCConfig):
+        self.grpc_config = grpc_config
         return self
 
     def set_not_load_cache_at_start(self, not_load_cache_at_start):

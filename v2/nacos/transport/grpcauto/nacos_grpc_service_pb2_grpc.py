@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import nacos_grpc_service_pb2 as nacos__grpc__service__pb2
+import v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 as nacos__grpc__service__pb2
 
 
 class RequestStreamStub(object):

@@ -34,7 +34,7 @@ class AuthClient:
             url = server_address + "/nacos/v1/auth/users/login"
             resp, error = self.http_agent.request(url, "POST", None, params, None)
             if not resp or error:
-                self.logger.warn(f"[get-access-token] request {url} failed, error: {error}")
+                self.logger.warning(f"[get-access-token] request {url} failed, error: {error}")
                 continue
 
             response_data = json.loads(resp.decode("UTF-8"))

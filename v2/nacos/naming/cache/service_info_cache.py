@@ -16,7 +16,6 @@ from v2.nacos.naming.util.naming_client_util import get_service_cache_key, get_g
 class ServiceInfoCache:
     def __init__(self, client_config: ClientConfig):
         self.logger = logging.getLogger(Constants.NAMING_MODULE)
-        self.update_cache_when_empty = update_cache_when_empty
         self.cache_dir = os.path.join(client_config.cache_dir, Constants.NAMING_MODULE, client_config.namespace_id)
         self.service_info_map = {}
         self.update_time_map = {}
@@ -40,7 +39,7 @@ class ServiceInfoCache:
         service = json.loads(data)
         self.process_service(service)
 
-    def process_service(self, service):
+    def process_service(self, service: ServiceInfo):
         if service is None:
             return
 
@@ -57,7 +56,7 @@ class ServiceInfoCache:
         with self.lock:
             old_domain = self.service_info_map.get(cache_key, None)
             if old_domain is not None and old_domain['LastRefTime'] >= service['LastRefTime']:
-                self.logger.warn(
+                self.logger.warning(
                     f"out of date data received, old-t: {old_domain['LastRefTime']}, new-t: {service['LastRefTime']}")
                 return
 
@@ -75,7 +74,6 @@ class ServiceInfoCache:
     def get_service_cache_key(self, service):
         # 生成服务的缓存键
         return f"{service['Name']}@{service['Clusters']}"
-
 
     def get_service_info(self, service_name, group_name, clusters) -> ServiceInfo:
         cache_key = get_service_cache_key(get_group_name(service_name, group_name), clusters)
@@ -100,7 +98,7 @@ class ServiceInfoCache:
         old_ref_time = old_service['LastRefTime']
         new_ref_time = new_service['LastRefTime']
         if old_ref_time > new_ref_time:
-            self.logger.warn(f"out of date data received, old-t: {old_ref_time}, new-t: {new_ref_time}")
+            self.logger.warning(f"out of date data received, old-t: {old_ref_time}, new-t: {new_ref_time}")
             return False
 
         # 排序实例列表并比较，函数需要你实现

@@ -1,10 +1,37 @@
-from typing import Dict
-from v2.nacos.common.model.response import Response
+from typing import Dict, Optional
+
+from v2.nacos.transport.model.rpc_response import Response
 
 
 class ConnectResetResponse(Response):
-    def __init__(self):
-        super().__init__()
-
     def get_response_type(self) -> str:
         return "ConnectResetResponse"
+
+
+class ClientDetectionResponse(Response):
+
+    def get_response_type(self) -> str:
+        return "ClientDetectionResponse"
+
+
+class ServerCheckResponse(Response):
+    connectionId: Optional[str] = ''
+
+    def get_response_type(self) -> str:
+        return "ServerCheckResponse"
+
+    def set_connection_id(self, connection_id: str) -> None:
+        self.connectionId = connection_id
+
+    def get_connection_id(self) -> str:
+        return self.connectionId
+
+
+class HealthCheckResponse(Response):
+    def get_response_type(self):
+        return "HealthCheckResponse"
+
+
+class ErrorResponse(Response):
+    def get_response_type(self):
+        return "ErrorResponse"
