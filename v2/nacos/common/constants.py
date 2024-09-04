@@ -3,6 +3,14 @@ class Constants:
 
     CONFIG_MODULE = "config"
 
+    LABEL_SOURCE = "source"
+
+    LABEL_SOURCE_SDK = "sdk"
+
+    LABEL_SOURCE_CLUSTER = "cluster"
+
+    LABEL_MODULE = "module"
+
     CLIENT_VERSION = "Nacos-Python-Client:v2.0.0"
 
     DATA_IN_BODY_VERSION = 204
@@ -181,3 +189,15 @@ class Constants:
     SERVICE_NAME_KEY = "serviceName"
 
     DEFAULT_PORT = 8848
+
+    GRPC_MAX_RECEIVE_MESSAGE_LENGTH = 100 * 1024 * 1024
+
+    GRPC_KEEPALIVE_TIME_MILLS = 60 * 1000
+
+    GRPC_INITIAL_WINDOW_SIZE = 10 * 1024 * 1024
+
+    GRPC_INITIAL_CONN_WINDOW_SIZE = 10 * 1024 * 1024
+
+    KEEP_ALIVE_TIME_MILLS = 5000
+
+    DEFAULT_GRPC_TIMEOUT_MILLS = 3000

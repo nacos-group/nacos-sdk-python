@@ -1,66 +1,74 @@
 import json
-import logging
-from v2.nacos.common.model.request import IRequest
-from v2.nacos.common.model.response import IResponse
-from v2.nacos.common.model.request import Request
-from v2.nacos.common.model.response import Response
+
+from google.protobuf.any_pb2 import Any
+
+from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
+from v2.nacos.naming.model.naming_response import InstanceResponse
+from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.transport.model import ServerCheckResponse
+from v2.nacos.transport.model.internal_request import ClientDetectionRequest
+from v2.nacos.transport.model.internal_response import ErrorResponse, HealthCheckResponse
+from v2.nacos.transport.model.rpc_request import Request
+from v2.nacos.transport.model.rpc_response import Response
+from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.utils.net_util import NetUtils
-from v2.nacos.transport.proto.nacos_grpc_service_pb2 import Payload, Metadata
+
 
 class GrpcUtils:
+    SERVICE_INFO_KEY = "serviceInfo"
+
+    remote_type = {
+        "ServerCheckResponse": ServerCheckResponse,
+        "ErrorResponse": ErrorResponse,
+        "InstanceResponse": InstanceResponse,
+        "ClientDetectionRequest": ClientDetectionRequest,
+        "HealthCheckResponse": HealthCheckResponse
+    }
 
     @staticmethod
-    def request_convert_payload(request):
-        metadata = Metadata()
-        metadata.type = request.get_request_type()
-        metadata.headers = request.headers
-        metadata.client_ip = NetUtils.get_local_ip()
+    def convert_request_to_payload(request: Request):
+        payload_metadata = Metadata(type=request.get_request_type(), clientIp=NetUtils.get_local_ip(),
+                                    headers=request.get_headers())
 
-        request_body = request.get_body()
-        payload = Payload(metadata=metadata, body=request_body)
-        return payload
-    
-    @staticmethod
-    def response_convert_payload(response):
-        metadata = Metadata()
-        metadata.type = response.get_request_type()
-        metadata.headers = response.headers
-        metadata.client_ip = NetUtils.get_local_ip()
-
-        response_body = response.get_body()
-        payload = Payload(metadata=metadata, body=response_body)
+        payload_body_bytes = json.dumps(request, default=GrpcUtils.to_json).encode('utf-8')
+        payload_body = Any(value=payload_body_bytes)
+        payload = Payload(metadata=payload_metadata, body=payload_body)
         return payload
 
     @staticmethod
-    def convert_request_to_payload(request:IRequest):
-        metadata = Metadata(
-        type=request.get_request_type(),
-        headers=request.get_headers(),
-        client_ip=NetUtils.get_local_ip()
-        )
-        body = request.get_body()  
-        return Payload(
-            metadata=metadata,
-            body=body
-        )
-    
+    def convert_response_to_payload(response: Response):
+        metadata = Metadata(type=response.get_response_type(), clientIp=NetUtils.get_local_ip())
+
+        payload_body_bytes = json.dumps(response, default=GrpcUtils.to_json).encode('utf-8')
+        payload_body = Any(value=payload_body_bytes)
+        payload = Payload(metadata=metadata, body=payload_body)
+        return payload
+
     @staticmethod
-    def convert_response_to_payload(response:IResponse):
-        metadata = Metadata(
-        type=response.get_response_type(),
-        client_ip=NetUtils.get_local_ip()
-        )
-        body = response.get_body()
-        return Payload(
-            metadata=metadata,
-            body=body
-        )
-    
+    def parse(payload: Payload):
+        metadata_type = payload.metadata.type
+        if metadata_type and metadata_type in GrpcUtils.remote_type.keys():
+            json_dict = json.loads(payload.body.value.decode('utf-8'))
+            # obj = eval(metadata_type + "(**json_dict)")
+            response_class = GrpcUtils.remote_type[metadata_type]
+            obj = response_class()
+            obj.__dict__.update(json_dict)
+
+            if isinstance(obj, Request):
+                obj.put_all_headers(payload.metadata.headers)
+                if GrpcUtils.SERVICE_INFO_KEY in json_dict.keys():
+                    service_info = ServiceInfo.build(json_dict.get(GrpcUtils.SERVICE_INFO_KEY))
+                    obj.serviceInfo = service_info
+            return obj
+        else:
+            raise NacosException(SERVER_ERROR, "unknown payload type:" + payload.metadata.type)
+
     @staticmethod
-    def parse(payload):
-        response = parse_payload_to_response(payload)
-        return response
-            
+    def to_json(obj):
+        d = {}
+        d.update(obj.__dict__)
+        return d
+
 
 def parse_payload_to_response(payload):
     body = payload.body

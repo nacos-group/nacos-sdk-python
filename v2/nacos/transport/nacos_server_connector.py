@@ -1,23 +1,21 @@
+import base64
+import hashlib
+import hmac
 import json
 import sched
 import threading
-from concurrent.futures import ThreadPoolExecutor
-from random import randrange
-
 import time
 import uuid
-import hmac
-import hashlib
-import base64
+from concurrent.futures import ThreadPoolExecutor
+from random import randrange
 from typing import List, Dict, Optional
 
+from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, SERVER_ERROR
-from v2.nacos.common.client_config import ClientConfig
-from v2.nacos.naming.util.naming_client_util import get_group_name
-from v2.nacos.utils.common_util import get_current_time_millis
 from v2.nacos.transport.auth_client import AuthClient
 from v2.nacos.transport.http_agent import HttpAgent
+from v2.nacos.utils.common_util import get_current_time_millis
 
 
 def _choose_random_index(upper_limit: int):
@@ -52,8 +50,9 @@ class NacosServerConnector:
             raise NacosException(INVALID_PARAM, "server list is empty")
 
         self.current_index = _choose_random_index(len(self.server_list))
-        self.auth_client = AuthClient(self.logger, client_config, self.get_server_list, http_agent)
-        self.auth_client.get_access_token(True)
+        if client_config.username and client_config.password:
+            self.auth_client = AuthClient(self.logger, client_config, self.get_server_list, http_agent)
+            self.auth_client.get_access_token(True)
 
     def _get_server_list_from_endpoint(self) -> Optional[List[str]]:
 
@@ -167,33 +166,21 @@ class NacosServerConnector:
         self.current_index = (self.current_index + 1) % len(self.server_list)
         return self.server_list[self.current_index]
 
-    def _inject_security_info(self, params):
+    def inject_security_info(self, headers):
         if self.client_config.username and self.client_config.password:
             access_token = self.auth_client.get_access_token(False)
-            params[Constants.ACCESS_TOKEN] = access_token
+            headers[Constants.ACCESS_TOKEN] = access_token
 
-    def _inject_naming_params_sign(self, params, data):
+    def inject_naming_headers_sign(self, service_name, headers):
         if self.client_config.access_key is None or self.client_config.secret_key is None:
             return
 
-        if not params and not data:
-            return
-
-        timeStamp = str(int(time.time() * 1000))
-        params_to_sign = params or data or {}
-        group = params_to_sign.get(Constants.GROUP_NAME_KEY)
-        service_name = params_to_sign.get(Constants.SERVICE_NAME_KEY)
-
-        if service_name:
-            if Constants.SERVICE_INFO_SPLITER in service_name or group is None or group == "":
-                sign_str = service_name
-            else:
-                sign_str = get_group_name(group, service_name)
-            sign_str = timeStamp + Constants.SERVICE_INFO_SPLITER + sign_str
+        if service_name.strip():
+            sign_str = str(get_current_time_millis()) + Constants.SERVICE_INFO_SPLITER + service_name
         else:
-            sign_str = timeStamp
+            sign_str = str(get_current_time_millis())
 
-        params.update({
+        headers.update({
             "ak": self.client_config.access_key,
             "data": sign_str,
             "signature": self.__do_sign(sign_str, self.client_config.secret_key),

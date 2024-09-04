@@ -1,27 +1,24 @@
-from typing import Dict
-from v2.nacos.common.model.request import Request
+from abc import ABC
+from typing import Optional
 
-# ClientAbilities 结构体在 Go 中没有属性，因此在 Python 中可以省略
-class ClientAbilities:
-    pass
+from v2.nacos.transport.model.rpc_request import Request
 
-class InternalRequest(Request):
+CONNECTION_RESET_REQUEST_TYPE = "ConnectResetRequest"
+CLIENT_DETECTION_REQUEST_TYPE = "ClientDetectionRequest"
+
+
+class InternalRequest(Request, ABC):
+
     def __init__(self):
         super().__init__()
-        self.module = "internal"
 
-    @staticmethod
-    def new_internal_request():
-        return InternalRequest()
+    def get_module(self) -> str:
+        return 'internal'
 
 
 class HealthCheckRequest(InternalRequest):
     def __init__(self):
-        super().__init__() 
-
-    @staticmethod
-    def new_health_check_request():
-        return HealthCheckRequest()
+        super().__init__()
 
     def get_request_type(self):
         return "HealthCheckRequest"
@@ -30,44 +27,34 @@ class HealthCheckRequest(InternalRequest):
 class ConnectResetRequest(InternalRequest):
     def __init__(self, server_ip: str, server_port: str):
         super().__init__()
-        self._server_ip = server_ip
-        self._server_port = server_port
+        self.server_ip = server_ip
+        self.server_port = server_port
 
     def get_request_type(self) -> str:
-        return "ConnectResetRequest"
+        return CONNECTION_RESET_REQUEST_TYPE
 
 
 class ClientDetectionRequest(InternalRequest):
-    def __init__(self):
-        super().__init__()
-
     def get_request_type(self) -> str:
-        return "ClientDetectionRequest"
+        return CLIENT_DETECTION_REQUEST_TYPE
 
 
 class ServerCheckRequest(InternalRequest):
-    def __init__(self):
-        super().__init__() 
-
-    @staticmethod
-    def new_server_check_request():
-        return ServerCheckRequest()
 
     def get_request_type(self):
         return "ServerCheckRequest"
 
 
 class ConnectionSetupRequest(InternalRequest):
-    def __init__(self):
-        super().__init__()  # 调用父类构造方法
-        self.client_version = ""
-        self.tenant = ""
-        self.labels = {}
-        self.client_abilities = ClientAbilities()
+    clientVersion: Optional[str] = ''
+    tenant: Optional[str] = ''
+    labels: dict = {}
 
-    @staticmethod
-    def new_connection_setup_request():
-        return ConnectionSetupRequest()
+    def __init__(self, client_version: str, tenant: str, labels: dict):
+        super().__init__()
+        self.clientVersion = client_version
+        self.tenant = tenant
+        self.labels = labels
 
     def get_request_type(self):
         return "ConnectionSetupRequest"

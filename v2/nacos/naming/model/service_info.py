@@ -9,11 +9,18 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException
 from v2.nacos.naming.model.instance import Instance
 
+EMPTY = ""
+
+ALL_IPS = "000--00-ALL_IPS--00--000"
+
+SPLITER = "@@"
+
+DEFAULT_CHARSET = "UTF-8"
+
 
 class ServiceInfo(BaseModel):
     name: Optional[str]
     groupName: Optional[str]
-
     clusters: Optional[str]
     cacheMillis: int = 1000
     hosts: list = []
@@ -22,14 +29,6 @@ class ServiceInfo(BaseModel):
     allIps: bool = False
     reachProtectionThreshold: bool = False
     jsonFromServer: str = ""
-
-    EMPTY = ""
-
-    ALL_IPS = "000--00-ALL_IPS--00--000"
-
-    SPLITER = "@@"
-
-    DEFAULT_CHARSET = "UTF-8"
 
     def init_from_key(self, key=None):
         if key:

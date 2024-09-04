@@ -1,30 +1,29 @@
 import re
 
+from pydantic import BaseModel
+
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.common.preserved_metadata_key import PreservedMetadataKeys
 
 
-class Instance:
-    def __init__(self, service_name=None, ip=None, port=None, cluster_name=None, weight=1.0, healthy=True, enable=True,
-                 ephemeral=True, metadata=None):
-        if metadata is None:
-            metadata = {}
-        self.ip = ip
-        self.port = port
-        self.weight = weight
-        self.healthy = healthy
-        self.enable = enable
-        self.ephemeral = ephemeral
-        self.cluster_name = cluster_name
-        self.service_name = service_name
-        self.metadata = metadata
+class Instance(BaseModel):
+    instanceId: str = ''
+    ip: str
+    port: int
+    weight: float = 1.0
+    healthy: bool = True
+    enabled: bool = True
+    ephemeral: bool = True
+    clusterName: str = ''
+    serviceName: str = ''
+    metadata: dict = {}
 
     def __str__(self):
         return f"Instance({', '.join(f'{key}={value!r}' for key, value in self.__dict__.items())})"
 
     def to_inet_addr(self):
-        return self.ip + ":" + self.port
+        return self.ip + ":" + str(self.port)
 
     def is_ephemeral(self) -> bool:
         return self.ephemeral
@@ -67,7 +66,7 @@ class Instance:
         return key in self.metadata.keys()
 
     def __get_metadata_by_key_with_int_default(self, key: str, default_value: int) -> int:
-        if not self.metadata:
+        if not self.metadata or key not in self.metadata:
             return default_value
         value = self.metadata[key]
 

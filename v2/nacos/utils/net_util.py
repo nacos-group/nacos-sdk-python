@@ -1,42 +1,21 @@
 import socket
-import os
-import logging
 from functools import lru_cache
 
-class NetUtils:
+from v2.nacos.common.nacos_exception import NacosException, INVALID_INTERFACE_ERROR
 
-    localIP = ""
-    
+
+class NetUtils:
     @staticmethod
     @lru_cache(maxsize=1)
     def get_local_ip():
-        global localIP
-        if localIP:  # 如果已经获取过本地IP，则直接返回
-            return localIP
-
         try:
             # 获取所有网络接口
             net_interfaces = socket.getaddrinfo(socket.gethostname(), None)
+
+            for fam, type_, proto, canonname, sockaddr in net_interfaces:
+                # 检查网络接口是否启用且不是回环接口
+                if fam == socket.AF_INET and type_ == socket.SOCK_STREAM and not sockaddr[0].startswith("127."):
+                    return sockaddr[0]  # 直接返回找到的第一个合适IP
+            raise NacosException(INVALID_INTERFACE_ERROR, "no valid non-loopback IPv4 interface found")
         except socket.gaierror as err:
-            logging.error(f"get Interfaces failed, err: {err}")
-            return ""
-
-        for fam, type_, proto, canonname, sockaddr in net_interfaces:
-            # 检查网络接口是否启用且不是回环接口
-            if type_ == socket.SOCK_STREAM and not sockaddr[0].startswith("127."):
-                try:
-                    # 获取网络接口的地址列表
-                    addrs = socket.getaddrinfo(sockaddr[0], None)
-                except socket.gaierror as err:
-                    logging.error(f"get InterfaceAddress failed, err: {err}")
-                    continue
-
-                for addr in addrs:
-                    ip = addr[4][0]
-                    if ip != '127.0.0.1':  # 排除回环地址
-                        localIP = ip
-                        logging.info(f"Local IP: {localIP}")
-                        break
-
-        # 如果没有找到合适的IP，返回空字符串
-        return localIP if localIP else ""
+            raise NacosException(INVALID_INTERFACE_ERROR, f"failed to query local IP address, error: {err}")

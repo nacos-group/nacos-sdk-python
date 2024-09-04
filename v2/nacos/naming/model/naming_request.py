@@ -1,83 +1,50 @@
-from typing import List, Callable, Optional
+from abc import ABC
+from typing import Optional, Any
 
-from v2.nacos.common.constants import Constants
-from pydantic import BaseModel
-
-
-class RegisterInstanceRequest(BaseModel):
-    instance_id: Optional[str]
-    ip: str
-    port: int
-    weight: float = 1.0
-    healthy: bool = True
-    enable: bool = True
-    ephemeral: bool = True
-    cluster_name: str
-    serviceName: str
-    groupName: str = Constants.DEFAULT_GROUP
-    metadata: dict = {}
+from v2.nacos.naming.model.instance import Instance
+from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.transport.model.rpc_request import Request
 
 
-class BatchRegisterInstanceRequest(BaseModel):
-    service_name: str
-    instances: List[RegisterInstanceRequest]
-    group_name: str = Constants.DEFAULT_GROUP
+class AbstractNamingRequest(Request, ABC):
+    namespace: Optional[str]
+    serviceName: Optional[str]
+    groupName: Optional[str]
+
+    def get_module(self):
+        return "naming"
+
+    def get_request_type(self) -> str:
+        """
+        提供一个默认实现或抛出NotImplementedError，明确指示子类需要覆盖此方法。
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
 
 
-class DeregisterInstanceRequest(BaseModel):
-    ip: str
-    port: int
-    cluster_name: str
-    service_name: str
-    group_name: str = Constants.DEFAULT_GROUP
-    ephemeral: bool = True
+NOTIFY_SUBSCRIBER_REQUEST_TYPE = "NotifySubscriberRequest"
 
 
-class UpdateInstanceRequest(RegisterInstanceRequest):
-    pass
+class InstanceRequest(AbstractNamingRequest):
+    type: Optional[str]
+    instance: Optional[Instance]
+
+    def get_request_type(self) -> str:
+        return 'InstanceRequest'
 
 
-class ExpressionSelector(BaseModel):
-    type: str
-    expression: str
+class NotifySubscriberRequest(AbstractNamingRequest):
+    service_info: Optional[ServiceInfo]
+
+    def get_request_type(self) -> str:
+        return 'NotifySubscriberRequest'
+
+    def get_service_info(self) -> ServiceInfo:
+        return self.service_info
 
 
-class GetServiceRequest(BaseModel):
-    service_name: str
-    group_name: str = Constants.DEFAULT_GROUP
-    clusters: List[str] = []
+class SubscribeServiceRequest(AbstractNamingRequest):
+    subscribe: Optional[bool]
+    clusters: Optional[str]
 
-
-class GetAllServiceInfoParam:
-    def __init__(self, name_space: str = "public", group_name: str = "DEFAULT_GROUP", page_no: int = 1,
-                 page_size: int = 10):
-        self.name_space = name_space
-        self.group_name = group_name
-        self.page_no = page_no
-        self.page_size = page_size
-
-
-class SubscribeParam:
-    def __init__(self, service_name: str, subscribe_callback: Callable[[List[object], Exception], None],
-                 clusters: List[str] = None, group_name: str = "DEFAULT_GROUP"):
-        self.service_name = service_name
-        self.clusters = clusters if clusters else []
-        self.group_name = group_name
-        self.subscribe_callback = subscribe_callback
-
-
-class SelectAllInstancesParam(GetServiceParam):
-    # Inherits from GetServiceParam and no new methods are needed
-    pass
-
-
-class SelectInstancesParam(SelectAllInstancesParam):
-    def __init__(self, service_name: str, healthy_only: bool, clusters: List[str] = None,
-                 group_name: str = "DEFAULT_GROUP"):
-        super().__init__(service_name, clusters, group_name)
-        self.healthy_only = healthy_only
-
-
-class SelectOneHealthInstanceParam(SelectAllInstancesParam):
-    # Inherits from SelectAllInstancesParam and no new methods are needed
-    pass
+    def get_request_type(self) -> str:
+        return 'SubscribeServiceRequest'
