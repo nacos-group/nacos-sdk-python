@@ -23,7 +23,7 @@ class ServiceInfo(BaseModel):
     groupName: Optional[str]
     clusters: Optional[str]
     cacheMillis: int = 1000
-    hosts: list = []
+    hosts: list[Instance] = []
     lastRefTime: int = 0
     checksum: str = ""
     allIps: bool = False
@@ -47,14 +47,11 @@ class ServiceInfo(BaseModel):
             else:
                 raise NacosException("Can't parse out 'group_name', but it must not None!")
 
-    def ip_count(self):
+    def get_ip_count(self):
         return len(self.hosts)
 
-    def expired(self):
+    def is_expired(self):
         return int(round(time.time() * 1000)) - self.lastRefTime > self.cacheMillis
-
-    def set_hosts(self, hosts):
-        self.hosts = hosts
 
     def add_host(self, host):
         self.hosts.append(host)
@@ -62,47 +59,8 @@ class ServiceInfo(BaseModel):
     def add_all_hosts(self, hosts):
         self.hosts.extend(hosts)
 
-    def get_hosts(self):
-        return self.hosts
-
     def is_valid(self):
         return self.hosts != []
-
-    def get_name(self):
-        return self.name
-
-    def set_name(self, name):
-        self.name = name
-
-    def get_group_name(self):
-        return self.groupName
-
-    def set_group_name(self, group_name):
-        self.groupName = group_name
-
-    def get_last_ref_time(self):
-        return self.lastRefTime
-
-    def set_last_ref_time(self, last_ref_time):
-        self.lastRefTime = last_ref_time
-
-    def get_clusters(self):
-        return self.clusters
-
-    def set_clusters(self, clusters):
-        self.clusters = clusters
-
-    def get_cache_millis(self):
-        return self.cacheMillis
-
-    def set_cache_millis(self, cache_millis):
-        self.cacheMillis = cache_millis
-
-    def get_json_from_server(self) -> str:
-        return self.jsonFromServer
-
-    def set_json_from_server(self, json_from_server) -> None:
-        self.jsonFromServer = json_from_server
 
     def validate(self):
         if self.allIps:
@@ -121,12 +79,6 @@ class ServiceInfo(BaseModel):
 
         return len(valid_hosts) > 0
 
-    @staticmethod
-    def get_key(name, clusters):
-        if clusters and len(clusters.strip()) > 0:
-            return name + Constants.SERVICE_INFO_SPLITER + clusters
-        return name
-
     def get_key_default(self):
         service_name = self.get_grouped_service_name()
         return self.get_key(service_name, self.clusters)
@@ -144,43 +96,20 @@ class ServiceInfo(BaseModel):
 
     @staticmethod
     def from_key(key: str):
-        service_info = ServiceInfo()
+        service = ServiceInfo()
         max_seg_count = 3
         segs = key.split(Constants.SERVICE_INFO_SPLITER)
         if len(segs) == max_seg_count - 1:
-            service_info.set_group_name(segs[0])
-            service_info.set_name(segs[1])
+            service.groupName = segs[0]
+            service.name = segs[1]
         elif len(segs) == max_seg_count:
-            service_info.set_group_name(segs[0])
-            service_info.set_name(segs[1])
-            service_info.set_clusters(segs[2])
-        return service_info
+            service.groupName = segs[0]
+            service.name = segs[1]
+            service.clusters = segs[2]
+        return service
 
     def __str__(self):
         return self.get_key()
-
-    def get_checksum(self) -> str:
-        return self.checksum
-
-    def set_checksum(self, checksum: str) -> None:
-        self.checksum = checksum
-
-    def is_reach_protection_threshold(self) -> bool:
-        return self.reachProtectionThreshold
-
-    def set_reach_protection_threshold(self, reach_protection_threshold: bool) -> None:
-        self.reachProtectionThreshold = reach_protection_threshold
-
-    @staticmethod
-    def build(json_dict: dict):
-        new_service_info = ServiceInfo(**json_dict)
-        hosts_dict_list = new_service_info.get_hosts()
-        hosts_instance_list = []
-        for host in hosts_dict_list:
-            instance = Instance(**host)
-            hosts_instance_list.append(instance)
-        new_service_info.hosts = hosts_instance_list
-        return new_service_info
 
     def get_hosts_str(self):
         hosts_str = ""

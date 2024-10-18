@@ -1,7 +1,9 @@
+import asyncio
+
 from v2.nacos.common.nacos_exception import NacosException
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service_info import ServiceInfo
-from v2.nacos.naming.util.naming_client_util import get_group_name
+from v2.nacos.naming.util.naming_client_util import get_group_name, get_service_cache_key
 from v2.nacos.transport.connection_event_listener import ConnectionEventListener
 
 
@@ -11,6 +13,7 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
         self.client_proxy = client_proxy
         self.registered_instance_cached = {}
         self.subscribes = []
+        self.lock = asyncio.Lock()
 
     async def on_connected(self) -> None:
         await self.__redo_subscribe()
@@ -53,8 +56,13 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
         key = get_group_name(service_name, group_name)
         self.registered_instance_cached.pop(key, None)
 
-    def cache_subscribe_for_redo(self, full_service_name: str, cluster: str) -> None:
-        self.subscribes.append(ServiceInfo.get_key(full_service_name, cluster))
+    async def cache_subscribe_for_redo(self, full_service_name: str, cluster: str) -> None:
+        cache_key = get_service_cache_key(full_service_name, cluster)
+        with self.lock:
+            if cache_key not in self.subscribes:
+                self.subscribes.append(cache_key)
 
     def remove_subscriber_for_redo(self, full_service_name: str, cluster: str) -> None:
-        self.subscribes.remove(ServiceInfo.get_key(full_service_name, cluster))
+        cache_key = get_service_cache_key(full_service_name, cluster)
+        with self.lock:
+            self.subscribes.remove(cache_key)

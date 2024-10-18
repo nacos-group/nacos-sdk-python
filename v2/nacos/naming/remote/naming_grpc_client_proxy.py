@@ -1,6 +1,7 @@
 import logging
 import logging
 import uuid
+from typing import Optional
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
@@ -75,7 +76,10 @@ class NamingGRPCClientProxy:
         response = await self.request_naming_server(request, InstanceResponse)
         return response.is_success()
 
-    async def batch_register_instance(self, service_name: str, group_name: str, instances: list) -> bool:
+    async def batch_register_instance(self, service_name: str, group_name: str, instances: list[Instance]) -> bool:
+        raise NotImplementedError("This method needs to be implemented.")
+
+    async def deregister_instance(self, service_name: str, group_name: str, instance: Instance) -> None:
         raise NotImplementedError("This method needs to be implemented.")
 
     # def deregister_instance(self, service_name: str, group_name: str, instance: Instance):
@@ -128,19 +132,23 @@ class NamingGRPCClientProxy:
     #
     #     pass
 
-    async def subscribe(self, service_name: str, group_name: str, clusters: str):
+    async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[ServiceInfo]:
         self.logger.info("[subscribe] service_name:%s, group_name:%s, clusters:%s, namespace:%s",
                          (service_name, group_name, clusters, self.namespace_id))
-        self.event_listener.cache_subscribe_for_redo(get_group_name(service_name, group_name), clusters)
-        request = SubscribeServiceRequest(namespace=self.namespace_id, groupName=group_name, serviceName=service_name,
-                                          clusters=clusters, subscribe=True)
+
+        await self.event_listener.cache_subscribe_for_redo(get_group_name(service_name, group_name), clusters)
+        request = SubscribeServiceRequest(
+            namespace=self.namespace_id,
+            groupName=group_name,
+            serviceName=service_name,
+            clusters=clusters,
+            subscribe=True)
+        request.put_header("app", self.client_config.app_name)
         response = await self.request_naming_server(request, SubscribeServiceResponse)
-        if response.is_success():
-            service_info_dict = response.get_service_info()
-            service_info = ServiceInfo.build(service_info_dict)  # covert dict to ServiceInfo
-            response.serviceInfo = service_info
-            return response.get_service_info()
-        else:
-            self.logger.error("[SUBSCRIBE] unexpected type of response: %s"
-                              % response.__class__.__name__)
-            raise NacosException(SERVER_ERROR, "Unexpected type of response!")
+        if not response.is_success():
+            self.logger.error(
+                "[subscribe] subscribe failed, service_name:%s, group_name:%s, clusters:%s, namespace:%s, response:%s",
+                service_name, group_name, clusters, self.namespace_id, response)
+            return None
+
+        return response.get_service_info()

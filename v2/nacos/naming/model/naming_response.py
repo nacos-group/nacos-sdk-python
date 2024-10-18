@@ -10,13 +10,13 @@ class NotifySubscriberResponse(Response):
 
 
 class SubscribeServiceResponse(Response):
-    service_info: Optional[Any]
+    serviceInfo: ServiceInfo
 
     def get_response_type(self) -> str:
         return "SubscribeServiceResponse"
 
     def get_service_info(self) -> ServiceInfo:
-        return self.service_info
+        return self.serviceInfo
 
 
 class InstanceResponse(Response):

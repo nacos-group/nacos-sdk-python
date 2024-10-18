@@ -25,15 +25,6 @@ class Response(BaseModel, ABC):
     def is_success(self) -> bool:
         return self.errorCode == 0
 
-    def get_error_code(self) -> int:
-        return self.errorCode
-
-    def get_result_code(self) -> int:
-        return self.resultCode
-
-    def get_message(self) -> str:
-        return self.message
-
     def __str__(self):
         return "Response{resultCode=" + str(self.resultCode) + ", errorCode=" + str(self.errorCode) + ", message='" \
             + self.message + "'" + ", requestId='" + self.requestId + "'}"
