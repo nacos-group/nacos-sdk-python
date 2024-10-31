@@ -4,6 +4,7 @@ import logging
 import os
 import threading
 from datetime import datetime
+from typing import Callable
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common import disk_cache
@@ -83,7 +84,6 @@ class ServiceInfoCache:
             self.logger.info(f"get service info from cache, key: {cache_key}")
             return self.service_info_map.get(cache_key)
 
-
     def check_instance_changed(self, old_domain, service):
         if old_domain is None:
             return True
@@ -107,5 +107,11 @@ class ServiceInfoCache:
         new_instance = sorted(new_service['Hosts'])
         return old_instance != new_instance
 
-    def register_callback(self,service_name:str,clusters:str,callback):
-        self.
+    async def register_callback(self, service_name: str, clusters: str, callback_func: Callable):
+        await self.sub_callback_manager.add_callback_func(service_name, clusters, callback_func)
+
+    async def deregister_callback(self, service_name: str, clusters: str, callback_func: Callable):
+        await self.sub_callback_manager.remove_callback_func(service_name, clusters, callback_func)
+
+    async def is_subscribed(self, service_name: str, clusters: str) -> bool:
+        return await self.sub_callback_manager.is_subscribed(service_name, clusters)

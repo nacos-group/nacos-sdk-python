@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Any
+from typing import Optional
 
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service_info import ServiceInfo
@@ -33,13 +33,21 @@ class InstanceRequest(AbstractNamingRequest):
 
 
 class NotifySubscriberRequest(AbstractNamingRequest):
-    service_info: Optional[ServiceInfo]
+    serviceInfo: Optional[ServiceInfo]
 
     def get_request_type(self) -> str:
         return 'NotifySubscriberRequest'
 
     def get_service_info(self) -> ServiceInfo:
         return self.service_info
+
+
+class ServiceListRequest(AbstractNamingRequest):
+    pageNo: Optional[int]
+    pageSize: Optional[int]
+
+    def get_request_type(self) -> str:
+        return 'ServiceListRequest'
 
 
 class SubscribeServiceRequest(AbstractNamingRequest):

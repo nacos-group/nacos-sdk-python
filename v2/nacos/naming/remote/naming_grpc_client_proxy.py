@@ -8,9 +8,11 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
+from v2.nacos.naming.model.naming_param import ListServiceParam
 from v2.nacos.naming.model.naming_request import InstanceRequest, NOTIFY_SUBSCRIBER_REQUEST_TYPE, \
-    SubscribeServiceRequest, AbstractNamingRequest
-from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, InstanceResponse
+    SubscribeServiceRequest, AbstractNamingRequest, ServiceListRequest
+from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, InstanceResponse, ServiceListResponse
+from v2.nacos.naming.model.service import ServiceList
 from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.naming.remote.naming_grpc_connection_event_listener import NamingGrpcConnectionEventListener
 from v2.nacos.naming.remote.naming_push_request_handler import NamingPushRequestHandler
@@ -70,67 +72,45 @@ class NamingGRPCClientProxy:
     async def register_instance(self, service_name: str, group_name: str, instance: Instance):
         self.logger.info("[register_instance] ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
             instance.ip, instance.port, service_name, group_name, self.namespace_id))
-        self.event_listener.cache_instance_for_redo(service_name, group_name, instance)
-        request = InstanceRequest(namespace=self.namespace_id, serviceName=service_name, groupName=group_name,
-                                  instance=instance, type=NamingRemoteConstants.REGISTER_INSTANCE)
+        await self.event_listener.cache_instance_for_redo(service_name, group_name, instance)
+        request = InstanceRequest(
+            namespace=self.namespace_id,
+            serviceName=service_name,
+            groupName=group_name,
+            instance=instance,
+            type=NamingRemoteConstants.REGISTER_INSTANCE)
         response = await self.request_naming_server(request, InstanceResponse)
         return response.is_success()
 
     async def batch_register_instance(self, service_name: str, group_name: str, instances: list[Instance]) -> bool:
         raise NotImplementedError("This method needs to be implemented.")
 
-    async def deregister_instance(self, service_name: str, group_name: str, instance: Instance) -> None:
-        raise NotImplementedError("This method needs to be implemented.")
+    async def deregister_instance(self, service_name: str, group_name: str, instance: Instance) -> bool:
+        self.logger.info("[deregister_instance] ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
+            instance.ip, instance.port, service_name, group_name, self.namespace_id))
+        request = InstanceRequest(
+            namespace=self.namespace_id,
+            serviceName=service_name,
+            groupName=group_name,
+            instance=instance,
+            type=NamingRemoteConstants.DE_REGISTER_INSTANCE)
+        response = await self.request_naming_server(request, InstanceResponse)
+        await self.event_listener.remove_instance_for_redo(service_name, group_name)
+        return response.is_success()
 
-    # def deregister_instance(self, service_name: str, group_name: str, instance: Instance):
-    #     service_name = get_group_name(service_name, group_name)
-    #     self.logger.info("[deregister_instance] ip:%s, port:%s, service_name:%s, namespace:%s" % (
-    #         instance.ip, instance.port, service_name, self.namespace_id))
-    #
-    #     self.beat_reactor.remove_beat_info(service_name, instance.ip, instance.port)
-    #
-    #     params = {
-    #         "ip": instance.ip,
-    #         "port": instance.port,
-    #         "serviceName": service_name,
-    #         "ephemeral": instance.ephemeral,
-    #         "groupName": group_name,
-    #     }
-    #
-    #     if instance.cluster_name is not None:
-    #         params["clusterName"] = instance.cluster_name
-    #
-    #     if self.namespace_id:
-    #         params["namespaceId"] = self.namespace_id
-    #
-    #     try:
-    #         resp = self.nacos_server_connector.req_api("/nacos/v1/ns/instance", None, params, None, "DELETE")
-    #         c = resp.read()
-    #         self.logger.info(
-    #             "[deregister_instance] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" % (
-    #                 instance.ip, instance.port, service_name, self.namespace_id, c))
-    #         return c == b"ok"
-    #     except HTTPError as e:
-    #         if e.code == HTTPStatus.FORBIDDEN:
-    #             raise NacosException(NO_RIGHT, "Insufficient privilege.")
-    #         else:
-    #             raise NacosException(SERVER_ERROR, "Request Error, code is %s" % e.code)
-    #     except Exception as e:
-    #         self.logger.exception("[deregister_instance] exception %s occur" % str(e))
-    #         raise
-    #
-    # def get_service_list(self, page_no, page_size, group_name, namespace_id, selector):
-    #     params = {
-    #         "namespaceId": namespace_id,
-    #         "groupName": group_name,
-    #         "pageNo": str(page_no),
-    #         "pageSize": str(page_size)
-    #     }
-    #
-    #     if selector and selector.get('type') == "label":
-    #         params["selector"] = json.dumps(selector)
-    #
-    #     pass
+    async def list_services(self, param: ListServiceParam) -> ServiceList:
+        self.logger.info("[listService]  group_name:%s, namespace:%s", (param.group_name, param.namespace_id))
+        request = ServiceListRequest(
+            namespace=param.namespace_id,
+            groupName=param.group_name,
+            serviceName=param.service_name,
+            pageNo=param.page_no,
+            pageSize=param.page_size)
+        response = await self.request_naming_server(request, ServiceListResponse)
+        return ServiceList(
+            count=response.count,
+            services=response.serviceNames
+        )
 
     async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[ServiceInfo]:
         self.logger.info("[subscribe] service_name:%s, group_name:%s, clusters:%s, namespace:%s",
@@ -151,4 +131,25 @@ class NamingGRPCClientProxy:
                 service_name, group_name, clusters, self.namespace_id, response)
             return None
 
-        return response.get_service_info()
+        return response.serviceInfo
+
+    async def unsubscribe(self, service_name: str, group_name: str, clusters: str):
+        self.logger.info("[unSubscribe] service_name:%s, group_name:%s, clusters:%s, namespace:%s",
+                         (service_name, group_name, clusters, self.namespace_id))
+        await self.event_listener.remove_subscriber_for_redo(get_group_name(service_name, group_name), clusters)
+
+        _ = await self.request_naming_server(SubscribeServiceRequest(
+            namespace=self.namespace_id,
+            groupName=group_name,
+            serviceName=service_name,
+            clusters=clusters,
+            subscribe=False
+        ), SubscribeServiceResponse)
+        return
+
+    async def close_client(self):
+        self.logger.info("close Nacos python grpc client...")
+        await self.rpc_client.shutdown()
+
+    def server_health(self):
+        return self.rpc_client.is_running()

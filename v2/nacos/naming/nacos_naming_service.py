@@ -1,17 +1,15 @@
-import asyncio
-import random
-
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, NOT_FOUND
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.nacos_client import NacosClient
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, BatchRegisterInstanceParam, \
-    DeregisterInstanceRequest, ListInstanceRequest
-from v2.nacos.naming.model.naming_request import SubscribeServiceRequest
+    DeregisterInstanceParam, ListInstanceParam, SubscribeServiceParam, GetServiceParam, ListServiceParam
+from v2.nacos.naming.model.service import ServiceList
+from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.naming.remote.naming_grpc_client_proxy import NamingGRPCClientProxy
-from v2.nacos.naming.util.naming_client_util import get_service_cache_key, get_group_name
+from v2.nacos.naming.util.naming_client_util import get_group_name
 
 
 class NacosNamingService(NacosClient):
@@ -80,7 +78,7 @@ class NacosNamingService(NacosClient):
         return await self.grpc_client_proxy.batch_register_instance(request.service_name, request.group_name,
                                                                     instance_list)
 
-    async def deregister_instance(self, request: DeregisterInstanceRequest) -> None:
+    async def deregister_instance(self, request: DeregisterInstanceParam) -> bool:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
@@ -95,7 +93,56 @@ class NacosNamingService(NacosClient):
 
         return await self.grpc_client_proxy.deregister_instance(request.service_name, request.group_name, instance)
 
-    async def list_instances(self, request: ListInstanceRequest) -> list[Instance]:
+    async def update_instance(self, request: RegisterInstanceParam) -> bool:
+        if not request.service_name:
+            raise NacosException(INVALID_PARAM, "service_name can not be empty")
+
+        if request.metadata is None:
+            request.metadata = {}
+
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
+
+        instance = Instance(ip=request.ip,
+                            port=request.port,
+                            metadata=request.metadata,
+                            clusterName=request.cluster_name,
+                            enabled=request.enabled,
+                            healthy=request.healthy,
+                            weight=request.weight,
+                            ephemeral=request.ephemeral,
+                            )
+
+        instance.check_instance_is_legal()
+
+        return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
+
+    async def get_service(self, request: GetServiceParam) -> ServiceInfo:
+        if not request.service_name:
+            raise NacosException(INVALID_PARAM, "service_name can not be empty")
+
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
+
+        clusters = ",".join(request.clusters)
+        service = await self.service_info_holder.get_service_info(request.service_name, request.group_name, clusters)
+        if not service:
+            service = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, clusters)
+        return service
+
+    async def list_services(self, request: ListServiceParam) -> ServiceList:
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
+
+        if not request.namespace_id:
+            if not self.client_config.namespace_id:
+                request.namespace_id = Constants.DEFAULT_NAMESPACE_ID
+            else:
+                request.namespace_id = self.client_config.namespace_id
+
+        return await self.grpc_client_proxy.list_services(request)
+
+    async def list_instances(self, request: ListInstanceParam) -> list[Instance]:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
@@ -124,7 +171,7 @@ class NacosNamingService(NacosClient):
 
         return instance_list
 
-    async def subscribe(self, request: SubscribeServiceRequest, call_back_func) -> None:
+    async def subscribe(self, request: SubscribeServiceParam) -> None:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
@@ -133,52 +180,25 @@ class NacosNamingService(NacosClient):
 
         clusters = ",".join(request.clusters)
 
+        await self.service_info_holder.register_callback(get_group_name(request.service_name, request.group_name),
+                                                         clusters, request.subscribe_callback)
+        await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, clusters)
 
-        self.service_info_holder.register_callback(, call_back_func)
-    # def update_instance(self, request: UpdateInstanceRequest):
-    #     if not request.service_name or not request.serviceName.strip():
-    #         raise NacosException(INVALID_PARAM, "service_name can not be empty")
-    #
-    #     if not request.group_name:
-    #         request.group_name = Constants.DEFAULT_GROUP
-    #
-    #     if request.metadata is None:
-    #         request.metadata = {}
-    #
-    #     instance = Instance(ip=request.ip,
-    #                         port=request.port,
-    #                         metadata=request.metadata,
-    #                         cluster_name=request.cluster_name,
-    #                         healthy=request.healthy,
-    #                         enable=request.enable,
-    #                         weight=request.weight,
-    #                         ephemeral=request.ephemeral,
-    #                         )
-    #
-    #     instance.check_instance_is_legal()
-    #
-    #     return self.client_proxy_delegate.register_instance(request.service_name, request.group_name, instance)
+    async def unsubscribe(self, request: SubscribeServiceParam) -> None:
+        if not request.service_name:
+            raise NacosException(INVALID_PARAM, "service_name can not be empty")
 
-    def get_all_instances(self):
-        pass
+        if not request.group_name:
+            request.group_name = Constants.DEFAULT_GROUP
 
-    def select_instances(self):
-        pass
+        clusters = ",".join(request.clusters)
 
-    def select_one_healthy_instance(self):
-        pass
+        await self.service_info_holder.deregister_callback(get_group_name(request.service_name, request.group_name),
+                                                           clusters, request.subscribe_callback)
+        await self.grpc_client_proxy.unsubscribe(request.service_name, request.group_name, clusters)
 
-    def subscribe(self):
-        pass
+    async def server_health(self) -> bool:
+        return self.grpc_client_proxy.server_health()
 
-    def unsubscribe(self):
-        pass
-
-    def get_services_of_server(self):
-        pass
-
-    def get_server_status(self) -> str:
-        pass
-
-    def shutdown(self) -> None:
-        pass
+    async def shutdown(self) -> None:
+        await self.grpc_client_proxy.close_client()

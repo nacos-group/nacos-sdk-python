@@ -118,7 +118,7 @@ class RpcClient(ABC):
             if self.is_shutdown():
                 break
 
-            await asyncio.sleep(Constants.KEEP_ALIVE_TIME_MILLS/1000)
+            await asyncio.sleep(Constants.KEEP_ALIVE_TIME_MILLS / 1000)
             if get_current_time_millis() - self.last_active_timestamp < Constants.KEEP_ALIVE_TIME_MILLS:
                 continue
 
@@ -179,8 +179,9 @@ class RpcClient(ABC):
                                  server_info.get_address())
                 connection = await self.connect_to_server(server_info)
             except Exception as e:
-                self.logger.warn("%s failed to connect to server on start up, error: %s,start up retry times left :%s",
-                                 self.name, str(e), start_up_retry_times)
+                self.logger.warning(
+                    "%s failed to connect to server on start up, error: %s,start up retry times left :%s",
+                    self.name, str(e), start_up_retry_times)
 
             if connection:
                 self.current_connection = connection
