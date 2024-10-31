@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
 
 from pydantic import BaseModel
 
 
 class Request(BaseModel, ABC):
     headers: dict = {}
-    request_id: str = ''
+    requestId: str = ''
     module: str = ''
 
     def put_all_headers(self, headers: dict):
@@ -27,7 +26,7 @@ class Request(BaseModel, ABC):
         return self.headers
 
     def get_request_id(self) -> str:
-        return self.request_id
+        return self.requestId
 
     @abstractmethod
     def get_module(self) -> str:
@@ -39,4 +38,4 @@ class Request(BaseModel, ABC):
 
     def __str__(self):
         return self.__class__.__name__ + "{headers" + str(self.headers) if self.headers else "None" + ", requestId='" + \
-                                                                                             self.request_id + "'}"
+                                                                                             self.requestId + "'}"

@@ -1,9 +1,7 @@
 from typing import Optional, Callable
-
 from pydantic import BaseModel
 
 from v2.nacos.common.constants import Constants
-
 
 class RegisterInstanceParam(BaseModel):
     ip: str

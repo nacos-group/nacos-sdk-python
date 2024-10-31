@@ -14,8 +14,8 @@ class NetUtils:
 
             for fam, type_, proto, canonname, sockaddr in net_interfaces:
                 # 检查网络接口是否启用且不是回环接口
-                if fam == socket.AF_INET and type_ == socket.SOCK_STREAM and not sockaddr[0].startswith("127."):
+                if fam == socket.AF_INET and not sockaddr[0].startswith("127."):
                     return sockaddr[0]  # 直接返回找到的第一个合适IP
             raise NacosException(INVALID_INTERFACE_ERROR, "no valid non-loopback IPv4 interface found")
         except socket.gaierror as err:
-            raise NacosException(INVALID_INTERFACE_ERROR, f"failed to query local IP address, error: {err}")
+            raise NacosException(INVALID_INTERFACE_ERROR, f"failed to query local IP address, error: {str(err)}")

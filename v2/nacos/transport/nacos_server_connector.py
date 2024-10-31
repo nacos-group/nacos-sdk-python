@@ -13,9 +13,12 @@ from typing import List, Dict, Optional
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, SERVER_ERROR
+from v2.nacos.config.model.config_request import AbstractConfigRequest
 from v2.nacos.transport.auth_client import AuthClient
 from v2.nacos.transport.http_agent import HttpAgent
 from v2.nacos.utils.common_util import get_current_time_millis
+from v2.nacos.utils.hmac_util import sign_with_hmac_sha1_encrypt
+from v2.nacos.utils.md5_util import md5
 
 
 def _choose_random_index(upper_limit: int):
@@ -98,10 +101,6 @@ class NacosServerConnector:
 
         self.last_server_list_refresh_time = get_current_time_millis()
 
-    def call_config_server(self, api: str, params: Dict[str, str], new_headers: Dict[str, str], method: str,
-                           cur_server: str, context_path: Optional[str], timeout_ms: int):
-        # Logic for calling the server for configuration
-        pass
 
     def req_api(self, url: str, headers=None, params=None, data=None, method="GET"):
         servers = self.get_server_list()
@@ -186,7 +185,37 @@ class NacosServerConnector:
             "signature": self.__do_sign(sign_str, self.client_config.secret_key),
         })
 
+    def inject_config_headers_sign(self, request: AbstractConfigRequest):
+        now = str(int(time.time() * 1000))
+        request.headers[Constants.CLIENT_APPNAME_HEADER] = self.client_config.app_name
+        request.headers[Constants.CLIENT_REQUEST_TS_HEADER] = now
+        request.headers[Constants.CLIENT_REQUEST_TOKEN_HEADER] = md5(now + self.client_config.app_key)
+        request.headers[Constants.EX_CONFIG_INFO] = "true"
+        request.headers[Constants.CHARSET_KEY] = "utf-8"
+        if self.client_config.access_key:
+            request.headers['Spas-AccessKey'] = self.client_config.access_key
+
+        if request.tenant:
+            resource = request.tenant + "+" + request.group
+        else:
+            resource = request.group
+
+        sign_headers = {}
+
+        time_stamp = str(get_current_time_millis())
+        sign_headers["Timestamp"] = time_stamp
+
+
+        if not resource:
+            signature = sign_with_hmac_sha1_encrypt(time_stamp, self.client_config.secret_key)
+        else:
+            signature = sign_with_hmac_sha1_encrypt(resource + "+" + time_stamp, self.client_config.secret_key)
+
+        sign_headers["Spas-Signature"] = signature
+        request.put_all_headers(sign_headers)
+
     @staticmethod
     def __do_sign(sign_str, sk):
         return base64.encodebytes(
             hmac.new(sk.encode(), sign_str.encode(), digestmod=hashlib.sha1).digest()).decode().strip()
+

@@ -1,5 +1,4 @@
 import base64
-from binascii import Error
 
 
 def decode_string_to_utf8_bytes(data):
@@ -17,14 +16,13 @@ def encode_utf8_bytes_to_string(bytes_):
 
 
 def decode_base64(bytes_):
-    try:
-        # Use base64's decode method without referencing binascii explicitly
-        return base64.b64decode(bytes_)
-    except Error as e:
-        # Return the error message in a more Pythonic way
-        return None, str(e)
+    return base64.b64decode(bytes_)
 
 
 def encode_base64(bytes_):
     # Simply encode the input bytes to Base64
     return base64.b64encode(bytes_).decode('utf-8')  # Decoding to string for consistency with Go's behavior
+
+
+def urlsafe_b64encode(bytes_):
+    return base64.urlsafe_b64encode(bytes_).decode('utf-8')

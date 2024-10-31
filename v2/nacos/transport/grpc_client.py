@@ -9,16 +9,17 @@ import pydantic
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
+from v2.nacos.common.nacos_exception import NacosException
 from v2.nacos.transport.connection import Connection
 from v2.nacos.transport.grpc_connection import GrpcConnection
 from v2.nacos.transport.grpc_util import GrpcUtils
+from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2_grpc import BiRequestStreamStub, RequestStub
 from v2.nacos.transport.model.internal_request import ConnectionSetupRequest, ServerCheckRequest
 from v2.nacos.transport.model.internal_response import ServerCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.server_info import ServerInfo
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload
-from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2_grpc import BiRequestStreamStub, RequestStub
 from v2.nacos.transport.rpc_client import RpcClient, ConnectionType, RpcClientStatus
 
 
@@ -82,6 +83,8 @@ class GrpcClient(RpcClient):
                 return None
 
             return server_check_response
+        except NacosException as e:
+            raise
         except pydantic.ValidationError as e:
             print(e.json())
         except grpc.FutureTimeoutError:
@@ -89,8 +92,8 @@ class GrpcClient(RpcClient):
         except Exception as e:
             self.logger.error(f"server check fail for {server_ip}:{server_port}, error = {e}")
             if (hasattr(self.client_config,
-                        'tls_config') and self.client_config.tls_config()
-                    and self.client_config.tls_config().get_enable_tls()):
+                        'tls_config') and self.client_config.tls_config
+                    and self.client_config.tls_config.enabled):
                 self.logger.error("current client requires tls encrypted, server must support tls, please check.")
         return None
 
@@ -124,7 +127,7 @@ class GrpcClient(RpcClient):
         request_type = request.get_request_type()
         server_request_handler_instance = self.server_request_handler_mapping.get(request_type)
         if not server_request_handler_instance:
-            self.logger.error("unsupported payload type：%s, grpc connection id:%s", request_type,
+            self.logger.error("unsupported payload type:%s, grpc connection id:%s", request_type,
                               grpc_connection.get_connection_id())
             return
         response = server_request_handler_instance.request_reply(request)
@@ -136,17 +139,17 @@ class GrpcClient(RpcClient):
         try:
             self.logger.info("[%s]ack server push request, request=%s, requestId=%s"
                              % (self.__class__.__name__, request.__class__.__name__, request.get_request_id()))
-            response.set_request_id(request.request_id)
+            response.set_request_id(request.requestId)
 
             await grpc_connection.send_bi_request(GrpcUtils.convert_response_to_payload(response))
 
         except Exception as e:
             if isinstance(e, EOFError):
                 self.logger.error(
-                    f"{grpc_connection.get_connection_id()} connection closed before response could be sent, ackId->{request.request_id}")
+                    f"{grpc_connection.get_connection_id()} connection closed before response could be sent, ackId->{request.requestId}")
             else:
                 self.logger.error(
-                    f"{grpc_connection.get_connection_id()} failed to send response:{response.get_response_type()}, ackId:{request.request_id},error:{str(e)}")
+                    f"{grpc_connection.get_connection_id()} failed to send response:{response.get_response_type()}, ackId:{request.requestId},error:{str(e)}")
 
     async def _server_request_watcher(self, grpc_conn: GrpcConnection):
         async for payload in grpc_conn.bi_stream_send():
@@ -162,7 +165,7 @@ class GrpcClient(RpcClient):
 
     @staticmethod
     def _shunt_down_channel(channel: grpc.Channel):
-        if channel and not channel.is_shutdown():
+        if channel:
             channel.close()
 
     def get_connection_type(self):

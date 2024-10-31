@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict
 
-from v2.nacos.common.client_config import TLSConfig, ClientConfig
+from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.nacos_exception import NacosException, CLIENT_INVALID_PARAM
 from v2.nacos.transport.grpc_client import GrpcClient
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector

@@ -1,6 +1,11 @@
-from typing import Dict, Optional
+from typing import Optional
 
 from v2.nacos.transport.model.rpc_response import Response
+
+
+class NotifySubscriberResponse(Response):
+    def get_response_type(self) -> str:
+        return "NotifySubscriberResponse"
 
 
 class ConnectResetResponse(Response):

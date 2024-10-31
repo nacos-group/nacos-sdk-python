@@ -1,5 +1,4 @@
 import logging
-import os
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
@@ -7,13 +6,15 @@ from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 
 class KMSConfig:
     def __init__(self, enabled=False, appointed=False, ak='', sk='',
-                 region_id='', endpoint=''):
+                 region_id='', endpoint='', client_key_content='', password='', kms_version=''):
         self.enabled = enabled  # 是否启用kms
         self.appointed = appointed  # 指明是否使用预设的配置
         self.ak = ak  # 阿里云账号的AccessKey
         self.sk = sk  # 阿里云账号的SecretKey
         self.region_id = region_id  # 阿里云账号的区域
         self.endpoint = endpoint  # kms服务的地址
+        self.client_key_content = client_key_content
+        self.password = password
 
 
 class TLSConfig:
@@ -44,8 +45,8 @@ class GRPCConfig:
 
 
 class ClientConfig:
-    def __init__(self, server_addresses=None, endpoint=None, namespace_id='public', context_path='', access_key=None,
-                 secret_key=None, username=None, password=None, app_name='', log_dir='', log_level=None,
+    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
+                 secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
                  log_rotation_backup_count=None):
         self.server_list = []
         try:
@@ -64,8 +65,9 @@ class ClientConfig:
         self.username = username  # the username for nacos auth
         self.password = password  # the password for nacos auth
         self.app_name = app_name
-
+        self.app_key = app_key
         self.cache_dir = ''
+        self.disable_use_snap_shot = False
         self.log_dir = log_dir
         self.log_level = logging.INFO if log_level is None else log_level  # the log level for nacos client, default value is logging.INFO: log_level
         self.log_rotation_backup_count = 7 if log_rotation_backup_count is None else log_rotation_backup_count

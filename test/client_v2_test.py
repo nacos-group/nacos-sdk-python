@@ -1,5 +1,4 @@
 import asyncio
-import time
 import unittest
 
 from v2.nacos.common.client_config import GRPCConfig

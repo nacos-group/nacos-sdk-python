@@ -3,14 +3,16 @@ import json
 from google.protobuf.any_pb2 import Any
 
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
+from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
+    ConfigChangeBatchListenResponse, ConfigRemoveResponse
 from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse
 from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.transport.model import ServerCheckResponse
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest
 from v2.nacos.transport.model.internal_response import ErrorResponse, HealthCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.rpc_response import Response
-from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.utils.net_util import NetUtils
 
 
@@ -23,7 +25,11 @@ class GrpcUtils:
         "InstanceResponse": InstanceResponse,
         "ClientDetectionRequest": ClientDetectionRequest,
         "HealthCheckResponse": HealthCheckResponse,
-        "SubscribeServiceResponse": SubscribeServiceResponse
+        "SubscribeServiceResponse": SubscribeServiceResponse,
+        "ConfigPublishResponse": ConfigPublishResponse,
+        "ConfigQueryResponse": ConfigQueryResponse,
+        "ConfigChangeBatchListenResponse": ConfigChangeBatchListenResponse,
+        "ConfigRemoveResponse": ConfigRemoveResponse
     }
 
     @staticmethod

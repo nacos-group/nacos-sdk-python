@@ -126,6 +126,8 @@ class Constants:
 
     CLIENT_APPNAME_HEADER = "Client-AppName"
 
+    APPNAME_HEADER = "AppName"
+
     CLIENT_REQUEST_TS_HEADER = "Client-RequestTS"
 
     CLIENT_REQUEST_TOKEN_HEADER = "Client-RequestToken"
@@ -152,7 +154,13 @@ class Constants:
 
     WRITE_REDIRECT_CODE = 307
 
+    RESPONSE_SUCCESS_CODE = 200
+
+    REQUEST_DOMAIN_RETRY_TIME = 3
+
     SERVICE_INFO_SPLITER = "@@"
+
+    CONFIG_INFO_SPLITER = "@@"
 
     SERVICE_INFO_SPLIT_COUNT = 2
 
@@ -184,9 +192,13 @@ class Constants:
 
     CHARSET_KEY = "charset"
 
+    EX_CONFIG_INFO = "exConfigInfo"
+
     GROUP_NAME_KEY = "groupName"
 
     SERVICE_NAME_KEY = "serviceName"
+
+    CIPHER_PRE_FIX = "cipher-"
 
     DEFAULT_PORT = 8848
 
@@ -200,4 +212,20 @@ class Constants:
 
     KEEP_ALIVE_TIME_MILLS = 5000
 
+    INTERNAL_TIME_MILLS = 3000
+
     DEFAULT_GRPC_TIMEOUT_MILLS = 3000
+
+    DEFAULT_TIMEOUT_MILLS = 10000
+
+    ALL_SYNC_INTERNAL = 5 * 60
+
+    PER_TASK_CONFIG_SIZE = 3000
+
+    EXECUTOR_ERR_DELAY = 5
+
+    DEFAULT_KEY_ID = "alias/acs/mse"
+
+    KMS_AES_128_ALGORITHM_NAME = "AES_128"
+
+    KMS_AES_256_ALGORITHM_NAME = "AES_256"

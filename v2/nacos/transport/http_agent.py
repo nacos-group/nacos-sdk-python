@@ -49,6 +49,7 @@ class HttpAgent:
             request = Request(url=url, data=data, headers=headers, method=method)
 
             response = urlopen(request, timeout=self.default_timeout, context=ctx)
+
             return response.read(), None
         except HTTPError as e:
             if e.code in [HTTPStatus.INTERNAL_SERVER_ERROR, HTTPStatus.BAD_GATEWAY,

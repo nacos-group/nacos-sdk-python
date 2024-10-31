@@ -2,7 +2,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum, auto
-from typing import Dict, Type, Optional
+from typing import Dict, Optional
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, CLIENT_DISCONNECT, SERVER_ERROR, UN_REGISTER
@@ -179,9 +179,8 @@ class RpcClient(ABC):
                                  server_info.get_address())
                 connection = await self.connect_to_server(server_info)
             except Exception as e:
-                self.logger.warning(
-                    "%s failed to connect to server on start up, error: %s,start up retry times left :%s",
-                    self.name, str(e), start_up_retry_times)
+                self.logger.warn("%s failed to connect to server on start up, error: %s,start up retry times left :%s",
+                                 self.name, str(e), start_up_retry_times)
 
             if connection:
                 self.current_connection = connection

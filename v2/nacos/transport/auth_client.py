@@ -1,8 +1,8 @@
 import json
 import time
 
-from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.transport.http_agent import HttpAgent
 
 
@@ -42,6 +42,6 @@ class AuthClient:
             self.token_ttl = response_data.get('tokenTtl', 18000)  # 默认使用返回值，无返回则使用18000秒
             self.token_expired_time = current_time + self.token_ttl - 10  # 更新 Token 的过期时间
             self.logger.info(
-                f"[get_access_token] AccessToken: {self.access_token}, TTL: {self.token_ttl}，force_refresh：{force_refresh}")
+                f"[get_access_token] AccessToken: {self.access_token}, TTL: {self.token_ttl}, force_refresh: {force_refresh}")
             return self.access_token
         raise NacosException(SERVER_ERROR, "get access token failed")
