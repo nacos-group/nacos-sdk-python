@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-import json
-import time
-=======
->>>>>>> d302ba2 (add config_client)
 import json
 import time
 

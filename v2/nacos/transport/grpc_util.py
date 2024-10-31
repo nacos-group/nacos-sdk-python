@@ -5,7 +5,7 @@ from google.protobuf.any_pb2 import Any
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
     ConfigChangeBatchListenResponse, ConfigRemoveResponse
-from v2.nacos.naming.model.naming_response import InstanceResponse
+from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse
 from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.transport.model import ServerCheckResponse
@@ -25,14 +25,11 @@ class GrpcUtils:
         "InstanceResponse": InstanceResponse,
         "ClientDetectionRequest": ClientDetectionRequest,
         "HealthCheckResponse": HealthCheckResponse,
-<<<<<<< HEAD
-        "SubscribeServiceResponse": SubscribeServiceResponse
-=======
+        "SubscribeServiceResponse": SubscribeServiceResponse,
         "ConfigPublishResponse": ConfigPublishResponse,
         "ConfigQueryResponse": ConfigQueryResponse,
         "ConfigChangeBatchListenResponse": ConfigChangeBatchListenResponse,
         "ConfigRemoveResponse": ConfigRemoveResponse
->>>>>>> d302ba2 (add config_client)
     }
 
     @staticmethod
