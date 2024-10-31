@@ -1,13 +1,16 @@
+import asyncio
 import json
 import logging
 import os
 import threading
 from datetime import datetime
+from typing import Callable
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common import disk_cache
 
 from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.naming.cache.subscribe_manager import SubscribeManager
 from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.naming.util.naming_client_util import get_service_cache_key, get_group_name
@@ -19,8 +22,8 @@ class ServiceInfoCache:
         self.cache_dir = os.path.join(client_config.cache_dir, Constants.NAMING_MODULE, client_config.namespace_id)
         self.service_info_map = {}
         self.update_time_map = {}
-        self.lock = threading.Lock()
-
+        self.lock = asyncio.Lock()
+        self.sub_callback_manager = SubscribeManager()
         if not client_config.not_load_cache_at_start:
             self.load_cache_from_disk()
 
@@ -75,13 +78,11 @@ class ServiceInfoCache:
         # 生成服务的缓存键
         return f"{service['Name']}@{service['Clusters']}"
 
-    def get_service_info(self, service_name, group_name, clusters) -> ServiceInfo:
+    async def get_service_info(self, service_name, group_name, clusters) -> ServiceInfo:
         cache_key = get_service_cache_key(get_group_name(service_name, group_name), clusters)
-        service, ok = self.service_info_map.get(cache_key)
-        if ok:
-            return service, ok
-        else:
-            return {}, ok
+        with self.lock:
+            self.logger.info(f"get service info from cache, key: {cache_key}")
+            return self.service_info_map.get(cache_key)
 
     def check_instance_changed(self, old_domain, service):
         if old_domain is None:
@@ -105,3 +106,12 @@ class ServiceInfoCache:
         old_instance = sorted(old_service['Hosts'])
         new_instance = sorted(new_service['Hosts'])
         return old_instance != new_instance
+
+    async def register_callback(self, service_name: str, clusters: str, callback_func: Callable):
+        await self.sub_callback_manager.add_callback_func(service_name, clusters, callback_func)
+
+    async def deregister_callback(self, service_name: str, clusters: str, callback_func: Callable):
+        await self.sub_callback_manager.remove_callback_func(service_name, clusters, callback_func)
+
+    async def is_subscribed(self, service_name: str, clusters: str) -> bool:
+        return await self.sub_callback_manager.is_subscribed(service_name, clusters)

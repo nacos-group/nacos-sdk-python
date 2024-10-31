@@ -3,7 +3,7 @@ import json
 from google.protobuf.any_pb2 import Any
 
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
-from v2.nacos.naming.model.naming_response import InstanceResponse
+from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse
 from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.transport.model import ServerCheckResponse
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest
@@ -22,7 +22,8 @@ class GrpcUtils:
         "ErrorResponse": ErrorResponse,
         "InstanceResponse": InstanceResponse,
         "ClientDetectionRequest": ClientDetectionRequest,
-        "HealthCheckResponse": HealthCheckResponse
+        "HealthCheckResponse": HealthCheckResponse,
+        "SubscribeServiceResponse": SubscribeServiceResponse
     }
 
     @staticmethod
