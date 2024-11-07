@@ -1,8 +1,5 @@
 import asyncio
-import json
-import logging
-from concurrent.futures import ThreadPoolExecutor
-from typing import Iterator, Optional
+from typing import Optional
 
 import grpc
 import pydantic
@@ -19,42 +16,31 @@ from v2.nacos.transport.model.internal_response import ServerCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.server_info import ServerInfo
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
-from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload
-from v2.nacos.transport.rpc_client import RpcClient, ConnectionType, RpcClientStatus
+from v2.nacos.transport.rpc_client import RpcClient, ConnectionType
 
 
 class GrpcClient(RpcClient):
 
     def __init__(self, logger, name: str, client_config: ClientConfig, nacos_server: NacosServerConnector):
-        super().__init__(logger=logger, name=name)
+        super().__init__(logger=logger, name=name, nacos_server=nacos_server)
         self.logger = logger
-        self.nacos_server = nacos_server
-        self.client_config = client_config
-        self.rpc_client_status = RpcClientStatus.INITIALIZED
-        self._executor = ThreadPoolExecutor()
+        self.tls_config = client_config.tls_config
+        self.grpc_config = client_config.grpc_config
 
     async def _create_new_managed_channel(self, server_ip, grpc_port):
-
-        self.logger.info("grpc client connection server %s:%s,timeout:%s,tlsConfig:%s", server_ip,
-                         grpc_port,
-                         self.client_config.grpc_config.grpc_timeout,
-                         str(self.client_config.tls_config))
-
-        grpc_config = self.client_config.grpc_config
         options = [
-            ('grpc.max_call_recv_msg_size', grpc_config.max_receive_message_length),
-            ('grpc.keepalive_time_ms', grpc_config.max_keep_alive_ms),
+            ('grpc.max_call_recv_msg_size', self.grpc_config.max_receive_message_length),
+            ('grpc.keepalive_time_ms', self.grpc_config.max_keep_alive_ms),
         ]
 
-        tls_config = self.client_config.tls_config
-        if tls_config and tls_config.enabled:
-            with open(tls_config.ca_file, 'rb') as f:
+        if self.tls_config and self.tls_config.enabled:
+            with open(self.tls_config.ca_file, 'rb') as f:
                 root_certificates = f.read()
 
-            with open(tls_config.cert_file, 'rb') as f:
+            with open(self.tls_config.cert_file, 'rb') as f:
                 cert_chain = f.read()
 
-            with open(tls_config.key_file, 'rb') as f:
+            with open(self.tls_config.key_file, 'rb') as f:
                 private_key = f.read()
 
             credentials = grpc.ssl_channel_credentials(root_certificates=root_certificates,
@@ -64,64 +50,61 @@ class GrpcClient(RpcClient):
             channel = grpc.aio.secure_channel(f'{server_ip}:{grpc_port}', credentials=credentials,
                                               options=options)
         else:
-            channel = grpc.aio.insecure_channel(f'{server_ip}:{grpc_port}')
+            channel = grpc.aio.insecure_channel(f'{server_ip}:{grpc_port}',
+                                                options=options)
+        await channel.channel_ready()
 
         return channel
 
     async def _server_check(self, server_ip, server_port, channel_stub: RequestStub):
-        try:
-            server_check_request = ServerCheckRequest()
-            response_payload = await channel_stub.request(GrpcUtils.convert_request_to_payload(server_check_request),
-                                                          timeout=self.client_config.grpc_config.grpc_timeout / 1000.0)
-            server_check_response = GrpcUtils.parse(response_payload)
-            if not server_check_response or not isinstance(server_check_response, ServerCheckResponse):
-                return None
+        for i in range(self.RETRY_TIMES):
+            try:
+                server_check_request = ServerCheckRequest()
+                response_payload = await channel_stub.request(
+                    GrpcUtils.convert_request_to_payload(server_check_request),
+                    timeout=self.grpc_config.grpc_timeout / 1000.0)
+                server_check_response = GrpcUtils.parse(response_payload)
+                if not server_check_response or not isinstance(server_check_response, ServerCheckResponse):
+                    return None
 
-            if 300 <= server_check_response.get_error_code() < 400:
-                self.logger.error(
-                    f"server check fail for {server_ip}:{server_port}, error code = {server_check_response.get_error_code()}")
-                return None
+                if 300 <= server_check_response.get_error_code() < 400:
+                    self.logger.error(
+                        f"server check fail for {server_ip}:{server_port}, error code = {server_check_response.get_error_code()}")
+                    await asyncio.sleep(1)
+                    continue
 
-            return server_check_response
-        except NacosException as e:
-            raise
-        except pydantic.ValidationError as e:
-            print(e.json())
-        except grpc.FutureTimeoutError:
-            self.logger.error(f"server check timed out for {server_ip}:{server_port}")
-        except Exception as e:
-            self.logger.error(f"server check fail for {server_ip}:{server_port}, error = {e}")
-            if (hasattr(self.client_config,
-                        'tls_config') and self.client_config.tls_config
-                    and self.client_config.tls_config.enabled):
-                self.logger.error("current client requires tls encrypted, server must support tls, please check.")
-        return None
+                return server_check_response
+            except grpc.FutureTimeoutError:
+                self.logger.error(f"server check timed out for {server_ip}:{server_port}")
+                continue
+            except grpc.aio.AioRpcError as e:
+                raise NacosException(error_code=e.code(), message=e.details())
+            except Exception as e:
+                self.logger.error(f"server check fail for {server_ip}:{server_port}, error = {e}")
+                if self.tls_config and self.tls_config.enabled:
+                    self.logger.error("current client requires tls encrypted, server must support tls, please check.")
+            return None
 
     async def connect_to_server(self, server_info: ServerInfo) -> Optional[Connection]:
-        try:
-            managed_channel = await self._create_new_managed_channel(server_info.server_ip, server_info.server_port)
-            # Create a stub
-            channel_stub = RequestStub(managed_channel)
-            server_check_response = await self._server_check(server_info.server_ip, server_info.server_port,
-                                                             channel_stub)
-            if not server_check_response:
-                self._shunt_down_channel(managed_channel)
-                return None
+        managed_channel = await self._create_new_managed_channel(server_info.server_ip, server_info.server_port)
+        # Create a stub
+        channel_stub = RequestStub(managed_channel)
+        server_check_response = await self._server_check(server_info.server_ip, server_info.server_port,
+                                                         channel_stub)
+        if not server_check_response:
+            await self._shunt_down_channel(managed_channel)
+            return None
 
-            connection_id = server_check_response.get_connection_id()
+        connection_id = server_check_response.get_connection_id()
 
-            bi_request_stream_stub = BiRequestStreamStub(managed_channel)
-            grpc_conn = GrpcConnection(server_info, connection_id, managed_channel,
-                                       channel_stub, bi_request_stream_stub)
+        bi_request_stream_stub = BiRequestStreamStub(managed_channel)
+        grpc_conn = GrpcConnection(server_info, connection_id, managed_channel,
+                                   channel_stub, bi_request_stream_stub)
 
-            connection_setup_request = ConnectionSetupRequest(Constants.CLIENT_VERSION, self.tenant, self.labels)
-            await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
-            asyncio.create_task(self._server_request_watcher(grpc_conn))
-            return grpc_conn
-        except Exception as e:
-            self.logger.error(f"[{self.name}] failed to create grpc connection!, error={str(e)}")
-
-        return None
+        connection_setup_request = ConnectionSetupRequest(Constants.CLIENT_VERSION, self.tenant, self.labels)
+        await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
+        asyncio.create_task(self._server_request_watcher(grpc_conn))
+        return grpc_conn
 
     async def _handle_server_request(self, request: Request, grpc_connection: GrpcConnection):
         request_type = request.get_request_type()
@@ -130,7 +113,7 @@ class GrpcClient(RpcClient):
             self.logger.error("unsupported payload type:%s, grpc connection id:%s", request_type,
                               grpc_connection.get_connection_id())
             return
-        response = server_request_handler_instance.request_reply(request)
+        response = await server_request_handler_instance.request_reply(request)
         if not response:
             self.logger.warning("failed to process server request,connection_id:%s,ackID:%s",
                                 grpc_connection.get_connection_id(), request.get_request_id())
@@ -164,9 +147,9 @@ class GrpcClient(RpcClient):
                 self.logger.error(f"[{grpc_conn.connection_id}] handle server request occur exception: {e}")
 
     @staticmethod
-    def _shunt_down_channel(channel: grpc.Channel):
+    async def _shunt_down_channel(channel):
         if channel:
-            channel.close()
+            await channel.close()
 
     def get_connection_type(self):
         return ConnectionType.GRPC

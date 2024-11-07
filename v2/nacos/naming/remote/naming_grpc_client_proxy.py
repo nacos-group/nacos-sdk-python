@@ -1,4 +1,6 @@
-import logging
+import base64
+import hashlib
+import hmac
 import logging
 import uuid
 from typing import Optional
@@ -12,17 +14,17 @@ from v2.nacos.naming.model.naming_param import ListServiceParam
 from v2.nacos.naming.model.naming_request import InstanceRequest, NOTIFY_SUBSCRIBER_REQUEST_TYPE, \
     SubscribeServiceRequest, AbstractNamingRequest, ServiceListRequest
 from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, InstanceResponse, ServiceListResponse
+from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.model.service import ServiceList
-from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.naming.remote.naming_grpc_connection_event_listener import NamingGrpcConnectionEventListener
 from v2.nacos.naming.remote.naming_push_request_handler import NamingPushRequestHandler
 from v2.nacos.naming.util.naming_client_util import get_group_name
 from v2.nacos.naming.util.naming_remote_constants import NamingRemoteConstants
 from v2.nacos.transport.http_agent import HttpAgent
-from v2.nacos.transport.model.rpc_response import Response
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
 from v2.nacos.transport.rpc_client import ConnectionType
 from v2.nacos.transport.rpc_client_factory import RpcClientFactory
+from v2.nacos.utils.common_util import get_current_time_millis
 
 
 class NamingGRPCClientProxy:
@@ -50,15 +52,28 @@ class NamingGRPCClientProxy:
                                                                             self.nacos_server_connector)
         await self.rpc_client.start()
         await self.rpc_client.register_server_request_handler(NOTIFY_SUBSCRIBER_REQUEST_TYPE,
-                                                              NamingPushRequestHandler(self.service_info_cache))
+                                                              NamingPushRequestHandler(self.logger,
+                                                                                       self.service_info_cache))
 
         await self.rpc_client.register_connection_listener(self.event_listener)
 
     async def request_naming_server(self, request: AbstractNamingRequest, response_class):
         try:
-            self.nacos_server_connector.inject_security_info(request.get_headers())
-            self.nacos_server_connector.inject_naming_headers_sign(
-                get_group_name(request.serviceName, request.groupName), request.get_headers())
+            await self.nacos_server_connector.inject_security_info(request.get_headers())
+
+            if self.client_config.access_key is not None and self.client_config.secret_key is not None:
+                service_name = get_group_name(request.serviceName, request.groupName)
+                if service_name.strip():
+                    sign_str = str(get_current_time_millis()) + Constants.SERVICE_INFO_SPLITER + service_name
+                else:
+                    sign_str = str(get_current_time_millis())
+
+                request.put_all_headers({
+                    "ak": self.client_config.access_key,
+                    "data": sign_str,
+                    "signature": base64.encodebytes(hmac.new(self.client_config.secret_key.encode(), sign_str.encode(),
+                                                             digestmod=hashlib.sha1).digest()).decode().strip()
+                })
 
             response = await self.rpc_client.request(request, self.client_config.grpc_config.grpc_timeout)
             if response.get_result_code() != 200:
@@ -70,7 +85,7 @@ class NamingGRPCClientProxy:
         raise NacosException(SERVER_ERROR, " Server return invalid response")
 
     async def register_instance(self, service_name: str, group_name: str, instance: Instance):
-        self.logger.info("[register_instance] ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
+        self.logger.info("register instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
             instance.ip, instance.port, service_name, group_name, self.namespace_id))
         await self.event_listener.cache_instance_for_redo(service_name, group_name, instance)
         request = InstanceRequest(
@@ -86,7 +101,7 @@ class NamingGRPCClientProxy:
         raise NotImplementedError("This method needs to be implemented.")
 
     async def deregister_instance(self, service_name: str, group_name: str, instance: Instance) -> bool:
-        self.logger.info("[deregister_instance] ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
+        self.logger.info("deregister instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
             instance.ip, instance.port, service_name, group_name, self.namespace_id))
         request = InstanceRequest(
             namespace=self.namespace_id,
@@ -112,7 +127,7 @@ class NamingGRPCClientProxy:
             services=response.serviceNames
         )
 
-    async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[ServiceInfo]:
+    async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[Service]:
         self.logger.info("[subscribe] service_name:%s, group_name:%s, clusters:%s, namespace:%s",
                          (service_name, group_name, clusters, self.namespace_id))
 

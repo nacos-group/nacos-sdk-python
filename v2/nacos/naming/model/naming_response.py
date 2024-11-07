@@ -1,6 +1,6 @@
 from typing import Optional, Any
 
-from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model.rpc_response import Response
 
 
@@ -10,17 +10,19 @@ class NotifySubscriberResponse(Response):
 
 
 class SubscribeServiceResponse(Response):
-    serviceInfo: ServiceInfo
+    serviceInfo: Service
 
     def get_response_type(self) -> str:
         return "SubscribeServiceResponse"
 
-    def get_service_info(self) -> ServiceInfo:
+    def get_service_info(self) -> Service:
         return self.service_info
+
 
 class InstanceResponse(Response):
     def get_response_type(self) -> str:
         return "InstanceResponse"
+
 
 class ServiceListResponse(Response):
     count: int

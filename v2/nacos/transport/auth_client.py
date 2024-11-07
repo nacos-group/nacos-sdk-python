@@ -19,7 +19,7 @@ class AuthClient:
         self.last_refresh_time = 0
         self.token_expired_time = None
 
-    def get_access_token(self, force_refresh=False):
+    async def get_access_token(self, force_refresh=False):
         current_time = time.time()
         if self.access_token and not force_refresh and self.token_expired_time > current_time:
             return self.access_token
@@ -32,7 +32,7 @@ class AuthClient:
         server_list = self.get_server_list()
         for server_address in server_list:
             url = server_address + "/nacos/v1/auth/users/login"
-            resp, error = self.http_agent.request(url, "POST", None, params, None)
+            resp, error = await self.http_agent.request(url, "POST", None, params, None)
             if not resp or error:
                 self.logger.warning(f"[get-access-token] request {url} failed, error: {error}")
                 continue

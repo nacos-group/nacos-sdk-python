@@ -8,7 +8,7 @@ from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, BatchRegisterInstanceParam, \
     DeregisterInstanceParam, ListInstanceParam, SubscribeServiceParam, GetServiceParam, ListServiceParam
 from v2.nacos.naming.model.service import ServiceList
-from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.remote.naming_grpc_client_proxy import NamingGRPCClientProxy
 from v2.nacos.naming.util.naming_client_util import get_group_name
 
@@ -53,21 +53,6 @@ class NacosNamingService(NacosClient):
     async def batch_register_instances(self, request: BatchRegisterInstanceParam) -> bool:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
-
-    # async def deregister_instance(self, request: DeregisterInstanceRequest) -> None:
-    #     if not request.service_name:
-    #         raise NacosException(INVALID_PARAM, "service_name can not be empty")
-    #
-    #     if not request.group_name:
-    #         request.group_name = Constants.DEFAULT_GROUP
-    #
-    #     instance = Instance(ip=request.ip,
-    #                         port=request.port,
-    #                         cluster_name=request.cluster_name,
-    #                         ephemeral=request.ephemeral,
-    #                         )
-
-    # return await self.grpc_client_proxy.deregister_instance(request.service_name, request.group_name, instance)
 
         instance_list = []
         for instance in request.instances:
@@ -127,7 +112,7 @@ class NacosNamingService(NacosClient):
 
         return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
 
-    async def get_service(self, request: GetServiceParam) -> ServiceInfo:
+    async def get_service(self, request: GetServiceParam) -> Service:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 

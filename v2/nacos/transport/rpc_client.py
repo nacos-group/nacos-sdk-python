@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, CLIENT_DISCONNECT, SERVER_ERROR, UN_REGISTER
 from v2.nacos.transport.connection import Connection
+from v2.nacos.transport.connection_event_listener import ConnectionEventListener
 from v2.nacos.transport.model.internal_request import CONNECTION_RESET_REQUEST_TYPE, \
     CLIENT_DETECTION_REQUEST_TYPE, HealthCheckRequest, ConnectResetRequest
 from v2.nacos.transport.model.internal_response import ErrorResponse, ConnectResetResponse
@@ -66,24 +67,24 @@ class RpcClient(ABC):
 
     DEFAULT_TIMEOUT_MILLS = 3000
 
-    def __init__(self, logger, name: str):
+    def __init__(self, logger, name: str, nacos_server: NacosServerConnector):
         self.logger = logger
         self.name = name
-        self.labels = {}
+        self.labels: dict[str, str] = {}
         self.current_connection = None
-        self.rpc_client_status = None
+        self.rpc_client_status = RpcClientStatus.INITIALIZED
         self.event_chan = asyncio.Queue()
         self.reconnection_chan = asyncio.Queue()
         self.connection_event_listeners = []
         self.server_request_handler_mapping = {}
-        self.nacos_server = None
+        self.nacos_server = nacos_server
         self.tenant = None
         self.lock = asyncio.Lock()
         self.last_active_timestamp = get_current_time_millis()
 
     def put_all_labels(self, labels: Dict[str, str]):
         self.labels.update(labels)
-        self.logger.info("[%s]RpcClient init label, labels = %s" % (self.__class__.__name__, self.labels))
+        self.logger.info(f"rpc client init label, labels : {self.labels}")
 
     async def event_listener(self):
         while True:
@@ -94,9 +95,8 @@ class RpcClient(ABC):
                 async with self.lock:
                     listeners = list(self.connection_event_listeners[:])
                 if not listeners or len(listeners) == 0:
-                    return
-                self.logger.info("%s notify %s event to listeners,connectionId:%s ", self.name, str(event),
-                                 self.current_connection.get_connection_id())
+                    continue
+                self.logger.info("rpc client notify [%s] event to listeners", str(event))
                 for listener in listeners:
                     if event.is_connected():
                         try:
@@ -110,8 +110,8 @@ class RpcClient(ABC):
                         except NacosException as e:
                             self.logger.error("%s notify disconnect listener error, listener = %s,error:%s"
                                               , self.name, listener.__class__.__name__, str(e))
-            except NacosException as e:
-                pass
+            except Exception as e:
+                self.logger.error("notify connect listener,error:%s", str(e))
 
     async def health_check_periodically(self):
         while True:
@@ -128,37 +128,37 @@ class RpcClient(ABC):
                 continue
             else:
                 if not self.current_connection:
+                    self.logger.error("%s server healthy check fail, currentConnection is None" % self.name)
                     continue
 
-                self.logger.info("%s server healthy check fail, currentConnection=%s"
-                                 , self.name, self.current_connection.get_connection_id())
+                self.logger.error("%s server healthy check fail, currentConnection=%s"
+                                  , self.name, self.current_connection.get_connection_id())
 
                 async with self.lock:
-                    rpc_client_status = self.rpc_client_status
-                    if rpc_client_status == RpcClientStatus.SHUTDOWN:
+                    if self.rpc_client_status == RpcClientStatus.SHUTDOWN:
                         continue
                     self.rpc_client_status = RpcClientStatus.UNHEALTHY
-                    reconnect_ctx = ReconnectContext(server_info=None, on_request_fail=False)
-                    await self.reconnect(reconnect_ctx.server_info, reconnect_ctx.on_request_fail)
+                    await self.reconnect(ReconnectContext(server_info=None, on_request_fail=False))
 
     async def reconnection_handler(self):
         while True:
             if self.is_shutdown():
                 break
-            reconnect_ctx = await self.reconnection_chan.get()
+            ctx = await self.reconnection_chan.get()
 
-            if reconnect_ctx.server_info:
+            if ctx.server_info:
                 server_exist = False
                 for server_info in self.nacos_server.get_server_list():
-                    if reconnect_ctx.server_info.server_ip == server_info.ip_addr:
-                        reconnect_ctx.server_info.server_port = server_info.port
+                    if ctx.server_info.server_ip == server_info.ip_addr:
+                        ctx.server_info.server_port = server_info.port
+                        server_exist = True
                         break
 
-                    if not server_exist:
-                        self.logger.info(
-                            f"[{self.name}] recommend server is not in server list, ignore recommend server {reconnect_ctx.server_info.get_address()}")
-                        reconnect_ctx.server_info = None
-            await self.reconnect(reconnect_ctx.server_info, reconnect_ctx.on_request_fail)
+                if not server_exist:
+                    self.logger.info(
+                        f"[{self.name}] recommend server is not in server list, ignore recommend server {str(ctx.server_info)}")
+                    ctx.server_info = None
+            await self.reconnect(ctx)
 
     async def start(self):
         async with self.lock:
@@ -175,23 +175,23 @@ class RpcClient(ABC):
             try:
                 start_up_retry_times -= 1
                 server_info = self._next_rpc_server()
-                self.logger.info("%s trying to connect to server on start up, server: %s", self.name,
-                                 server_info.get_address())
+                self.logger.info(
+                    f"rpc client start to connect server, server: {server_info.get_address()}")
                 connection = await self.connect_to_server(server_info)
             except Exception as e:
-                self.logger.warn("%s failed to connect to server on start up, error: %s,start up retry times left :%s",
-                                 self.name, str(e), start_up_retry_times)
+                self.logger.warn(
+                    f"rpc client failed to connect server, error: {str(e)},retry times left:{start_up_retry_times}")
 
             if connection:
                 self.current_connection = connection
-                self.logger.info("%s successfully connected to server:%s, connection_id:%s", self.name,
-                                 self.current_connection.server_info.get_address(),
-                                 self.current_connection.get_connection_id())
+                self.logger.info(
+                    f"rpc client successfully connected to server:{self.current_connection.server_info.get_address()}, connection_id:{self.current_connection.get_connection_id()}")
                 async with self.lock:
                     self.rpc_client_status = RpcClientStatus.RUNNING
                     await self._notify_connection_change(ConnectionStatus.CONNECTED)
-            else:
-                await self.switch_server_async(None, False)
+
+        if connection is None:
+            raise NacosException(CLIENT_DISCONNECT, "failed to connect server")
 
     @abstractmethod
     async def connect_to_server(self, server_info: ServerInfo) -> Optional[Connection]:
@@ -247,20 +247,20 @@ class RpcClient(ABC):
             self.register_server_request_handler(CLIENT_DETECTION_REQUEST_TYPE, ClientDetectionRequestHandler())
         )
 
-    async def register_server_request_handler(self, request_type: str, handler) -> None:
+    async def register_server_request_handler(self, request_type: str, handler: IServerRequestHandler) -> None:
         if not handler or not request_type:
             self.logger.error(
-                "%s register server push request handler missing required parameters, request: %s, handler: %s",
-                self.name, request_type, handler.name() if handler else 'None')
+                f"rpc client register server push request handler missing required parameters, request: {request_type}, handler: {handler.name() if handler else 'None'}")
             return
 
-        self.logger.info("%s register server push request: %s handler: %s", self.name, request_type, handler.name())
+        self.logger.info(
+            f"rpc client register server push request: {request_type} handler: {handler.name()}")
 
         async with self.lock:
             self.server_request_handler_mapping[request_type] = handler
 
-    async def register_connection_listener(self, listener):
-        self.logger.info("%s register connection listener %s to current client", self.name, listener.__class__.__name__)
+    async def register_connection_listener(self, listener: ConnectionEventListener):
+        self.logger.info(f"rpc client register connection listener: {listener.__class__.__name__}")
         async with self.lock:
             self.connection_event_listeners.append(listener)
 
@@ -335,15 +335,6 @@ class RpcClient(ABC):
             await self.current_connection.close()
             await self._notify_connection_change(ConnectionStatus.DISCONNECTED)
 
-    async def set_nacos_server_connector(self, nacos_server: NacosServerConnector) -> None:
-        if not self.is_wait_initiated():
-            return
-        self.nacos_server = nacos_server
-        async with self.lock:
-            self.rpc_client_status = RpcClientStatus.INITIALIZED
-        self.logger.info("%s rpcClient init, NacosServerConnector = %s"
-                         % (self.__class__.__name__, nacos_server.__class__.__name__))
-
     async def send_health_check(self):
         if not self.current_connection:
             return False
@@ -359,14 +350,14 @@ class RpcClient(ABC):
                     return True
                 return False
             return response and response.is_success()
-        except NacosException as e:
+        except Exception as e:
             self.logger.error("health check failed, response is null or not success, err=%s", str(e))
         return False
 
-    async def reconnect(self, server_info: ServerInfo, on_request_fail: bool):
+    async def reconnect(self, reconnection_ctx: ReconnectContext):
         try:
-            recommend_server = server_info
-            if on_request_fail and await self.send_health_check():
+            recommend_server = reconnection_ctx.server_info
+            if reconnection_ctx.on_request_fail and await self.send_health_check():
                 self.logger.info("%s server check success, currentServer is %s", self.name,
                                  self.current_connection.server_info.get_address())
                 async with self.lock:
@@ -378,7 +369,6 @@ class RpcClient(ABC):
             reconnect_times, retry_turns = 0, 0
 
             while not self.is_shutdown() and not switch_success:
-                server_info = None
                 try:
                     server_info = recommend_server if recommend_server else self._next_rpc_server()
                     connection_new = await self.connect_to_server(server_info)
@@ -406,8 +396,6 @@ class RpcClient(ABC):
                 except NacosException as e:
                     logging.error(f"failed to connect server, error = {str(e)}")
                     last_exception = str(e)
-                finally:
-                    pass
 
                 if reconnect_times > 0 and reconnect_times % len(self.nacos_server.get_server_list()) == 0:
                     err_info = last_exception if last_exception else "unknown"
@@ -434,7 +422,7 @@ class ConnectResetRequestHandler(IServerRequestHandler):
     def name(self) -> str:
         return "ConnectResetRequestHandler"
 
-    async def request_reply(self, request) -> Optional[ConnectResetResponse]:
+    async def request_reply(self, request: Request) -> Optional[ConnectResetResponse]:
         if not isinstance(request, ConnectResetRequest):
             return None
 
@@ -446,9 +434,9 @@ class ConnectResetRequestHandler(IServerRequestHandler):
                         await self.rpc_client.switch_server_async(server_info=server_info,
                                                                   on_request_fail=False)
                     else:
-                        await self.rpc_client.switch_server_async(server_info=ServerInfo("", 0),
+                        await self.rpc_client.switch_server_async(server_info=None,
                                                                   on_request_fail=True)
                     return ConnectResetResponse()
         except NacosException as e:
             self.rpc_client.logger.error("rpc client %s failed to switch server,error:%s", self.rpc_client.name, e)
-        return
+        return None

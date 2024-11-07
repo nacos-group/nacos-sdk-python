@@ -36,7 +36,7 @@ class ConfigProxy:
         if limiter.RateLimiterCheck.is_limited(cache_key):
             raise NacosException(CLIENT_OVER_THRESHOLD, "More than client-side current limit threshold")
         try:
-            response = await self.request_proxy(config_query_request, ConfigQueryResponse)
+            response = await self.request_config_proxy(config_query_request, ConfigQueryResponse)
 
             if response.is_success():
                 self.config_cache.write_cache_to_disk(cache_key, response.content, response.encryptedDataKey)
@@ -69,7 +69,7 @@ class ConfigProxy:
             self.logger.error("[config_proxy.query_config] [unkown-error] errer: %s", str(e))
             raise
 
-    async def request_proxy(self, request: AbstractConfigRequest, response_class):
+    async def request_config_proxy(self, request: AbstractConfigRequest, response_class):
         self.nacos_server_connector.inject_security_info(request.get_headers())
         self.nacos_server_connector.inject_config_headers_sign(request)
 

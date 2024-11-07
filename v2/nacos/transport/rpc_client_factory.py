@@ -26,8 +26,10 @@ class RpcClientFactory:
         async with self.lock:
             client = None
             if client_name not in self.client_map.keys():
+                self.logger.info("create new rpc client: " + client_name)
                 if connection_type == ConnectionType.GRPC:
                     client = GrpcClient(self.logger, client_name, client_config, nacos_server)
+
                 if not client:
                     raise NacosException(CLIENT_INVALID_PARAM, "unsupported connection type: " + str(connection_type))
                 client.put_all_labels(labels)

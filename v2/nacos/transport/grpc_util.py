@@ -6,8 +6,8 @@ from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
     ConfigChangeBatchListenResponse, ConfigRemoveResponse
 from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse
-from v2.nacos.naming.model.service_info import ServiceInfo
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
+from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model import ServerCheckResponse
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest
 from v2.nacos.transport.model.internal_response import ErrorResponse, HealthCheckResponse
@@ -64,7 +64,7 @@ class GrpcUtils:
             if isinstance(obj, Request):
                 obj.put_all_headers(payload.metadata.headers)
                 if GrpcUtils.SERVICE_INFO_KEY in json_dict.keys():
-                    service_info = ServiceInfo.build(json_dict.get(GrpcUtils.SERVICE_INFO_KEY))
+                    service_info = Service.build(json_dict.get(GrpcUtils.SERVICE_INFO_KEY))
                     obj.serviceInfo = service_info
             return obj
         else:

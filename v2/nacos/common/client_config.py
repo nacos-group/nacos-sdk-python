@@ -45,7 +45,7 @@ class GRPCConfig:
 
 
 class ClientConfig:
-    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
+    def __init__(self, server_addresses=None, endpoint=None, namespace_id='public', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
                  log_rotation_backup_count=None):
         self.server_list = []
@@ -73,10 +73,11 @@ class ClientConfig:
         self.log_rotation_backup_count = 7 if log_rotation_backup_count is None else log_rotation_backup_count
         self.timeout_ms = 10 * 1000  # timeout for requesting Nacos server, default value is 10000ms
         self.heart_beat_interval = 5 * 1000  # the time interval for sending beat to server,default value is 5000ms
-        self.kms_config = None
+        self.kms_config = KMSConfig(enabled=False)
         self.tls_config = TLSConfig(enabled=False)
         self.grpc_config = GRPCConfig()
-        self.not_load_cache_at_start = False
+        self.load_cache_at_start = True
+        self.update_cache_when_empty = False
 
     def set_log_level(self, log_level):
         self.log_level = log_level
@@ -110,8 +111,12 @@ class ClientConfig:
         self.grpc_config = grpc_config
         return self
 
-    def set_not_load_cache_at_start(self, not_load_cache_at_start):
-        self.not_load_cache_at_start = not_load_cache_at_start
+    def set_load_cache_at_start(self, load_cache_at_start):
+        self.load_cache_at_start = load_cache_at_start
+        return self
+
+    def set_update_cache_when_empty(self, update_cache_when_empty: bool):
+        self.update_cache_when_empty = update_cache_when_empty
         return self
 
     def set_endpoint_context_path(self, endpoint_context_path):

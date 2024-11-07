@@ -13,7 +13,7 @@ class ConfigChangeNotifyRequestHandler(IServerRequestHandler):
     def name(self):
         return "ConfigChangeNotifyRequestHandler"
 
-    def request_reply(self, request: Request):
+    async def request_reply(self, request: Request):
         if not isinstance(request, ConfigChangeNotifyRequest):
             return None
 
