@@ -5,7 +5,9 @@ from google.protobuf.any_pb2 import Any
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
     ConfigChangeBatchListenResponse, ConfigRemoveResponse
-from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse
+from v2.nacos.naming.model.naming_request import NotifySubscriberRequest
+from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse, BatchInstanceResponse, \
+    ServiceListResponse
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model import ServerCheckResponse
@@ -21,8 +23,11 @@ class GrpcUtils:
 
     remote_type = {
         "ServerCheckResponse": ServerCheckResponse,
+        "NotifySubscriberRequest": NotifySubscriberRequest,
         "ErrorResponse": ErrorResponse,
         "InstanceResponse": InstanceResponse,
+        "ServiceListResponse": ServiceListResponse,
+        "BatchInstanceResponse": BatchInstanceResponse,
         "ClientDetectionRequest": ClientDetectionRequest,
         "HealthCheckResponse": HealthCheckResponse,
         "SubscribeServiceResponse": SubscribeServiceResponse,
@@ -56,16 +61,11 @@ class GrpcUtils:
         metadata_type = payload.metadata.type
         if metadata_type and metadata_type in GrpcUtils.remote_type.keys():
             json_dict = json.loads(payload.body.value.decode('utf-8'))
-            # obj = eval(metadata_type + "(**json_dict)")
             response_class = GrpcUtils.remote_type[metadata_type]
-            obj = response_class()
-            obj.__dict__.update(json_dict)
+            obj = response_class.model_validate(json_dict)
 
             if isinstance(obj, Request):
                 obj.put_all_headers(payload.metadata.headers)
-                if GrpcUtils.SERVICE_INFO_KEY in json_dict.keys():
-                    service_info = Service.build(json_dict.get(GrpcUtils.SERVICE_INFO_KEY))
-                    obj.serviceInfo = service_info
             return obj
         else:
             raise NacosException(SERVER_ERROR, "unknown payload type:" + payload.metadata.type)

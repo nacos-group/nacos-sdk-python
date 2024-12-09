@@ -7,7 +7,7 @@ from v2.nacos.transport.model.rpc_request import Request
 
 
 class AbstractNamingRequest(Request, ABC):
-    namespace: Optional[str]
+    namespace: Optional[str] = ''
     serviceName: Optional[str]
     groupName: Optional[str]
 
@@ -30,6 +30,14 @@ class InstanceRequest(AbstractNamingRequest):
 
     def get_request_type(self) -> str:
         return 'InstanceRequest'
+
+
+class BatchInstanceRequest(AbstractNamingRequest):
+    type: Optional[str]
+    instances: Optional[list[Instance]]
+
+    def get_request_type(self) -> str:
+        return 'BatchInstanceRequest'
 
 
 class NotifySubscriberRequest(AbstractNamingRequest):

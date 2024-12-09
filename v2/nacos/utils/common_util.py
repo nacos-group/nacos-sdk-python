@@ -1,6 +1,8 @@
 import json
 import time
 
+from pydantic import BaseModel
+
 from v2.nacos.common.constants import Constants
 
 
@@ -9,9 +11,9 @@ def get_current_time_millis():
     return int(round(t * 1000))
 
 
-def to_json_string(obj):
+def to_json_string(obj: BaseModel):
     try:
-        return json.dumps(obj)
+        return obj.model_dump_json()
     except (TypeError, ValueError) as e:
         print(f"Error serializing object to JSON: {e}")
         return None

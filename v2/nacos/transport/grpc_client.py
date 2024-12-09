@@ -104,6 +104,7 @@ class GrpcClient(RpcClient):
         connection_setup_request = ConnectionSetupRequest(Constants.CLIENT_VERSION, self.tenant, self.labels)
         await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
         asyncio.create_task(self._server_request_watcher(grpc_conn))
+        await asyncio.sleep(0.1)
         return grpc_conn
 
     async def _handle_server_request(self, request: Request, grpc_connection: GrpcConnection):
@@ -120,8 +121,6 @@ class GrpcClient(RpcClient):
             return
 
         try:
-            self.logger.info("[%s]ack server push request, request=%s, requestId=%s"
-                             % (self.__class__.__name__, request.__class__.__name__, request.get_request_id()))
             response.set_request_id(request.requestId)
 
             await grpc_connection.send_bi_request(GrpcUtils.convert_response_to_payload(response))
@@ -137,7 +136,7 @@ class GrpcClient(RpcClient):
     async def _server_request_watcher(self, grpc_conn: GrpcConnection):
         async for payload in grpc_conn.bi_stream_send():
             try:
-                self.logger.info("[%s] stream server request receive, original info: %s"
+                self.logger.info("receive stream server request, connection_id:%s, original info: %s"
                                  % (grpc_conn.get_connection_id(), str(payload)))
                 request = GrpcUtils.parse(payload)
                 if request:

@@ -65,7 +65,7 @@ class NacosNamingService(NacosClient):
                 metadata=instance.metadata,
                 clusterName=instance.cluster_name,
                 healthy=instance.healthy,
-                enable=instance.enable,
+                enable=instance.enabled,
                 weight=instance.weight,
                 ephemeral=instance.ephemeral,
             ))

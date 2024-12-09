@@ -10,18 +10,23 @@ class NotifySubscriberResponse(Response):
 
 
 class SubscribeServiceResponse(Response):
-    serviceInfo: Service
+    serviceInfo: Optional[Service] = None
 
     def get_response_type(self) -> str:
         return "SubscribeServiceResponse"
 
     def get_service_info(self) -> Service:
-        return self.service_info
+        return self.serviceInfo
 
 
 class InstanceResponse(Response):
     def get_response_type(self) -> str:
         return "InstanceResponse"
+
+
+class BatchInstanceResponse(Response):
+    def get_response_type(self) -> str:
+        return "BatchInstanceResponse"
 
 
 class ServiceListResponse(Response):

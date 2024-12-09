@@ -94,7 +94,7 @@ class RpcClient(ABC):
                 event = await self.event_chan.get()
                 async with self.lock:
                     listeners = list(self.connection_event_listeners[:])
-                if not listeners or len(listeners) == 0:
+                if len(listeners) == 0:
                     continue
                 self.logger.info("rpc client notify [%s] event to listeners", str(event))
                 for listener in listeners:
@@ -188,7 +188,6 @@ class RpcClient(ABC):
                     f"rpc client successfully connected to server:{self.current_connection.server_info.get_address()}, connection_id:{self.current_connection.get_connection_id()}")
                 async with self.lock:
                     self.rpc_client_status = RpcClientStatus.RUNNING
-                    await self._notify_connection_change(ConnectionStatus.CONNECTED)
 
         if connection is None:
             raise NacosException(CLIENT_DISCONNECT, "failed to connect server")

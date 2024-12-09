@@ -19,17 +19,17 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
         await self.__redo_register_each_service()
 
     async def on_disconnect(self) -> None:
-        self.logger.info("Grpc connection disconnected")
+        self.logger.info("grpc connection disconnected")
 
     async def __redo_subscribe(self) -> None:
-        for each in self.subscribes:
+        for service_key in self.subscribes.keys():
             try:
-                info = Service.from_key(each)
-                service_info = await self.client_proxy.subscribe(info.name, info.groupName, info.clusters)
+                service = Service.from_key(service_key)
+                service_info = await self.client_proxy.subscribe(service.name, service.groupName, service.clusters)
             except Exception as e:
-                self.logger.warning("redo subscribe service %s failed: %s", info.name, e)
+                self.logger.warning("failed to redo subscribe service %s, caused by: %s", service_key, e)
                 continue
-            self.client_proxy.service_info_cache.process_service_info(service_info)
+            await self.client_proxy.service_info_cache.process_service(service_info)
 
     async def __redo_register_each_service(self) -> None:
         for key, instanceVal in self.registered_instance_cached.items():

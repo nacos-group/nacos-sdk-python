@@ -1,6 +1,8 @@
 class NamingRemoteConstants:
     REGISTER_INSTANCE = "registerInstance"
 
+    BATCH_REGISTER_INSTANCE = "batchRegisterInstance"
+
     DE_REGISTER_INSTANCE = "deregisterInstance"
 
     QUERY_SERVICE = "queryService"

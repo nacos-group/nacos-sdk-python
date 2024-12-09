@@ -54,9 +54,8 @@ class ServiceInfoCache:
             self.logger.info("[load_cache_from_disk] no cache file found, skip loading cache from disk.")
             return
 
-        with self.lock:
-            self.service_info_map = service_map
-            self.logger.info("[load_cache_from_disk] loaded {%s} entries cache from disk.", len(service_map))
+        self.service_info_map = service_map
+        self.logger.info("[load_cache_from_disk] loaded {%s} entries cache from disk.", len(service_map))
 
     async def process_service_json(self, data: str):
         try:
@@ -66,7 +65,7 @@ class ServiceInfoCache:
             if service is None:
                 return
         except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse json:{data}, err:{e}")
+            self.logger.error(f"failed to parse json:{data}, err:{e}")
             return
         await self.process_service(service)
 
@@ -77,35 +76,37 @@ class ServiceInfoCache:
         if not self.update_cache_when_empty and len(service.hosts) == 0:
             # 如果服务实例列表是空的且update_cache_when_empty为假，则跳过更新缓存
             self.logger.warning(
-                f"Instance list is empty, skipping update as update_cache_when_empty is set to False. service name: {service.name}")
+                f"instance list is empty, skipping update as update_cache_when_empty is set to False. service name: {service.name}")
             return
 
         cache_key = get_service_cache_key(get_group_name(service.name, service.groupName), service.clusters)
 
-        with self.lock:
+        async with self.lock:
             old_service = self.service_info_map.get(cache_key, None)
             if old_service is not None and old_service.lastRefTime >= service.lastRefTime:
                 self.logger.warning(
-                    f"Out of date data received, old-t: {old_service.lastRefTime}, new-t: {service.lastRefTime}")
+                    f"out of date data received, old-t: {old_service.lastRefTime}, new-t: {service.lastRefTime}")
                 return
 
             # 更新时间和服务信息
             self.update_time_map[cache_key] = get_current_time_millis()
             self.service_info_map[cache_key] = service
 
-            if not old_service or await self.check_instance_changed(old_service, service):
-                self.logger.info(f"Service key: {cache_key} was updated to: {to_json_string(service)}")
+            if not old_service or self.check_instance_changed(old_service, service):
+                self.logger.info(f"service key: {cache_key} was updated to: {str(service)}")
                 write_to_file(self.logger, os.path.join(self.cache_dir, cache_key), to_json_string(service))
                 await self.sub_callback_manager.service_changed(cache_key, service)
-            self.logger.info(f"Service map size: {len(self.service_info_map)}")
+            self.logger.info(f"current service map size: {len(self.service_info_map)}")
 
     async def get_service_info(self, service_name, group_name, clusters) -> Service:
         cache_key = get_service_cache_key(get_group_name(service_name, group_name), clusters)
-        with self.lock:
-            self.logger.info(f"Get service info from cache, key: {cache_key}")
-            return self.service_info_map.get(cache_key)
+        async with self.lock:
+            service = self.service_info_map.get(cache_key)
+            self.logger.info(
+                f"get service info from cache, key: {cache_key}，instances:{service.hosts if service is not None else 'None'}")
+            return service
 
-    async def check_instance_changed(self, old_service: Optional[Service], new_service: Service):
+    def check_instance_changed(self, old_service: Optional[Service], new_service: Service):
         if old_service is None:
             return True
         if len(old_service.hosts) != len(new_service.hosts):

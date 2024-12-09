@@ -18,9 +18,9 @@ DEFAULT_CHARSET = "UTF-8"
 
 
 class Service(BaseModel):
-    name: Optional[str]
-    groupName: Optional[str]
-    clusters: Optional[str]
+    name: str
+    groupName: str
+    clusters: Optional[str] = ''
     cacheMillis: int = 1000
     hosts: list[Instance] = []
     lastRefTime: int = 0
@@ -95,20 +95,12 @@ class Service(BaseModel):
 
     @staticmethod
     def from_key(key: str):
-        service = Service()
-        max_seg_count = 3
-        segs = key.split(Constants.SERVICE_INFO_SPLITER)
-        if len(segs) == max_seg_count - 1:
-            service.groupName = segs[0]
-            service.name = segs[1]
-        elif len(segs) == max_seg_count:
-            service.groupName = segs[0]
-            service.name = segs[1]
-            service.clusters = segs[2]
+        info = key.split(Constants.SERVICE_INFO_SPLITER)
+        if len(info) > 2:
+            service = Service(name=info[1], groupName=info[0], clusters=info[2])
+        else:
+            service = Service(name=info[1], groupName=info[0], clusters="")
         return service
-
-    def __str__(self):
-        return self.get_key()
 
     def get_hosts_str(self):
         hosts_str = ""
