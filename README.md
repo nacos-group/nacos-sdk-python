@@ -88,14 +88,14 @@ Configurable options are:
 W
 Get value of one config item following priority:
 
-* Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
-  * Failover dir can be manually copied from snapshot dir(default: `${cwd}/nacos-data/snapshot`) in advance.
-  * This helps to suppress the effect of known server failure.
+  * Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
+    * Failover dir can be manually copied from snapshot dir(default: `${cwd}/nacos-data/snapshot`) in advance.
+    * This helps to suppress the effect of known server failure.
     
-* Step 2 - Get from one server until value is got or all servers tried.
-  * Content will be save to snapshot dir after got from server.
+  * Step 2 - Get from one server until value is got or all servers tried.
+    * Content will be save to snapshot dir after got from server.
 
-* Step 3 - Get from snapshot dir.
+  * Step 3 - Get from snapshot dir.
 
 ### Add Watchers
 >`NacosClient.add_config_watchers(data_id, group, cb_list)`
