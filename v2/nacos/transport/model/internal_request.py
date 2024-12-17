@@ -8,7 +8,6 @@ CLIENT_DETECTION_REQUEST_TYPE = "ClientDetectionRequest"
 
 
 class InternalRequest(Request, ABC):
-
     def __init__(self):
         super().__init__()
 
@@ -25,10 +24,8 @@ class HealthCheckRequest(InternalRequest):
 
 
 class ConnectResetRequest(InternalRequest):
-    def __init__(self, server_ip: str, server_port: str):
-        super().__init__()
-        self.server_ip = server_ip
-        self.server_port = server_port
+    serverIp: Optional[str]
+    serverPort: Optional[str]
 
     def get_request_type(self) -> str:
         return CONNECTION_RESET_REQUEST_TYPE

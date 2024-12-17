@@ -13,12 +13,15 @@ class NamingPushRequestHandler(IServerRequestHandler):
     def name(self) -> str:
         return "NamingPushRequestHandler"
 
-    def __init__(self, service_info_cache: ServiceInfoCache):
+    def __init__(self, logger, service_info_cache: ServiceInfoCache):
+        self.logger = logger
         self.service_info_cache = service_info_cache
 
-    def request_reply(self, request: Request) -> Optional[Response]:
-        if isinstance(request, NotifySubscriberRequest):
-            self.service_info_cache.process_service(request.get_service_info())
-            response = NotifySubscriberResponse()
-            return response
-        return None
+    async def request_reply(self, request: Request) -> Optional[Response]:
+        if not isinstance(request, NotifySubscriberRequest):
+            return None
+
+        self.logger.info("received naming push service info: %s,ackId:%s", str(request.serviceInfo),
+                         request.requestId)
+        await self.service_info_cache.process_service(request.serviceInfo)
+        return NotifySubscriberResponse()

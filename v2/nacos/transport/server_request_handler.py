@@ -14,7 +14,7 @@ class IServerRequestHandler(ABC):
         pass
 
     @abstractmethod
-    def request_reply(self, request: Request) -> Optional[Response]:
+    async def request_reply(self, request: Request) -> Optional[Response]:
         pass
 
 
@@ -22,7 +22,9 @@ class ClientDetectionRequestHandler(IServerRequestHandler):
     def name(self) -> str:
         return "ClientDetectionRequestHandler"
 
-    def request_reply(self, request) -> Optional[Response]:
-        if isinstance(request, ClientDetectionRequest):
-            return ClientDetectionResponse()
-        return None
+    async def request_reply(self, request: Request) -> Optional[Response]:
+        if not isinstance(request, ClientDetectionRequest):
+            return None
+
+        return ClientDetectionResponse()
+

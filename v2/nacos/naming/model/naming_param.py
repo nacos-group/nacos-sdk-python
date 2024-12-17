@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 from v2.nacos.common.constants import Constants
 
+
 class RegisterInstanceParam(BaseModel):
     ip: str
     port: int
@@ -36,7 +37,7 @@ class ListInstanceParam(BaseModel):
     group_name: str = Constants.DEFAULT_GROUP
     clusters: list[str] = []
     subscribe: bool = True
-    healthy_only: bool
+    healthy_only: Optional[bool]
 
 
 class SubscribeServiceParam(BaseModel):

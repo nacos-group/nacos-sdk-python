@@ -18,7 +18,7 @@ class IConfigFilter(ABC):
         pass
 
 
-class ConfigFilterChain:
+class ConfigFilterChainManager:
     def __init__(self):
         self.config_filters = []
 
@@ -45,11 +45,3 @@ class ConfigFilterChain:
                 config_filter.do_filter(param)
                 return
         raise ValueError(f"Cannot find the filter with name {name}")
-
-
-def register_config_filter_to_chain(chain: ConfigFilterChain, config_filter: IConfigFilter) -> None:
-    chain.add_filter(config_filter)
-
-
-def new_config_filter_chain_manager() -> ConfigFilterChain:
-    return ConfigFilterChain()

@@ -5,16 +5,13 @@ from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 
 
 class KMSConfig:
-    def __init__(self, enabled=False, appointed=False, ak='', sk='',
-                 region_id='', endpoint='', client_key_content='', password='', kms_version=''):
+    def __init__(self, enabled=False, endpoint='', access_key='', secret_key='', client_key_content='', password=''):
         self.enabled = enabled  # 是否启用kms
-        self.appointed = appointed  # 指明是否使用预设的配置
-        self.ak = ak  # 阿里云账号的AccessKey
-        self.sk = sk  # 阿里云账号的SecretKey
-        self.region_id = region_id  # 阿里云账号的区域
         self.endpoint = endpoint  # kms服务的地址
         self.client_key_content = client_key_content
         self.password = password
+        self.access_key = access_key
+        self.secret_key = secret_key
 
 
 class TLSConfig:
@@ -47,7 +44,7 @@ class GRPCConfig:
 class ClientConfig:
     def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
-                 log_rotation_backup_count=None):
+                 log_rotation_backup_count=None, app_conn_labels=None):
         self.server_list = []
         try:
             if server_addresses is not None and server_addresses.strip() != "":
@@ -67,16 +64,18 @@ class ClientConfig:
         self.app_name = app_name
         self.app_key = app_key
         self.cache_dir = ''
-        self.disable_use_snap_shot = False
+        self.disable_use_config_cache = False
         self.log_dir = log_dir
         self.log_level = logging.INFO if log_level is None else log_level  # the log level for nacos client, default value is logging.INFO: log_level
         self.log_rotation_backup_count = 7 if log_rotation_backup_count is None else log_rotation_backup_count
         self.timeout_ms = 10 * 1000  # timeout for requesting Nacos server, default value is 10000ms
         self.heart_beat_interval = 5 * 1000  # the time interval for sending beat to server,default value is 5000ms
-        self.kms_config = None
+        self.kms_config = KMSConfig(enabled=False)
         self.tls_config = TLSConfig(enabled=False)
         self.grpc_config = GRPCConfig()
-        self.not_load_cache_at_start = False
+        self.load_cache_at_start = True
+        self.update_cache_when_empty = False
+        self.app_conn_labels = app_conn_labels
 
     def set_log_level(self, log_level):
         self.log_level = log_level
@@ -110,10 +109,18 @@ class ClientConfig:
         self.grpc_config = grpc_config
         return self
 
-    def set_not_load_cache_at_start(self, not_load_cache_at_start):
-        self.not_load_cache_at_start = not_load_cache_at_start
+    def set_load_cache_at_start(self, load_cache_at_start):
+        self.load_cache_at_start = load_cache_at_start
+        return self
+
+    def set_update_cache_when_empty(self, update_cache_when_empty: bool):
+        self.update_cache_when_empty = update_cache_when_empty
         return self
 
     def set_endpoint_context_path(self, endpoint_context_path):
         self.endpoint_context_path = endpoint_context_path
+        return self
+
+    def set_app_conn_labels(self, app_conn_labels: dict):
+        self.app_conn_labels = app_conn_labels
         return self

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, List, Callable
 
-from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.util.naming_client_util import get_service_cache_key
 
 
@@ -29,7 +29,7 @@ class SubscribeManager:
                 if not self.callback_func_map[key]:
                     del self.callback_func_map[key]
 
-    async def service_changed(self, cache_key: str, service: ServiceInfo):
+    async def service_changed(self, cache_key: str, service: Service):
         if cache_key in self.callback_func_map:
             for callback_func in self.callback_func_map[cache_key]:
                 await callback_func(service.hosts)

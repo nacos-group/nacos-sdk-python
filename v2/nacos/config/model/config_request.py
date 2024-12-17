@@ -10,7 +10,7 @@ CONFIG_CHANGE_NOTIFY_REQUEST_TYPE = "ConfigChangeNotifyRequest"
 class AbstractConfigRequest(Request, ABC):
     group: Optional[str]
     dataId: Optional[str]
-    tenant: Optional[str]
+    tenant: Optional[str] = ''
 
     def get_module(self):
         return "config"
@@ -46,7 +46,7 @@ class ConfigQueryRequest(AbstractConfigRequest):
 class ConfigPublishRequest(AbstractConfigRequest):
     content: Optional[str]
     casMd5: Optional[str]
-    additionMap: dict = {}
+    additionMap: dict[str, str] = {}
 
     def get_request_type(self):
         return "ConfigPublishRequest"

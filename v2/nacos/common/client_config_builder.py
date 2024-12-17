@@ -1,13 +1,14 @@
 from v2.nacos.common.client_config import ClientConfig, GRPCConfig
 from v2.nacos.common.client_config import KMSConfig
 from v2.nacos.common.client_config import TLSConfig
+from v2.nacos.common.constants import Constants
 
 
 class ClientConfigBuilder:
     def __init__(self):
         self._config = ClientConfig()
 
-    def server_address(self, server_address) -> "ClientConfigBuilder":
+    def server_address(self, server_address: str) -> "ClientConfigBuilder":
         if server_address is not None and server_address.strip() != "":
             for server_address in server_address.strip().split(','):
                 self._config.server_list.append(server_address.strip())
@@ -17,7 +18,9 @@ class ClientConfigBuilder:
         self._config.endpoint = endpoint
         return self
 
-    def namespace_id(self, namespace_id) -> "ClientConfigBuilder":
+    def namespace_id(self, namespace_id: str) -> "ClientConfigBuilder":
+        if namespace_id is None:
+            namespace_id = Constants.DEFAULT_NAMESPACE_ID
         self._config.namespace_id = namespace_id
         return self
 
@@ -33,7 +36,7 @@ class ClientConfigBuilder:
         self._config.log_level = log_level
         return self
 
-    def log_dir(self, log_dir) -> "ClientConfigBuilder":
+    def log_dir(self, log_dir: str) -> "ClientConfigBuilder":
         self._config.log_dir = log_dir
         return self
 
@@ -53,7 +56,7 @@ class ClientConfigBuilder:
         self._config.password = password
         return self
 
-    def cache_dir(self, cache_dir) -> "ClientConfigBuilder":
+    def cache_dir(self, cache_dir: str) -> "ClientConfigBuilder":
         self._config.cache_dir = cache_dir
         return self
 
@@ -69,8 +72,14 @@ class ClientConfigBuilder:
         self._config.grpc_config = grpc_config
         return self
 
-    def not_load_cache_at_start(self, not_load_cache_at_start: bool) -> "ClientConfigBuilder":
-        self._config.not_load_cache_at_start = not_load_cache_at_start
+    def load_cache_at_start(self, load_cache_at_start: bool) -> "ClientConfigBuilder":
+        self._config.load_cache_at_start = load_cache_at_start
+        return self
+
+    def app_conn_labels(self, app_conn_labels: dict) -> "ClientConfigBuilder":
+        if self._config.app_conn_labels is None:
+            self._config.app_conn_labels = {}
+        self._config.app_conn_labels.update(app_conn_labels)
         return self
 
     def build(self):

@@ -2,12 +2,12 @@ from abc import ABC
 from typing import Optional, Any
 
 from v2.nacos.naming.model.instance import Instance
-from v2.nacos.naming.model.service_info import ServiceInfo
+from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model.rpc_request import Request
 
 
 class AbstractNamingRequest(Request, ABC):
-    namespace: Optional[str]
+    namespace: Optional[str] = ''
     serviceName: Optional[str]
     groupName: Optional[str]
 
@@ -32,14 +32,19 @@ class InstanceRequest(AbstractNamingRequest):
         return 'InstanceRequest'
 
 
+class BatchInstanceRequest(AbstractNamingRequest):
+    type: Optional[str]
+    instances: Optional[list[Instance]]
+
+    def get_request_type(self) -> str:
+        return 'BatchInstanceRequest'
+
+
 class NotifySubscriberRequest(AbstractNamingRequest):
-    serviceInfo: Optional[ServiceInfo]
+    serviceInfo: Optional[Service]
 
     def get_request_type(self) -> str:
         return 'NotifySubscriberRequest'
-
-    def get_service_info(self) -> ServiceInfo:
-        return self.service_info
 
 
 class ServiceListRequest(AbstractNamingRequest):
