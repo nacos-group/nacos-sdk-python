@@ -186,10 +186,16 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
             access_key=os.getenv('NACOS_ACCESS_KEY'),
             secret_key=os.getenv('NACOS_SECRET_KEY'),
         )
+        client_cfg = (ClientConfigBuilder()
+                      .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                      .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                      .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                      .log_level('INFO')
+                      .kms_config(kms_config)
+                      .grpc_config(GRPCConfig(grpc_timeout=5000))
+                      .build())
 
-        client_config.set_kms_config(kms_config)
-
-        client = await NacosConfigService.create_config_service(client_config)
+        client = await NacosConfigService.create_config_service(client_cfg)
 
         dataID = "cipher-kms-aes-128-crypt"
         groupName = "DEFAULT_GROUP"
@@ -223,8 +229,15 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(3)
 
     async def test_gray_config(self):
-        client_config.set_app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
-        client = await NacosConfigService.create_config_service(client_config)
+        client_cfg = (ClientConfigBuilder()
+                      .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                      .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                      .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                      .log_level('INFO')
+                      .app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
+                      .grpc_config(GRPCConfig(grpc_timeout=5000))
+                      .build())
+        client = await NacosConfigService.create_config_service(client_cfg)
 
         dataID = "com.alibaba.nacos.test.config.gray"
         groupName = "DEFAULT_GROUP"
