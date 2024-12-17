@@ -95,14 +95,14 @@ Configurable options are:
   Get value of one config item following priority:
 
 
-  * Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
+* Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
     * Failover dir can be manually copied from snapshot dir(default: `${cwd}/nacos-data/snapshot`) in advance.
     * This helps to suppress the effect of known server failure.
-    
-  * Step 2 - Get from one server until value is got or all servers tried.
+
+* Step 2 - Get from one server until value is got or all servers tried.
     * Content will be save to snapshot dir after got from server.
 
-  * Step 3 - Get from snapshot dir.
+* Step 3 - Get from snapshot dir.
 
 ### Add Watchers
 
@@ -295,90 +295,57 @@ Supported Nacos version over 2.x
 pip install nacos-sdk-python
 ```
 
-## Getting Started
+## Client Configuration
 
-```python
-import asyncio
-from v2.nacos.common.client_config import GRPCConfig
-from v2.nacos.common.client_config_builder import ClientConfigBuilder
-from v2.nacos.naming.nacos_naming_service import NacosNamingService
-from v2.nacos.config.nacos_config_service import NacosConfigService
-
-# Both HTTP/HTTPS protocols are supported, if not set protocol prefix default is HTTP
-
-CLIENT_CONFIG = (ClientConfigBuilder()
-                 .server_address('xxx')
-                 .username('xxx')
-                 .password('xxx')
-                 .log_level('xxx')
-                 .grpc_config(GRPCConfig())
-                 .cache_dir('xxx')
-                 .log_dir('xxx')
+```
+client_config = (ClientConfigBuilder()
+                 .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                 .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                 .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                 .log_level('INFO')
+                 .grpc_config(GRPCConfig(grpc_timeout=5000))
                  .build())
 ```
 
-## Configuration
+* *server_address* - **required**  - Nacos server address
+* *access_key* - The aliyun accessKey to authenticate.
+* *secret_key* - The aliyun secretKey to authenticate.
+* *username* - The username to authenticate.
+* *password* - The password to authenticate.
+* *log_level* - Log level | default: `logging.INFO`
+* *cache_dir* - cache dir path. | default: `~/nacos/cache`
+* *log_dir* - log dir path. | default: `~/logs/nacos`
+* *namespace_id* - namespace id.  | default: ``
+* *grpc_config* - grpc config.
+  * *max_receive_message_length* - max receive message length in grpc.  | default: 100 * 1024 * 1024
+  * *max_keep_alive_ms* - max keep alive ms in grpc. | default: 60 * 1000
+  * *initial_window_size* - initial window size in grpc.  | default: 10 * 1024 * 1024
+  * *initial_conn_window_size* - initial connection window size in grpc. | default: 10 * 1024 * 1024
+  * *grpc_timeout* - grpc timeout in milliseconds. default: 3000
+* *tls_config* - tls config
+  * *enabled* - whether enable tls.
+  * *ca_file* - ca file path.
+  * *cert_file* - cert file path.
+  * *key_file* - key file path.
+* *kms_config* - aliyun kms config 
+  * *enabled* - whether enable aliyun kms.
+  * *endpoint* - aliyun kms endpoint.
+  * *access_key* - aliyun accessKey.
+  * *secret_key* - aliyun secretKey.
+  * *password* - aliyun kms password.
+
+## Config Client
+
 ```
 
 config_client = await NacosConfigService.create_config_service(client_config)
 
 ```
 
-* *server_address* - **required**  - Nacos server address, comma separated if more than 1.
-* *access_key* - The accessKey to authenticate. | default: `None`
-* *secret_key* - The secretKey to authentication. | default: `None`
-* *username* - The username to authenticate. | default: `None`
-* *password* - The password to authentication. | default: `None`
-* *log_level* - Log level. | default: `None`
-* *grpc_config* - grpc config. | default: `None`
-* *cache_dir* - cache dir path. | default: `None`
-* *log_dir* - log dir path. | default: `None`
-
-
-#### Extra Options
-Extra grpc config can be set by `grpc_config`, as following:
-
-```
-
-CLIENT_CONFIG = (ClientConfigBuilder()
-.grpc_config(GRPCConfig())
-.build())
-
-```
-
-Configurable options are:
-
-* *max_receive_message_length* - max receive message length in grpc. | default: 10 * 1024 * 1024
-* *max_keep_alive_ms* - max keep alive time in grpc. | default: 60 * 1000
-* *initial_window_size* - initial window size in grpc. | default: 10 * 1024 * 1024
-* *initial_conn_window_size* - initial connection window size in grpc. | default: 10 * 1024 * 1024
-* *grpc_timeout* - timeout in grpc(ms). | default: 3000
-
-Extra kms config can be set by `kms_config`, as following:
-
-```
-
-CLIENT_CONFIG = (ClientConfigBuilder()
-.kms_config(KMSConfig(enabled=True))
-.build())
-
-```
-
-Configurable options are:
-
-* *enabled* - enable options for KMS. | default: False
-* *appointed* - indicate whether to use the preset configuration. | default: False
-* *ak* - KMS AccessKey. | default: ''
-* *sk* - KMS SecretKey. | default: ''
-* *region_id* - KMS region. | default: ''
-* *endpoint* - KMS endpoint. | default: ''
-* *client_key_content* - KMS client key content. | default: ''
-* *password* - KMS password. | default: ''
-
-## API Reference
-
 ### config client common parameters
->`param: ConfigParam`
+
+> `param: ConfigParam`
+
 * `param` *data_id* Data id.
 * `param` *group* Group, use `DEFAULT_GROUP` if no group specified.
 * `param` *content* Config content.
@@ -391,11 +358,18 @@ Configurable options are:
 * `param` *encrypted_data_key* Encrypted data key.
 * `param` *kms_key_id* Kms encrypted data key id.
 * `param` *usage_type* Usage type.
- 
-### Get Config
->`NacosConfigService.get_config(param: ConfigParam)`
 
-* `param` *ConfigParam* config client common parameters. When getting configuration, it is necessary to specify the required data_id and group in param.
+### Get Config
+
+```
+content = await config_client.get_config(ConfigParam(
+            data_id=data_id,
+            group=group
+        ))
+```
+
+* `param` *ConfigParam* config client common parameters. When getting configuration, it is necessary to specify the
+  required data_id and group in param.
 * `return` Config content if success or an exception will be raised.
 
 Get value of one config item following priority:
@@ -403,24 +377,34 @@ Get value of one config item following priority:
 * Step 1 - Get from local failover dir.
 
 * Step 2 - Get from one server until value is got or all servers tried.
-  * Content will be saved to snapshot dir after got from server.
+    * Content will be saved to snapshot dir after got from server.
 
 * Step 3 - Get from snapshot dir.
 
 ### Add Listener
->`NacosConfigService.add_listener(param: ConfigParam, listener: Listener)`
+
+```
+async def config_listener(tenant, data_id, group, content):
+    print("listen, tenant:{} data_id:{} group:{} content:{}".format(tenant, data_id, group, content))
+
+await config_client.add_listener(dataID, groupName, config_listener)
+```
 
 * `param` *ConfigParam* config client common parameters.
 * `listener` *listener* Configure listener, defined by the namespace_id、group、data_id、content.
 * `return`
 
 Add Listener to a specified config item.
+
 * Once changes or deletion of the item happened, callback functions will be invoked.
 * If the item is already exists in server, callback functions will be invoked for once.
 * Callback functions are invoked from current process.
 
 ### Remove Listener
->`NacosConfigService.remove_listener(param: ConfigParam)`
+
+```
+await client.remove_listener(dataID, groupName, config_listener)
+```
 
 * `param` *ConfigParam* config client common parameters.
 * `return` True if success or an exception will be raised.
@@ -428,41 +412,161 @@ Add Listener to a specified config item.
 Remove watcher from specified key.
 
 ### Publish Config
->`NacosConfigService.publish_config(param: ConfigParam)`
 
-* `param` *ConfigParam* config client common parameters. When publishing configuration, it is necessary to specify the required data_id, group and content in param.
+```
+res = await client.publish_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            content="Hello world")
+        )
+```
+
+* `param` *ConfigParam* config client common parameters. When publishing configuration, it is necessary to specify the
+  required data_id, group and content in param.
 * `return` True if success or an exception will be raised.
 
 Publish one congfig data item to Nacos.
+
 * If the data key is not exist, create one first.
 * If the data key is exist, update to the content specified.
 * Content can not be set to None, if there is need to delete config item, use function **remove** instead.
 
 ### Remove Config
->`NacosConfigService.remove_config(param: ConfigParam)`
-* `param` *ConfigParam* config client common parameters.When removing configuration, it is necessary to specify the required data_id and group in param.
+
+```
+res = await client.remove_config(ConfigParam(
+            data_id=dataID,
+            group=groupName
+        ))
+```
+* `param` *ConfigParam* config client common parameters.When removing configuration, it is necessary to specify the
+  required data_id and group in param.
 * `return` True if success or an exception will be raised.
 
 Remove one config data item from Nacos.
 
-### Stop All Config Service
->`NacosConfigService.close_client()`
-* `return`
+### Stop Config Client
 
-## Debugging Mode
-Debugging mode if useful for getting more detailed log on console.
-
-Debugging mode can be set by:
+```
+await client.shutdown()
 ```
 
-CLIENT_CONFIG = (ClientConfigBuilder()
-.server_address('xxx')
-.username('xxx')
-.password('xxx')
-.log_level('DEBUG')
-.grpc_config(GRPCConfig())
-.cache_dir('xxx')
-.log_dir('xxx')
-.build())
+## Naming Client
 
+```
+
+naming_client = await NacosNamingService.create_naming_service(client_config)
+
+```
+
+### Register Instance
+
+```angular2html
+response = await client.register_instance(
+            request=RegisterInstanceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', ip='1.1.1.1',
+                port=7001, weight=1.0, cluster_name='c1', metadata={'a': 'b'},
+                enabled=True,
+                healthy=True, ephemeral=True))
+```
+
+### Batch Register Instance
+```angular2html
+param1 = RegisterInstanceParam(service_name='nacos.test.1',
+                                       group_name='DEFAULT_GROUP',
+                                       ip='1.1.1.1',
+                                       port=7001,
+                                       weight=1.0,
+                                       cluster_name='c1',
+                                       metadata={'a': 'b'},
+                                       enabled=True,
+                                       healthy=True,
+                                       ephemeral=True
+                                       )
+param2 = RegisterInstanceParam(service_name='nacos.test.1',
+                               group_name='DEFAULT_GROUP',
+                               ip='1.1.1.1',
+                               port=7002,
+                               weight=1.0,
+                               cluster_name='c1',
+                               metadata={'a': 'b'},
+                               enabled=True,
+                               healthy=True,
+                               ephemeral=True
+                               )
+param3 = RegisterInstanceParam(service_name='nacos.test.1',
+                               group_name='DEFAULT_GROUP',
+                               ip='1.1.1.1',
+                               port=7003,
+                               weight=1.0,
+                               cluster_name='c1',
+                               metadata={'a': 'b'},
+                               enabled=True,
+                               healthy=False,
+                               ephemeral=True
+                               )
+response = await client.batch_register_instances(
+    request=BatchRegisterInstanceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP',
+                                       instances=[param1, param2, param3]))
+```
+
+### Deregister Instance
+
+```angular2html
+response = await client.deregister_instance(
+          request=DeregisterInstanceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', ip='1.1.1.1',
+                                          port=7001, cluster_name='c1', ephemeral=True)
+      )
+```
+
+### Update Instance
+```angular2html
+response = await client.update_instance(
+            request=RegisterInstanceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', ip='1.1.1.1',
+                                          port=7001, weight=2.0, cluster_name='c1', metadata={'a': 'b'},
+                                          enabled=True,
+                                          healthy=True, ephemeral=True))
+```
+
+### Get Service
+```angular2html
+service = await client.get_service(
+            GetServiceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', cluster_name='c1'))
+```
+
+### List Service
+```angular2html
+
+service_list = await client.list_services(ListServiceParam())
+
+```
+
+### List Instance
+
+```angular2html
+
+instance_list = await client.list_instances(ListInstanceParam(service_name='nacos.test.1', healthy_only=True))
+instance_list = await client.list_instances(ListInstanceParam(service_name='nacos.test.1', healthy_only=False))
+instance_list = await client.list_instances(ListInstanceParam(service_name='nacos.test.1', healthy_only=None))
+
+```
+
+### Subscribe
+
+```angular2html
+async def cb(instance_list: list[Instance]):
+  print('received subscribe callback', str(instance_list))
+
+await client.subscribe(
+  SubscribeServiceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', subscribe_callback=cb))
+```
+
+
+### Unsubscribe
+
+```angular2html
+async def cb(instance_list: list[Instance]):
+  print('received subscribe callback', str(instance_list))
+
+await client.unsubscribe(
+            SubscribeServiceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', subscribe_callback=cb))
 ```

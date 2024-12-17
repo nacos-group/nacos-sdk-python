@@ -8,8 +8,8 @@ from v2.nacos.transport.model.rpc_request import Request
 
 class AbstractNamingRequest(Request, ABC):
     namespace: Optional[str] = ''
-    serviceName: Optional[str]
-    groupName: Optional[str]
+    serviceName: Optional[str] = ''
+    groupName: Optional[str] = ''
 
     def get_module(self):
         return "naming"

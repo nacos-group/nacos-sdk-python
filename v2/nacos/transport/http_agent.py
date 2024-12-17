@@ -14,6 +14,7 @@ class HttpAgent:
         self.tls_config = tls_config
         self.default_timeout = default_timeout
 
+        self.ssl_context = None
         if tls_config and tls_config.enabled:
             ctx = ssl.create_default_context(
                 cafile=tls_config.ca_file) if tls_config.ca_file else ssl.create_default_context()
