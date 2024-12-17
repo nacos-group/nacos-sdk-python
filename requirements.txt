@@ -1,5 +1,6 @@
 pydantic~=2.7.4
 requests~=2.32.0
-setuptools~=70.0.0
+setuptools~=49.2.1
 psutil~=5.9.6
-aiohttp~=3.10.2
+aiohttp~=3.10.11
+aiofiles~=24.1.0

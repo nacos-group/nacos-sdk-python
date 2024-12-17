@@ -126,7 +126,7 @@ class Constants:
 
     CLIENT_APPNAME_HEADER = "Client-AppName"
 
-    APPNAME_HEADER = "AppName"
+    APP_NAME_HEADER = "AppName"
 
     CLIENT_REQUEST_TS_HEADER = "Client-RequestTS"
 
@@ -218,13 +218,9 @@ class Constants:
 
     DEFAULT_TIMEOUT_MILLS = 10000
 
-    ALL_SYNC_INTERNAL = 5 * 60
-
     PER_TASK_CONFIG_SIZE = 3000
 
-    EXECUTOR_ERR_DELAY = 5
-
-    DEFAULT_KEY_ID = "alias/acs/mse"
+    MSE_KMS_V1_DEFAULT_KEY_ID = "alias/acs/mse"
 
     KMS_AES_128_ALGORITHM_NAME = "AES_128"
 

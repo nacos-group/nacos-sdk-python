@@ -82,9 +82,13 @@ class NamingGRPCClientProxy:
                 raise NacosException(response.get_error_code(), response.get_message())
             if issubclass(response.__class__, response_class):  # todo check and fix if anything wrong
                 return response
+            raise NacosException(SERVER_ERROR, " Server return invalid response")
         except NacosException as e:
-            raise NacosException(SERVER_ERROR, " Request nacos server failed: " + str(e))
-        raise NacosException(SERVER_ERROR, " Server return invalid response")
+            self.logger.error("failed to invoke nacos naming server : " + str(e))
+            raise e
+        except Exception as e:
+            self.logger.error("failed to invoke nacos naming server : " + str(e))
+            raise NacosException(SERVER_ERROR, "Request nacos naming server failed: " + str(e))
 
     async def register_instance(self, service_name: str, group_name: str, instance: Instance):
         self.logger.info("register instance service_name:%s, group_name:%s, namespace:%s, instance:%s" % (
@@ -178,7 +182,7 @@ class NamingGRPCClientProxy:
         return
 
     async def close_client(self):
-        self.logger.info("close Nacos python grpc client...")
+        self.logger.info("close Nacos python naming grpc client...")
         await self.rpc_client.shutdown()
 
     def server_health(self):

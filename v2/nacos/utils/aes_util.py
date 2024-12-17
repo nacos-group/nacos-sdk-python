@@ -1,23 +1,36 @@
+import base64
+
 from Crypto.Cipher import AES
-from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
+
+from v2.nacos.utils.encode_util import str_to_bytes, bytes_to_str, decode_base64
 
 
-def encrypt_to_bytes(data_key_bytes: bytes, content_bytes: bytes):
-    cipher = AES.new(data_key_bytes, AES.MODE_ECB)
-    encrypted_bytes = cipher.encrypt(
-        pad(content_bytes, AES.block_size))
-    return encrypted_bytes
+def pad(byte_array: bytes) -> bytes:
+    """
+    pkcs5 padding
+    """
+    block_size = AES.block_size
+    pad_len = block_size - len(byte_array) % block_size
+    return byte_array + (bytes([pad_len]) * pad_len)
 
 
-def decrypt_to_bytes(data_key_bytes: bytes, content_bytes: bytes):
-    # print(type(base64.b64decode(content)))
-    cipher = AES.new(data_key_bytes,
-                     AES.MODE_ECB)
-    decrypted_bytes = unpad(cipher.decrypt(content_bytes),
-                            AES.block_size)
-    return decrypted_bytes
+# pkcs5 - unpadding
+def unpad(byte_array: bytes) -> bytes:
+    return byte_array[:-ord(byte_array[-1:])]
 
 
-def get_random_bytes_from_crypto(length: int):
-    return get_random_bytes(length)
+def encrypt(message: str, key: str) -> str:
+    byte_array = str_to_bytes(message)
+    key_bytes = decode_base64(str_to_bytes(key))
+    aes = AES.new(key_bytes, AES.MODE_ECB)
+    padded = pad(byte_array)
+    encrypted = aes.encrypt(padded)
+    return base64.b64encode(encrypted).decode('utf-8')
+
+
+def decrypt(encr_data: str, key: str) -> str:
+    byte_array = decode_base64(str_to_bytes(encr_data))
+    key_bytes = decode_base64(str_to_bytes(key))
+    aes = AES.new(key_bytes, AES.MODE_ECB)
+    decrypted = aes.decrypt(byte_array)
+    return bytes_to_str(unpad(decrypted))

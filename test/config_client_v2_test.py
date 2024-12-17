@@ -1,158 +1,223 @@
 import asyncio
+import os
 import unittest
 
-from v2.nacos.common.client_config import GRPCConfig
+from v2.nacos.common.client_config import GRPCConfig, KMSConfig
 from v2.nacos.common.client_config_builder import ClientConfigBuilder
-from v2.nacos.config.model.config_param import ConfigParam, Listener
+from v2.nacos.config.model.config_param import ConfigParam
 from v2.nacos.config.nacos_config_service import NacosConfigService
 
 client_config = (ClientConfigBuilder()
-                 .username('xxx')
-                 .password('xxx')
-                 .server_address('xxx')
-                 .grpc_config(GRPCConfig())
-                 .cache_dir('xxx')
-                 .log_dir('xxx')
+                 .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                 .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                 .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                 .log_level('INFO')
+                 .grpc_config(GRPCConfig(grpc_timeout=5000))
                  .build())
-
-def generate_random_string(length=4):
-    import random
-    import string
-    letters = string.ascii_letters + string.digits
-    return ''.join(random.choices(letters, k=length))
-
-
-class TestListener(Listener):
-    def listen(self, namespace: str, group: str, data_id: str, content: str):
-        print(namespace, group, data_id, content, "listener")
 
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
     async def test_publish_config(self):
         client = await NacosConfigService.create_config_service(client_config)
-        try:
-            await asyncio.sleep(5)
-            response = await client.publish_config(
-                param=ConfigParam(data_id="testttt", group="group", content="content", src_user='nacos'))
-            self.assertEqual(response, True)
-            if response:
-                print("success to publish")
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        assert await client.server_health()
 
-    async def test_get_config(self):
+        data_id = "com.alibaba.nacos.test.config"
+        group = "DEFAULT_GROUP"
+
+        content = await client.get_config(ConfigParam(
+            data_id=data_id,
+            group=group,
+        ))
+
+        assert content == ""
+
+        res = await client.publish_config(ConfigParam(
+            data_id=data_id,
+            group=group,
+            content="Hello world")
+        )
+        assert res
+        print("success to publish")
+
+        await asyncio.sleep(0.1)
+        content = await client.get_config(ConfigParam(
+            data_id=data_id,
+            group=group,
+        ))
+
+        assert content == "Hello world"
+        print("success to get config")
+
+        res = await client.remove_config(ConfigParam(
+            data_id=data_id,
+            group=group
+        ))
+
+        assert res
+        print("success to remove")
+
+        await asyncio.sleep(0.1)
+        content = await client.get_config(ConfigParam(
+            data_id=data_id,
+            group=group,
+        ))
+
+        assert content == ""
+
+    async def test_config_listener(self):
         client = await NacosConfigService.create_config_service(client_config)
-        try:
-            await asyncio.sleep(5)
-            response = await client.get_config(
-                param=ConfigParam(data_id="testttt", group="group"))
-            print(response)
-            # self.assertEqual(response, True)
-            if response:
-                print("success to get config")
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        assert await client.server_health()
 
-    async def test_remove_config(self):
-        client = await NacosConfigService.create_config_service(client_config)
-        try:
-            await asyncio.sleep(5)
-            response = await client.remove_config(
-                param=ConfigParam(data_id="testttt", group="group"))
-            if response:
-                print("success to remove config")
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        dataID = "com.alibaba.nacos.test.config"
+        groupName = "DEFAULT_GROUP"
 
-    async def test_add_listener(self):
-        client = await NacosConfigService.create_config_service(client_config)
-        try:
-            a = generate_random_string()
-            b = generate_random_string()
+        async def config_listener1(tenant, data_id, group, content):
+            print("listen1, tenant:{} data_id:{} group:{} content:{}".format(tenant, data_id, group, content))
 
-            await asyncio.sleep(5)
-            response = await client.publish_config(
-                param=ConfigParam(data_id="testttt", group="group", content="1{}".format(a), src_user='nacos'))
-            if response:
-                print("publish1")
+        async def config_listener2(tenant, data_id, group, content):
+            print("listen2, tenant:{} data_id:{} group:{} content:{}".format(tenant, data_id, group, content))
 
-            await asyncio.sleep(5)
+        await client.add_listener(dataID, groupName, config_listener1)
+        await client.add_listener(dataID, groupName, config_listener2)
 
-            listener = TestListener()
-            response = await client.add_listener(
-                param=ConfigParam(data_id="testttt", group="group"), listener=listener)
+        await asyncio.sleep(3)
 
-            print("add listen")
-            await asyncio.sleep(5)
+        res = await client.publish_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            content="Hello world")
+        )
+        assert res
+        print("success to publish")
 
-            response = await client.publish_config(
-                param=ConfigParam(data_id="testttt", group="group", content="3{}".format(b), src_user='nacos'))
-            if response:
-                print("publish2")
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        await asyncio.sleep(3)
+
+        res = await client.publish_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            content="Hello world2")
+        )
+        assert res
+
+        await asyncio.sleep(3)
+
+        await client.remove_listener(dataID, groupName, config_listener1)
+
+        await asyncio.sleep(3)
+
+        res = await client.publish_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            content="Hello world3")
+        )
+        assert res
+
+        await asyncio.sleep(3)
+
+        res = await client.remove_config(ConfigParam(
+            data_id=dataID,
+            group=groupName
+        ))
+
+        assert res
+        print("success to remove")
+        await asyncio.sleep(3)
 
     async def test_cipher_config(self):
+        kms_config = KMSConfig(
+            enabled=True,
+            endpoint=os.getenv('KMS_ENDPOINT'),
+            access_key=os.getenv('NACOS_ACCESS_KEY'),
+            secret_key=os.getenv('NACOS_SECRET_KEY'),
+        )
+
+        client_config.set_kms_config(kms_config)
+
         client = await NacosConfigService.create_config_service(client_config)
-        try:
 
-            # await asyncio.sleep(5)
-            response = await client.publish_config(
-                param=ConfigParam(data_id="cipher-aes-testttt", group="group", content="你好nacos", src_user='nacos'))
-            if response:
-                print("publish1")
+        dataID = "cipher-kms-aes-128-crypt"
+        groupName = "DEFAULT_GROUP"
 
-            await asyncio.sleep(5)
+        res = await client.publish_config(
+            param=ConfigParam(
+                data_id=dataID,
+                group=groupName,
+                content="加密内容-128",
+                kms_key_id=os.getenv("KMS_KEY_ID")))
 
-            response = await client.get_config(
-                param=ConfigParam(data_id="cipher-aes-testttt", group="group"))
-            print(response)
+        assert res
+        print("success to publish")
+        await asyncio.sleep(0.1)
 
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        content = await client.get_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            kms_key_id=os.getenv("KMS_KEY_ID")
+        ))
+        print("success to get config:" + content)
+        assert content == '加密内容-128'
 
-    async def test_cipher_listener(self):
+        dataID = "cipher-kms-aes-256-crypt"
+        groupName = "DEFAULT_GROUP"
+
+        res = await client.publish_config(
+            param=ConfigParam(
+                data_id=dataID,
+                group=groupName,
+                content="加密内容-256",
+                kms_key_id=os.getenv("KMS_KEY_ID")))
+
+        assert res
+        print("success to publish")
+        await asyncio.sleep(0.1)
+
+        content = await client.get_config(ConfigParam(
+            data_id=dataID,
+            group=groupName,
+            kms_key_id=os.getenv("KMS_KEY_ID")
+        ))
+        print("success to get config:" + content)
+        assert content == '加密内容-256'
+
+    async def test_cipher_config_listener(self):
+        kms_config = KMSConfig(
+            enabled=True,
+            endpoint=os.getenv("KMS_ENDPOINT"),
+            access_key=os.getenv('NACOS_ACCESS_KEY'),
+            secret_key=os.getenv('NACOS_SECRET_KEY'),
+        )
+
+        client_config.set_kms_config(kms_config)
+
         client = await NacosConfigService.create_config_service(client_config)
-        try:
-            a = generate_random_string()
-            b = generate_random_string()
 
-            await asyncio.sleep(5)
-            response = await client.publish_config(
-                param=ConfigParam(data_id="cipher-aes-testttt", group="group", content="1{}".format(a)))
-            print("publish1")
+        dataID = "cipher-kms-aes-128-crypt"
+        groupName = "DEFAULT_GROUP"
 
-            await asyncio.sleep(5)
+        async def config_listener(tenant, data_id, group, content):
+            print("listen1, tenant:{} data_id:{} group:{} content:{}".format(tenant, data_id, group, content))
 
-            listener = TestListener()
-            response = await client.add_listener(
-                param=ConfigParam(data_id="cipher-aes-testttt", group="group"), listener=listener)
+        await client.add_listener(dataID, groupName, config_listener)
 
-            print("add listen")
-            await asyncio.sleep(5)
+        await asyncio.sleep(3)
+        res = await client.publish_config(
+            param=ConfigParam(
+                data_id=dataID,
+                group=groupName,
+                content="加密内容-1",
+                kms_key_id=os.getenv("KMS_KEY_ID")))
 
-            response = await client.publish_config(
-                param=ConfigParam(data_id="cipher-aes-testttt", group="group", content="3{}".format(b)))
-            print("publish2")
+        assert res
+        print("success to publish")
 
-            # self.assertEqual(response, True)
-            if response:
-                print("success to test listen")
+        await asyncio.sleep(3)
 
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        res = await client.publish_config(
+            param=ConfigParam(
+                data_id=dataID,
+                group=groupName,
+                content="加密内容-2",
+                kms_key_id=os.getenv("KMS_KEY_ID")))
+        assert res
 
-    async def test_remove_listener(self):
-        client = await NacosConfigService.create_config_service(client_config)
-        try:
-            await client.remove_listener(
-                param=ConfigParam(data_id="testttt", group="group"))
-            await asyncio.sleep(1000)
-        except Exception as e:
-            print(str(e))
+        await asyncio.sleep(3)

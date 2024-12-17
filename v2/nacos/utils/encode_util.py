@@ -1,21 +1,25 @@
 import base64
 
 
-def decode_string_to_utf8_bytes(data):
-    if not data:
-        return bytearray()
-    # Python strings are Unicode, so we directly encode to get the UTF-8 bytes
-    return data.encode('utf-8')
+def str_to_bytes(text: str, encoding: str = 'utf-8') -> bytes:
+    """
+    将字符串转换为字节。
+
+    :param text: 要转换的字符串
+    :param encoding: 字符串的编码方式，默认为 'utf-8'
+    :return: 转换后的字节
+    """
+    return text.encode(encoding)
 
 
-def encode_utf8_bytes_to_string(bytes_):
+def bytes_to_str(bytes_, encoding: str = 'utf-8'):
     if not bytes_:
         return ""
     # Directly decode the UTF-8 bytes back to a string
-    return bytes_.decode('utf-8')
+    return bytes_.decode(encoding)
 
 
-def decode_base64(bytes_):
+def decode_base64(bytes_: bytes):
     return base64.b64decode(bytes_)
 
 

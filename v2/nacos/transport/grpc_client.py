@@ -26,6 +26,7 @@ class GrpcClient(RpcClient):
         self.logger = logger
         self.tls_config = client_config.tls_config
         self.grpc_config = client_config.grpc_config
+        self.tenant = client_config.namespace_id
 
     async def _create_new_managed_channel(self, server_ip, grpc_port):
         options = [

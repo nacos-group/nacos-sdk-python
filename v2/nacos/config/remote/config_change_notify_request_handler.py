@@ -1,31 +1,29 @@
-from v2.nacos.common.constants import Constants
+from typing import Optional
+
+from v2.nacos.config.cache.config_subscribe_manager import ConfigSubscribeManager
 from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.transport.model.internal_response import NotifySubscriberResponse
 from v2.nacos.transport.model.rpc_request import Request
+from v2.nacos.transport.model.rpc_response import Response
 from v2.nacos.transport.server_request_handler import IServerRequestHandler
-from v2.nacos.utils import common_util
 
 
 class ConfigChangeNotifyRequestHandler(IServerRequestHandler):
-    def __init__(self, client):
-        self.client = client
 
     def name(self):
         return "ConfigChangeNotifyRequestHandler"
 
-    async def request_reply(self, request: Request):
+    def __init__(self, logger, config_subscribe_manager: ConfigSubscribeManager, client_name: str):
+        self.logger = logger
+        self.config_subscribe_manager = config_subscribe_manager
+        self.client_name = client_name
+
+    async def request_reply(self, request: Request) -> Optional[Response]:
         if not isinstance(request, ConfigChangeNotifyRequest):
             return None
 
-        cache_key = common_util.get_config_cache_key(request.dataId, request.group, request.tenant)
-        data = self.client.cache_map.get(cache_key)
-
-        if data is None:
-            return None
-
-        c_data = data
-        c_data.is_sync_with_server = False
-        self.client.cache_map[cache_key] = c_data
-        self.client.async_notify_listen_config()
-
+        self.logger.info(
+            f"received config change push,clientName:{self.client_name},dataId:{request.dataId},group:{request.group},tenant:{request.tenant}")
+        await self.config_subscribe_manager.notify_config_changed(request.dataId, request.group,
+                                                                  self.config_subscribe_manager.namespace_id)
         return NotifySubscriberResponse()

@@ -36,3 +36,7 @@ class RpcClientFactory:
                 self.client_map[client_name] = client
                 return client
             return self.client_map[client_name]
+
+    async def shutdown_all_clients(self):
+        for client in self.client_map.values():
+            await client.shutdown()

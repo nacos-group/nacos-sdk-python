@@ -3,6 +3,7 @@ import json
 from google.protobuf.any_pb2 import Any
 
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
+from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
     ConfigChangeBatchListenResponse, ConfigRemoveResponse
 from v2.nacos.naming.model.naming_request import NotifySubscriberRequest
@@ -33,6 +34,7 @@ class GrpcUtils:
         "SubscribeServiceResponse": SubscribeServiceResponse,
         "ConfigPublishResponse": ConfigPublishResponse,
         "ConfigQueryResponse": ConfigQueryResponse,
+        "ConfigChangeNotifyRequest": ConfigChangeNotifyRequest,
         "ConfigChangeBatchListenResponse": ConfigChangeBatchListenResponse,
         "ConfigRemoveResponse": ConfigRemoveResponse
     }

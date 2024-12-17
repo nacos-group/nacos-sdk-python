@@ -1,10 +1,18 @@
 from typing import Optional
 
+from pydantic import BaseModel
+
 from v2.nacos.transport.model.rpc_response import Response
 
 
+class ConfigContext(BaseModel):
+    group: str = ''
+    dataId: str = ''
+    tenant: str = ''
+
+
 class ConfigChangeBatchListenResponse(Response):
-    changedConfigs: list = []
+    changedConfigs: list[ConfigContext] = []
 
     def get_response_type(self) -> str:
         return "ConfigChangeBatchListenResponse"

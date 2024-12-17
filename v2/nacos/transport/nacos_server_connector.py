@@ -1,17 +1,12 @@
 import asyncio
-import time
 from random import randrange
 from typing import List, Optional
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
-from v2.nacos.config.model.config_request import AbstractConfigRequest
 from v2.nacos.transport.auth_client import AuthClient
 from v2.nacos.transport.http_agent import HttpAgent
-from v2.nacos.utils.common_util import get_current_time_millis
-from v2.nacos.utils.hmac_util import sign_with_hmac_sha1_encrypt
-from v2.nacos.utils.md5_util import md5
 
 
 class NacosServerConnector:
@@ -94,31 +89,3 @@ class NacosServerConnector:
         if self.client_config.username and self.client_config.password:
             access_token = await self.auth_client.get_access_token(False)
             headers[Constants.ACCESS_TOKEN] = access_token
-
-    def inject_config_headers_sign(self, request: AbstractConfigRequest):
-        now = str(int(time.time() * 1000))
-        request.headers[Constants.CLIENT_APPNAME_HEADER] = self.client_config.app_name
-        request.headers[Constants.CLIENT_REQUEST_TS_HEADER] = now
-        request.headers[Constants.CLIENT_REQUEST_TOKEN_HEADER] = md5(now + self.client_config.app_key)
-        request.headers[Constants.EX_CONFIG_INFO] = "true"
-        request.headers[Constants.CHARSET_KEY] = "utf-8"
-        if self.client_config.access_key:
-            request.headers['Spas-AccessKey'] = self.client_config.access_key
-
-        if request.tenant:
-            resource = request.tenant + "+" + request.group
-        else:
-            resource = request.group
-
-        sign_headers = {}
-
-        time_stamp = str(get_current_time_millis())
-        sign_headers["Timestamp"] = time_stamp
-
-        if not resource:
-            signature = sign_with_hmac_sha1_encrypt(time_stamp, self.client_config.secret_key)
-        else:
-            signature = sign_with_hmac_sha1_encrypt(resource + "+" + time_stamp, self.client_config.secret_key)
-
-        sign_headers["Spas-Signature"] = signature
-        request.put_all_headers(sign_headers)

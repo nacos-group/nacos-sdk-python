@@ -2,6 +2,8 @@ import os
 from logging import Logger
 from typing import Optional
 
+import aiofiles
+
 os_type = os.name
 
 
@@ -18,7 +20,7 @@ def is_file_exist(file_path: str):
     return os.path.exists(file_path)
 
 
-def read_file(logger: Logger, file_path: str) -> str:
+async def read_file(logger: Logger, file_path: str) -> str:
     """
     读取指定文件的内容。
 
@@ -27,11 +29,11 @@ def read_file(logger: Logger, file_path: str) -> str:
     :return: 文件内容（字符串）
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            file_content = file.read()
+        async with aiofiles.open(file_path, 'r', encoding='utf-8') as file:
+            file_content = await file.read()
         return file_content
     except FileNotFoundError:
-        logger.error(f"File not found: {file_path}")
+        logger.warning(f"File not found: {file_path}")
         return ""
     except PermissionError:
         logger.error(f"Permission denied to read file: {file_path}")
@@ -41,7 +43,7 @@ def read_file(logger: Logger, file_path: str) -> str:
         return ""
 
 
-def read_all_files_in_dir(logger: Logger, dir_path: str) -> Optional[dict]:
+async def read_all_files_in_dir(logger: Logger, dir_path: str) -> Optional[dict]:
     """
     读取指定文件夹下所有文件的内容。
 
@@ -62,7 +64,7 @@ def read_all_files_in_dir(logger: Logger, dir_path: str) -> Optional[dict]:
         for file_name in os.listdir(dir_path):
             file_path = os.path.join(dir_path, file_name)
             if os.path.isfile(file_path):
-                content = read_file(logger, file_path)
+                content = await read_file(logger, file_path)
                 file_contents[file_name] = content
                 continue
         return file_contents
@@ -71,7 +73,7 @@ def read_all_files_in_dir(logger: Logger, dir_path: str) -> Optional[dict]:
         return None
 
 
-def write_to_file(logger: Logger, file_path: str, content: str) -> None:
+async def write_to_file(logger: Logger, file_path: str, content: str) -> None:
     """
     将内容写入指定文件。
 
@@ -82,10 +84,11 @@ def write_to_file(logger: Logger, file_path: str, content: str) -> None:
     mkdir_if_necessary(os.path.dirname(file_path))
 
     try:
-        with open(file_path, 'w', encoding='utf-8') as file:
-            file.write(content)
+        async with aiofiles.open(file_path, 'w', encoding='utf-8') as file:
+            await file.write(content)
     except PermissionError:
         logger.error(f"Permission denied to write file: {file_path},content: {content}")
+        raise PermissionError
     except Exception as e:
         logger.error(f"Error writing to file: {file_path}, content: {content}, error: {e}")
-    return
+        raise e
