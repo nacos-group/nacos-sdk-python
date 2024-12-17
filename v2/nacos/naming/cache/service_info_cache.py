@@ -24,10 +24,10 @@ class ServiceInfoCache:
         self.sub_callback_manager = SubscribeManager()
         self.update_cache_when_empty = client_config.update_cache_when_empty
         if client_config.load_cache_at_start:
-            self.load_cache_from_disk()
+            asyncio.create_task(self.load_cache_from_disk())
 
-    def load_cache_from_disk(self):
-        cache_file_content_dict = read_all_files_in_dir(self.logger, self.cache_dir)
+    async def load_cache_from_disk(self):
+        cache_file_content_dict = await read_all_files_in_dir(self.logger, self.cache_dir)
         if cache_file_content_dict is None:
             return
 
@@ -94,7 +94,7 @@ class ServiceInfoCache:
 
             if not old_service or self.check_instance_changed(old_service, service):
                 self.logger.info(f"service key: {cache_key} was updated to: {str(service)}")
-                write_to_file(self.logger, os.path.join(self.cache_dir, cache_key), to_json_string(service))
+                await write_to_file(self.logger, os.path.join(self.cache_dir, cache_key), to_json_string(service))
                 await self.sub_callback_manager.service_changed(cache_key, service)
             self.logger.info(f"current service map size: {len(self.service_info_map)}")
 

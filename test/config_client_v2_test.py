@@ -64,6 +64,8 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
         assert content == ""
 
+        await client.shutdown()
+
     async def test_config_listener(self):
         client = await NacosConfigService.create_config_service(client_config)
         assert await client.server_health()
@@ -122,6 +124,7 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         assert res
         print("success to remove")
         await asyncio.sleep(3)
+        await client.shutdown()
 
     async def test_cipher_config(self):
         kms_config = KMSConfig(
@@ -178,6 +181,8 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         ))
         print("success to get config:" + content)
         assert content == '加密内容-256'
+        await asyncio.sleep(5)
+        await client.shutdown()
 
     async def test_cipher_config_listener(self):
         kms_config = KMSConfig(
@@ -227,6 +232,8 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         assert res
 
         await asyncio.sleep(3)
+
+        await client.shutdown()
 
     async def test_gray_config(self):
         client_cfg = (ClientConfigBuilder()

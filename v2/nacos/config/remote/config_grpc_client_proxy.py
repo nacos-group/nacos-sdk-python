@@ -44,7 +44,8 @@ class ConfigGRPCClientProxy:
         self.app_name = self.client_config.app_name if self.client_config.app_name else "unknown"
         self.rpc_client_manager = RpcClientFactory(self.logger)
         self.execute_config_listen_channel = asyncio.Queue()
-        asyncio.create_task(self._execute_config_listen_task())
+        self.stop_event = asyncio.Event()
+        self.listen_task = asyncio.create_task(self._execute_config_listen_task())
         self.last_all_sync_time = get_current_time_millis()
         self.config_subscribe_manager = ConfigSubscribeManager(self.logger, config_info_cache,
                                                                self.namespace_id,
@@ -185,7 +186,7 @@ class ConfigGRPCClientProxy:
         await self.config_subscribe_manager.remove_listener(data_id, group, self.namespace_id, listener)
 
     async def _execute_config_listen_task(self):
-        while True:
+        while not self.stop_event.is_set():
             try:
                 await asyncio.wait_for(self.execute_config_listen_channel.get(), timeout=5)
             except asyncio.TimeoutError:
@@ -210,9 +211,10 @@ class ConfigGRPCClientProxy:
                                                                     tenant=cache_data.tenant)
                         request.configListenContexts.append(config_listen_context)
                     try:
+                        rpc_client = await self.fetch_rpc_client(task_id)
                         response: ConfigChangeBatchListenResponse = await self.request_config_server(
-                            await self.fetch_rpc_client(task_id), request,
-                            ConfigChangeBatchListenResponse)
+                            rpc_client, request, ConfigChangeBatchListenResponse)
+
                         if len(response.changedConfigs) > 0:
                             has_changed_keys = True
 
@@ -244,4 +246,6 @@ class ConfigGRPCClientProxy:
 
     async def close_client(self):
         self.logger.info("close Nacos python config grpc client...")
+        self.stop_event.set()
+        await self.listen_task
         await self.rpc_client_manager.shutdown_all_clients()
