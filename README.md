@@ -2,7 +2,7 @@
 
 A Python implementation of Nacos OpenAPI.
 
-see: https://nacos.io/zh-cn/docs/open-API.html
+see: https://nacos.io/docs/latest/guide/user/open-api/
 
 [![Pypi Version](https://badge.fury.io/py/nacos-sdk-python.svg)](https://badge.fury.io/py/nacos-sdk-python)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](https://github.com/nacos-group/nacos-sdk-python/blob/master/LICENSE)
@@ -15,7 +15,9 @@ Python 3.7
 
 ### Supported Nacos version
 
-Nacos 0.8.0 ~ 1.3.2
+Nacos 0.8.0+
+Nacos 1.x
+Nacos 2.x with http protocol
 
 ## Installation
 
@@ -92,14 +94,15 @@ Configurable options are:
   W
   Get value of one config item following priority:
 
-* Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
+
+  * Step 1 - Get from local failover dir(default: `${cwd}/nacos-data/data`).
     * Failover dir can be manually copied from snapshot dir(default: `${cwd}/nacos-data/snapshot`) in advance.
     * This helps to suppress the effect of known server failure.
-
-* Step 2 - Get from one server until value is got or all servers tried.
+    
+  * Step 2 - Get from one server until value is got or all servers tried.
     * Content will be save to snapshot dir after got from server.
 
-* Step 3 - Get from snapshot dir.
+  * Step 3 - Get from snapshot dir.
 
 ### Add Watchers
 

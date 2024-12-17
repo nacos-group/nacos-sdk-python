@@ -46,7 +46,7 @@ from .timer import NacosTimer, NacosTimerManager
 
 logger = logging.getLogger(__name__)
 
-VERSION = "0.1.15"
+VERSION = "0.1.16"
 
 DEFAULT_GROUP_NAME = "DEFAULT_GROUP"
 DEFAULT_NAMESPACE = ""
@@ -259,7 +259,7 @@ class NacosClient:
         if not logDir.endswith(os.path.sep):
             logDir += os.path.sep
         if not os.path.exists(logDir):
-            os.makedirs(logDir)
+            os.makedirs(logDir, exist_ok=True)
 
         if log_rotation_backup_count is None:
             log_rotation_backup_count = 7
@@ -342,7 +342,8 @@ class NacosClient:
         self.logDir = logDir
 
         self.heartbeats: Dict[str, HeartbeatTask] = {}
-        self.get_access_token()
+        if self.username and self.password:
+            self.get_access_token()
         logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
 
     def set_options(self, **kwargs):
@@ -1151,6 +1152,9 @@ class NacosClient:
                        group_name=DEFAULT_GROUP_NAME):
         logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
                                                                                         self.namespace))
+        if "@@" not in service_name and group_name:
+            service_name = group_name + "@@" + service_name
+
         beat_data = {
             "serviceName": service_name,
             "ip": ip,
