@@ -44,7 +44,7 @@ class GRPCConfig:
 class ClientConfig:
     def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
-                 log_rotation_backup_count=None):
+                 log_rotation_backup_count=None, app_conn_labels=None):
         self.server_list = []
         try:
             if server_addresses is not None and server_addresses.strip() != "":
@@ -75,6 +75,7 @@ class ClientConfig:
         self.grpc_config = GRPCConfig()
         self.load_cache_at_start = True
         self.update_cache_when_empty = False
+        self.app_conn_labels = app_conn_labels
 
     def set_log_level(self, log_level):
         self.log_level = log_level
@@ -118,4 +119,8 @@ class ClientConfig:
 
     def set_endpoint_context_path(self, endpoint_context_path):
         self.endpoint_context_path = endpoint_context_path
+        return self
+
+    def set_app_conn_labels(self, app_conn_labels: dict):
+        self.app_conn_labels = app_conn_labels
         return self

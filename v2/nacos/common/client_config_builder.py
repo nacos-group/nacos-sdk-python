@@ -76,5 +76,11 @@ class ClientConfigBuilder:
         self._config.load_cache_at_start = load_cache_at_start
         return self
 
+    def app_conn_labels(self, app_conn_labels: dict) -> "ClientConfigBuilder":
+        if self._config.app_conn_labels is None:
+            self._config.app_conn_labels = {}
+        self._config.app_conn_labels.update(app_conn_labels)
+        return self
+
     def build(self):
         return self._config

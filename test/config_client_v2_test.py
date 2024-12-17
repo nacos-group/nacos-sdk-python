@@ -221,3 +221,17 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         assert res
 
         await asyncio.sleep(3)
+
+    async def test_gray_config(self):
+        client_config.set_app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
+        client = await NacosConfigService.create_config_service(client_config)
+
+        dataID = "com.alibaba.nacos.test.config.gray"
+        groupName = "DEFAULT_GROUP"
+
+        async def config_listener(tenant, data_id, group, content):
+            print("listen1, tenant:{} data_id:{} group:{} content:{}".format(tenant, data_id, group, content))
+
+        await client.add_listener(dataID, groupName, config_listener)
+
+        await asyncio.sleep(1000)
