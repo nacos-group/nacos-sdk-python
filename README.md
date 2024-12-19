@@ -292,12 +292,16 @@ Supported Nacos version over 2.x
 ## Installation
 
 ```shell
-pip install nacos-sdk-python
+ pip install nacos-sdk-python==2.0.0b4 
 ```
 
 ## Client Configuration
 
 ```
+from v2.nacos import NacosNamingService, ClientConfigBuilder, GRPCConfig, Instance, SubscribeServiceParam, \
+    RegisterInstanceParam, DeregisterInstanceParam, BatchRegisterInstanceParam, GetServiceParam, ListServiceParam, \
+    ListInstanceParam, NacosConfigService, ConfigParam
+    
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
                  .secret_key(os.getenv('NACOS_SECRET_KEY'))

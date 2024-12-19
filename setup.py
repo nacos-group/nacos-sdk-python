@@ -5,13 +5,16 @@ from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
 
-import nacos
-
 #  just run `python setup.py upload`
 here = os.path.abspath(os.path.dirname(__file__))
 
 with io.open(os.path.join(here, 'README.md'), encoding='UTF-8') as f:
     long_description = '\n' + f.read()
+
+
+def read_requirements():
+    with open(os.path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+        return f.read().splitlines()
 
 
 class UploadCommand(Command):
@@ -50,7 +53,7 @@ class UploadCommand(Command):
 
 setup(
     name="nacos-sdk-python",
-    version=nacos.__version__,
+    version="2.0.0.beta4",
     packages=find_packages(
         exclude=["test", "*.tests", "*.tests.*", "tests.*", "tests"]),
     url="https://github.com/nacos-group/nacos-sdk-python",
@@ -69,7 +72,7 @@ setup(
     description="Python client for Nacos.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    install_requires=[],
+    install_requires=read_requirements(),
     # $ setup.py publish support.
     cmdclass={
         'upload': UploadCommand,
