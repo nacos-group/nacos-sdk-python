@@ -1150,8 +1150,8 @@ class NacosClient:
 
     def send_heartbeat(self, service_name, ip, port, cluster_name=None, weight=1.0, metadata=None, ephemeral=True,
                        group_name=DEFAULT_GROUP_NAME):
-        logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
-                                                                                        self.namespace))
+        logger.debug("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s" % (ip, port, service_name,
+                                                                                         self.namespace))
         if "@@" not in service_name and group_name:
             service_name = group_name + "@@" + service_name
 
@@ -1186,7 +1186,7 @@ class NacosClient:
             resp = self._do_sync_req("/nacos/v1/ns/instance/beat", None, params, None, self.default_timeout, "PUT",
                                      "naming")
             c = resp.read()
-            logger.info("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" %
+            logger.debug("[send-heartbeat] ip:%s, port:%s, service_name:%s, namespace:%s, server response:%s" %
                         (ip, port, service_name, self.namespace, c))
             return json.loads(c.decode("UTF-8"))
         except HTTPError as e:

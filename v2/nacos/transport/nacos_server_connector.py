@@ -34,7 +34,7 @@ class NacosServerConnector:
         self.current_index = randrange(0, len(self.server_list))
         if client_config.username and client_config.password:
             self.auth_client = AuthClient(self.logger, client_config, self.get_server_list, http_agent)
-            self.auth_client.get_access_token(True)
+            asyncio.create_task(self.auth_client.get_access_token(True))
 
     async def _get_server_list_from_endpoint(self) -> Optional[List[str]]:
         if not self.endpoint or self.endpoint.strip() == "":

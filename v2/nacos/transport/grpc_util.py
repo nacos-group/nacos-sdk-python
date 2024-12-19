@@ -10,7 +10,6 @@ from v2.nacos.naming.model.naming_request import NotifySubscriberRequest
 from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse, BatchInstanceResponse, \
     ServiceListResponse
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
-from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model import ServerCheckResponse
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest
 from v2.nacos.transport.model.internal_response import ErrorResponse, HealthCheckResponse
