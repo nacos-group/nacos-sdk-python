@@ -47,6 +47,7 @@ class NamingGRPCClientProxy:
         self.event_listener = NamingGrpcConnectionEventListener(self)
 
     async def start(self):
+        await self.nacos_server_connector.init()
         labels = {Constants.LABEL_SOURCE: Constants.LABEL_SOURCE_SDK,
                   Constants.LABEL_MODULE: Constants.NAMING_MODULE}
         self.rpc_client = await RpcClientFactory(self.logger).create_client(str(self.uuid), ConnectionType.GRPC, labels,

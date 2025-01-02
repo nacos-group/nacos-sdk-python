@@ -53,6 +53,7 @@ class ConfigGRPCClientProxy:
                                                                self.execute_config_listen_channel)
 
     async def start(self):
+        await self.nacos_server_connector.init()
         await self.fetch_rpc_client(0)
 
     async def fetch_rpc_client(self, task_id: int = 0) -> RpcClient:

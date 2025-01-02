@@ -51,8 +51,8 @@ class HttpAgent:
                         return None, error_msg
 
         except aiohttp.ClientError as e:
-            self.logger.waring(f"[http-request] client error: {e}")
+            self.logger.warning(f"[http-request] client error: {e}")
             return None, e
         except Exception as e:
-            self.logger.waring(f"[http-request] unexpected error: {e}")
+            self.logger.warning(f"[http-request] unexpected error: {e}")
             return None, e

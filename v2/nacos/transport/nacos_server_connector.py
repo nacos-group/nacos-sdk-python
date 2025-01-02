@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
+from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM, INVALID_SERVER_STATUS
 from v2.nacos.transport.auth_client import AuthClient
 from v2.nacos.transport.http_agent import HttpAgent
 
@@ -23,18 +23,19 @@ class NacosServerConnector:
         self.endpoint = client_config.endpoint
         self.server_list_lock = asyncio.Lock()
 
-        if len(self.server_list) == 0:
-            self._get_server_list_from_endpoint()
-            self.refresh_server_list_internal = 30  # second
-            asyncio.create_task(self._refresh_server_srv_if_need())
+        self.refresh_server_list_internal = 30  # second
+        if len(self.server_list) != 0:
+            self.current_index = randrange(0, len(self.server_list))
 
-        if len(self.server_list) == 0:
-            raise NacosException(INVALID_PARAM, "server list is empty")
-
-        self.current_index = randrange(0, len(self.server_list))
         if client_config.username and client_config.password:
             self.auth_client = AuthClient(self.logger, client_config, self.get_server_list, http_agent)
             asyncio.create_task(self.auth_client.get_access_token(True))
+
+    async def init(self):
+        await self._get_server_list_from_endpoint()
+        if len(self.server_list) == 0:
+            raise NacosException(INVALID_SERVER_STATUS, "server list is empty")
+        asyncio.create_task(self._refresh_server_srv_if_need())
 
     async def _get_server_list_from_endpoint(self) -> Optional[List[str]]:
         if not self.endpoint or self.endpoint.strip() == "":
@@ -43,7 +44,8 @@ class NacosServerConnector:
         url = self.endpoint.strip() + self.client_config.endpoint_context_path + "/serverlist"
         server_list = []
         try:
-            response, err = await self.http_agent.request(url, "GET", None, None, None)
+            response, err = await self.http_agent.request(url, "GET", self.client_config.endpoint_query_header, None,
+                                                          None)
             if err:
                 self.logger.error("[get-server-list] get server list from endpoint failed,url:%s, err:%s", url, err)
                 return None
@@ -53,15 +55,16 @@ class NacosServerConnector:
                     for server_info in response.decode('utf-8').strip().split("\n"):
                         sp = server_info.strip().split(":")
                         if len(sp) == 1:
-                            server_list.append((sp[0] + ":" + Constants.DEFAULT_PORT))
+                            server_list.append((sp[0] + ":" + str(Constants.DEFAULT_PORT)))
                         else:
                             server_list.append(server_info)
 
                     if len(server_list) != 0 and set(server_list) != set(self.server_list):
-                        with self.server_list_lock:
+                        async with self.server_list_lock:
                             old_server_list = self.server_list
                             self.server_list = server_list
-                            self.logger.info("[refresh server list] nacos server list is updated from %s to %s",
+                            self.current_index = randrange(0, len(self.server_list))
+                            self.logger.info("nacos server list is updated from %s to %s",
                                              str(old_server_list), str(server_list))
         except Exception as e:
             self.logger.error("[get-server-list] get server list from endpoint failed,url:%s, err:%s", url, e)
@@ -81,7 +84,7 @@ class NacosServerConnector:
 
     def get_next_server(self):
         if not self.server_list:
-            raise ValueError('server list is empty')
+            raise NacosException(INVALID_SERVER_STATUS, 'server list is empty')
         self.current_index = (self.current_index + 1) % len(self.server_list)
         return self.server_list[self.current_index]
 
