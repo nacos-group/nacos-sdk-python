@@ -56,6 +56,7 @@ client = NacosClient(server_addresses, namespace=your_ns, ak=your_ak, sk=your_sk
 * *namespace* - Namespace. | default: `None`
 * *ak* - The accessKey to authenticate. | default: null
 * *sk* - The secretKey to authentication. | default: null
+* *credentials_provider* - The custom access key manager | default: null
 * *log_level* - Log level. | default: null
 * *log_rotation_backup_count* - The number of log files to keep. | default: `7`
 
@@ -314,6 +315,7 @@ client_config = (ClientConfigBuilder()
 * *server_address* - **required**  - Nacos server address
 * *access_key* - The aliyun accessKey to authenticate.
 * *secret_key* - The aliyun secretKey to authenticate.
+* *credentials_provider* - The custom access key manager.
 * *username* - The username to authenticate.
 * *password* - The password to authenticate.
 * *log_level* - Log level | default: `logging.INFO`
