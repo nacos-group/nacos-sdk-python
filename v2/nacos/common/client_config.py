@@ -2,6 +2,7 @@ import logging
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
+from v2.nacos.common.auth import StaticCredentialsProvider
 
 
 class KMSConfig:
@@ -44,7 +45,7 @@ class GRPCConfig:
 class ClientConfig:
     def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
-                 log_rotation_backup_count=None, app_conn_labels=None):
+                 log_rotation_backup_count=None, app_conn_labels=None, credentials_provider=None):
         self.server_list = []
         try:
             if server_addresses is not None and server_addresses.strip() != "":
@@ -57,9 +58,8 @@ class ClientConfig:
         self.endpoint_context_path = Constants.WEB_CONTEXT
         self.endpoint_query_header = None
         self.namespace_id = namespace_id
-        self.access_key = access_key
+        self.credentials_provider = credentials_provider if credentials_provider else StaticCredentialsProvider(access_key, secret_key)
         self.context_path = context_path
-        self.secret_key = secret_key
         self.username = username  # the username for nacos auth
         self.password = password  # the password for nacos auth
         self.app_name = app_name

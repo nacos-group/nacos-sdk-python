@@ -14,6 +14,7 @@ from logging.handlers import TimedRotatingFileHandler
 from typing import Dict
 
 from .task import HeartbeatInfo, HeartbeatTask
+from .auth import StaticCredentialsProvider
 
 try:
     import ssl
@@ -276,7 +277,8 @@ class NacosClient:
             logger.propagate = False
 
     def __init__(self, server_addresses=None, endpoint=None, namespace=None, ak=None,
-                 sk=None, username=None, password=None, logDir=None, log_level=None, log_rotation_backup_count=None):
+                 sk=None, username=None, password=None, logDir=None, log_level=None,
+                 log_rotation_backup_count=None, credentials_provider=None):
         self.server_list = list()
         self.initLog(logDir, log_level, log_rotation_backup_count)
         try:
@@ -308,8 +310,7 @@ class NacosClient:
 
         self.endpoint = endpoint
         self.namespace = namespace or DEFAULT_NAMESPACE or ""
-        self.ak = ak
-        self.sk = sk
+        self.credentials_provider = credentials_provider if credentials_provider else StaticCredentialsProvider(ak, sk)
         self.username = username
         self.password = password
 
@@ -330,7 +331,8 @@ class NacosClient:
         self.process_mgr = None
 
         self.default_timeout = DEFAULTS["TIMEOUT"]
-        self.auth_enabled = self.ak and self.sk
+        credentials = self.credentials_provider.get_credentials()
+        self.auth_enabled = credentials.get_access_key_id() and credentials.get_access_key_secret()
         self.cai_enabled = True
         self.pulling_timeout = DEFAULTS["PULLING_TIMEOUT"]
         self.pulling_config_size = DEFAULTS["PULLING_CONFIG_SIZE"]
@@ -884,7 +886,8 @@ class NacosClient:
         if not params and not data:
             return
         ts = str(int(time.time() * 1000))
-        ak, sk = self.ak, self.sk
+        # now we have a fixed credentials (access key or sts token)
+        credentials = self.credentials_provider.get_credentials()
 
         sign_str = ""
 
@@ -892,7 +895,7 @@ class NacosClient:
         # config signature
         if "config" == module:
             headers.update({
-                "Spas-AccessKey": ak,
+                "Spas-AccessKey": credentials.get_access_key_id(),
                 "timeStamp": ts,
             })
 
@@ -905,7 +908,9 @@ class NacosClient:
                 sign_str = sign_str + group + "+"
             if sign_str:
                 sign_str += ts
-                headers["Spas-Signature"] = self.__do_sign(sign_str, sk)
+                headers["Spas-Signature"] = self.__do_sign(sign_str, credentials.get_access_key_secret())
+            if credentials.get_security_token():
+                headers["Spas-SecurityToken"] = credentials.get_security_token()
 
         # naming signature
         else:
@@ -922,10 +927,12 @@ class NacosClient:
                 sign_str = ts
 
             params.update({
-                "ak": ak,
+                "ak": credentials.get_access_key_id(),
                 "data": sign_str,
-                "signature": self.__do_sign(sign_str, sk),
+                "signature": self.__do_sign(sign_str, credentials.get_access_key_secret()),
             })
+            if credentials.get_security_token():
+                params.update({"Spas-SecurityToken": credentials.get_security_token()})
 
     def __do_sign(self, sign_str, sk):
         return base64.encodebytes(

@@ -1,5 +1,6 @@
 from typing import Dict, List
 
+from v2.nacos.common.auth import CredentialsProvider, StaticCredentialsProvider
 from v2.nacos.common.client_config import ClientConfig, GRPCConfig
 from v2.nacos.common.client_config import KMSConfig
 from v2.nacos.common.client_config import TLSConfig
@@ -43,11 +44,21 @@ class ClientConfigBuilder:
         return self
 
     def access_key(self, access_key: str) -> "ClientConfigBuilder":
-        self._config.access_key = access_key
+        if not self._config.credentials_provider:
+            self._config.credentials_provider = StaticCredentialsProvider(access_key_id=access_key)
+        else:
+            self._config.credentials_provider.set_access_key_id(access_key)
         return self
 
     def secret_key(self, secret_key: str) -> "ClientConfigBuilder":
-        self._config.secret_key = secret_key
+        if not self._config.credentials_provider:
+            self._config.credentials_provider = StaticCredentialsProvider(access_key_secret=secret_key)
+        else:
+            self._config.credentials_provider.set_access_key_secret(secret_key)
+        return self
+
+    def credentials_provider(self, credentials_provider: CredentialsProvider) -> "ClientConfigBuilder":
+        self._config.credentials_provider = credentials_provider
         return self
 
     def username(self, username: str) -> "ClientConfigBuilder":
