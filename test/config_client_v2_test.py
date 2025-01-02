@@ -6,6 +6,7 @@ from v2.nacos.common.client_config import GRPCConfig, KMSConfig
 from v2.nacos.common.client_config_builder import ClientConfigBuilder
 from v2.nacos.config.model.config_param import ConfigParam
 from v2.nacos.config.nacos_config_service import NacosConfigService
+from v2.nacos.common.auth import CredentialsProvider, Credentials
 
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
@@ -15,6 +16,12 @@ client_config = (ClientConfigBuilder()
                  .grpc_config(GRPCConfig(grpc_timeout=5000))
                  .build())
 
+class CustomCredentialsProvider(CredentialsProvider):
+    def __init__(self, ak="", sk="", token=""):
+        self.credential = Credentials(ak, sk, token)
+
+    def get_credentials(self):
+        return self.credential
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
     async def test_publish_config(self):
@@ -235,15 +242,7 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
         await client.shutdown()
 
-    async def test_gray_config(self):
-        client_cfg = (ClientConfigBuilder()
-                      .access_key(os.getenv('NACOS_ACCESS_KEY'))
-                      .secret_key(os.getenv('NACOS_SECRET_KEY'))
-                      .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
-                      .log_level('INFO')
-                      .app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
-                      .grpc_config(GRPCConfig(grpc_timeout=5000))
-                      .build())
+    async def _gray_config(self, client_cfg):
         client = await NacosConfigService.create_config_service(client_cfg)
 
         dataID = "com.alibaba.nacos.test.config.gray"
@@ -255,3 +254,24 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         await client.add_listener(dataID, groupName, config_listener)
 
         await asyncio.sleep(1000)
+
+    async def test_gray_config_with_fixed_ak(self):
+        client_cfg = (ClientConfigBuilder()
+                      .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                      .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                      .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                      .log_level('INFO')
+                      .app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
+                      .grpc_config(GRPCConfig(grpc_timeout=5000))
+                      .build())
+        await self._gray_config(client_cfg)
+
+    async def test_gray_config_with_provider(self):
+        client_cfg = (ClientConfigBuilder()
+                      .credentials_provider(CustomCredentialsProvider(os.getenv('NACOS_ACCESS_KEY'), os.getenv('NACOS_SECRET_KEY')))
+                      .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
+                      .log_level('INFO')
+                      .app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})
+                      .grpc_config(GRPCConfig(grpc_timeout=5000))
+                      .build())
+        await self._gray_config(client_cfg)
