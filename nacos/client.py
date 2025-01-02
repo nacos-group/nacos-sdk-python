@@ -341,7 +341,7 @@ class NacosClient:
         self.proxies = None
         self.logDir = logDir
 
-        self.heartbeats: Dict[str, HeartbeatTask] = {}
+        self.heartbeats = {}
         if self.username and self.password:
             self.get_access_token()
         logger.info("[client-init] endpoint:%s, tenant:%s" % (endpoint, namespace))
