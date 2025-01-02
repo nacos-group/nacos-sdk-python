@@ -292,7 +292,7 @@ Supported Nacos version over 2.x
 ## Installation
 
 ```shell
- pip install nacos-sdk-python==2.0.0b4 
+ pip install nacos-sdk-python==2.0.0b5 
 ```
 
 ## Client Configuration
