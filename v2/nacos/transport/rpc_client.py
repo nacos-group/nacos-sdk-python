@@ -81,93 +81,106 @@ class RpcClient(ABC):
         self.tenant = None
         self.lock = asyncio.Lock()
         self.last_active_timestamp = get_current_time_millis()
+        self.event_listener_task = None
+        self.health_check_task = None
+        self.reconnection_task = None
 
     def put_all_labels(self, labels: Dict[str, str]):
         self.labels.update(labels)
         self.logger.info(f"rpc client init label, labels : {self.labels}")
 
     async def event_listener(self):
-        while True:
-            if self.is_shutdown():
-                break
-            try:
-                event = await self.event_chan.get()
-                async with self.lock:
-                    listeners = list(self.connection_event_listeners[:])
-                if len(listeners) == 0:
-                    continue
-                self.logger.info("rpc client notify [%s] event to listeners", str(event))
-                for listener in listeners:
-                    if event.is_connected():
-                        try:
-                            await listener.on_connected()
-                        except NacosException as e:
-                            self.logger.error("%s notify connect listener error, listener = %s,error:%s"
-                                              , self.name, listener.__class__.__name__, str(e))
-                    if event.is_disconnected():
-                        try:
-                            await listener.on_disconnect()
-                        except NacosException as e:
-                            self.logger.error("%s notify disconnect listener error, listener = %s,error:%s"
-                                              , self.name, listener.__class__.__name__, str(e))
-            except Exception as e:
-                self.logger.error("notify connect listener,error:%s", str(e))
+        try:
+            while not self.is_shutdown():
+                try:
+                    event = await self.event_chan.get()
+                    async with self.lock:
+                        listeners = list(self.connection_event_listeners[:])
+                    if len(listeners) == 0:
+                        continue
+                    self.logger.info("rpc client notify [%s] event to listeners", str(event))
+                    for listener in listeners:
+                        if event.is_connected():
+                            try:
+                                await listener.on_connected()
+                            except NacosException as e:
+                                self.logger.error("%s notify connect listener error, listener = %s,error:%s"
+                                                  , self.name, listener.__class__.__name__, str(e))
+                        if event.is_disconnected():
+                            try:
+                                await listener.on_disconnect()
+                            except NacosException as e:
+                                self.logger.error("%s notify disconnect listener error, listener = %s,error:%s"
+                                                  , self.name, listener.__class__.__name__, str(e))
+                except Exception as e:
+                    self.logger.error("notify connect listener,error:%s", str(e))
+        except asyncio.CancelledError:
+            self.logger.debug("event listener task cancelled")
 
     async def health_check_periodically(self):
-        while True:
-            if self.is_shutdown():
-                break
-
-            await asyncio.sleep(Constants.KEEP_ALIVE_TIME_MILLS / 1000)
-            if get_current_time_millis() - self.last_active_timestamp < Constants.KEEP_ALIVE_TIME_MILLS:
-                continue
-
-            is_healthy = await self.send_health_check()
-            if is_healthy:
-                self.last_active_timestamp = get_current_time_millis()
-                continue
-            else:
-                if not self.current_connection:
-                    self.logger.error("%s server healthy check fail, currentConnection is None" % self.name)
-                    continue
-
-                self.logger.error("%s server healthy check fail, currentConnection=%s"
-                                  , self.name, self.current_connection.get_connection_id())
-
-                async with self.lock:
-                    if self.rpc_client_status == RpcClientStatus.SHUTDOWN:
+        try:
+            while not self.is_shutdown():
+                try:
+                    await asyncio.sleep(Constants.KEEP_ALIVE_TIME_MILLS / 1000)
+                    if get_current_time_millis() - self.last_active_timestamp < Constants.KEEP_ALIVE_TIME_MILLS:
                         continue
-                    self.rpc_client_status = RpcClientStatus.UNHEALTHY
-                    await self.reconnect(ReconnectContext(server_info=None, on_request_fail=False))
+
+                    is_healthy = await self.send_health_check()
+                    if is_healthy:
+                        self.last_active_timestamp = get_current_time_millis()
+                        continue
+                    else:
+                        if not self.current_connection:
+                            self.logger.error("%s server healthy check fail, currentConnection is None" % self.name)
+                            continue
+
+                        self.logger.error("%s server healthy check fail, currentConnection=%s"
+                                          , self.name, self.current_connection.get_connection_id())
+
+                        async with self.lock:
+                            if self.rpc_client_status == RpcClientStatus.SHUTDOWN:
+                                continue
+                            self.rpc_client_status = RpcClientStatus.UNHEALTHY
+                            await self.reconnect(ReconnectContext(server_info=None, on_request_fail=False))
+                except asyncio.CancelledError:
+                    break
+        except asyncio.CancelledError:
+            self.logger.debug("health check task cancelled")
 
     async def reconnection_handler(self):
-        while True:
-            if self.is_shutdown():
-                break
-            ctx = await self.reconnection_chan.get()
+        try:
+            while not self.is_shutdown():
+                try:
+                    ctx = await self.reconnection_chan.get()
 
-            if ctx.server_info:
-                server_exist = False
-                for server_info in self.nacos_server.get_server_list():
-                    if ctx.server_info.server_ip == server_info.ip_addr:
-                        ctx.server_info.server_port = server_info.port
-                        server_exist = True
-                        break
+                    if ctx.server_info:
+                        server_exist = False
+                        for server_info in self.nacos_server.get_server_list():
+                            if ctx.server_info.server_ip == server_info.ip_addr:
+                                ctx.server_info.server_port = server_info.port
+                                server_exist = True
+                                break
 
-                if not server_exist:
-                    self.logger.info(
-                        f"[{self.name}] recommend server is not in server list, ignore recommend server {str(ctx.server_info)}")
-                    ctx.server_info = None
-            await self.reconnect(ctx)
+                        if not server_exist:
+                            self.logger.info(
+                                f"[{self.name}] recommend server is not in server list, ignore recommend server {str(ctx.server_info)}")
+                            ctx.server_info = None
+
+                    await self.reconnect(ctx)
+                except asyncio.CancelledError:
+                    break
+        except asyncio.CancelledError:
+            self.logger.debug("reconnection handler task cancelled")
 
     async def start(self):
         async with self.lock:
             self.rpc_client_status = RpcClientStatus.STARTING
 
         await self.register_server_request_handlers()
-        asyncio.create_task(self.event_listener())
-        asyncio.create_task(self.reconnection_handler())
-        asyncio.create_task(self.health_check_periodically())
+
+        self.event_listener_task = asyncio.create_task(self.event_listener())
+        self.health_check_task = asyncio.create_task(self.health_check_periodically())
+        self.reconnection_task = asyncio.create_task(self.reconnection_handler())
 
         connection = None
         start_up_retry_times = RpcClient.RETRY_TIMES
@@ -179,7 +192,7 @@ class RpcClient(ABC):
                     f"rpc client start to connect server, server: {server_info.get_address()}")
                 connection = await self.connect_to_server(server_info)
             except Exception as e:
-                self.logger.warn(
+                self.logger.warning(
                     f"rpc client failed to connect server, error: {str(e)},retry times left:{start_up_retry_times}")
 
             if connection:
@@ -327,6 +340,22 @@ class RpcClient(ABC):
     async def shutdown(self):
         async with self.lock:
             self.rpc_client_status = RpcClientStatus.SHUTDOWN
+
+        # 取消所有任务
+        tasks = [self.event_listener_task, self.health_check_task, self.reconnection_task]
+        for task in tasks:
+            if task and not task.done():
+                task.cancel()
+
+        # 等待所有任务完成
+        if any(task for task in tasks if task):
+            await asyncio.gather(*[task for task in tasks if task], return_exceptions=True)
+
+        # 清理任务引用
+        self.event_listener_task = None
+        self.health_check_task = None
+        self.reconnection_task = None
+
         await self._close_connection()
 
     async def _close_connection(self):

@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from v2.nacos.common.client_config import ClientConfig, GRPCConfig
 from v2.nacos.common.client_config import KMSConfig
 from v2.nacos.common.client_config import TLSConfig
@@ -80,6 +82,12 @@ class ClientConfigBuilder:
         if self._config.app_conn_labels is None:
             self._config.app_conn_labels = {}
         self._config.app_conn_labels.update(app_conn_labels)
+        return self
+
+    def endpoint_query_header(self, endpoint_query_header: Dict[str, str]) -> "ClientConfigBuilder":
+        if self._config.endpoint_query_header is None:
+            self._config.endpoint_query_header = {}
+        self._config.endpoint_query_header.update(endpoint_query_header)
         return self
 
     def build(self):

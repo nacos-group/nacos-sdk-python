@@ -55,6 +55,7 @@ class ClientConfig:
 
         self.endpoint = endpoint
         self.endpoint_context_path = Constants.WEB_CONTEXT
+        self.endpoint_query_header = None
         self.namespace_id = namespace_id
         self.access_key = access_key
         self.context_path = context_path

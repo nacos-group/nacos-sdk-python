@@ -20,6 +20,18 @@ client_config = (ClientConfigBuilder()
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
+    async def test_register_with_endpoint(self):
+        config = (ClientConfigBuilder()
+                         .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                         .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                         .endpoint(os.getenv('NACOS_SERVER_ENDPOINT', 'localhost:8848'))
+                         .log_level('INFO')
+                         .grpc_config(GRPCConfig(grpc_timeout=5000))
+                         .build())
+
+        client = await NacosNamingService.create_naming_service(config)
+        assert await client.server_health()
+
     async def test_register(self):
         client = await NacosNamingService.create_naming_service(client_config)
         assert await client.server_health()
