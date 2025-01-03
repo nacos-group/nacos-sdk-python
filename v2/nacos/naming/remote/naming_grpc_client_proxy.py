@@ -64,7 +64,8 @@ class NamingGRPCClientProxy:
         try:
             await self.nacos_server_connector.inject_security_info(request.get_headers())
 
-            if self.client_config.access_key is not None and self.client_config.secret_key is not None:
+            credentials = self.client_config.credentials_provider.get_credentials()
+            if credentials.get_access_key_id() and credentials.get_access_key_secret():
                 service_name = get_group_name(request.serviceName, request.groupName)
                 if service_name.strip():
                     sign_str = str(get_current_time_millis()) + Constants.SERVICE_INFO_SPLITER + service_name
@@ -72,11 +73,13 @@ class NamingGRPCClientProxy:
                     sign_str = str(get_current_time_millis())
 
                 request.put_all_headers({
-                    "ak": self.client_config.access_key,
+                    "ak": credentials.get_access_key_id(),
                     "data": sign_str,
-                    "signature": base64.encodebytes(hmac.new(self.client_config.secret_key.encode(), sign_str.encode(),
+                    "signature": base64.encodebytes(hmac.new(credentials.get_access_key_secret().encode(), sign_str.encode(),
                                                              digestmod=hashlib.sha1).digest()).decode().strip()
                 })
+                if credentials.get_security_token():
+                    request.put_header("Spas-SecurityToken", credentials.get_security_token())
 
             response = await self.rpc_client.request(request, self.client_config.grpc_config.grpc_timeout)
             if response.get_result_code() != 200:

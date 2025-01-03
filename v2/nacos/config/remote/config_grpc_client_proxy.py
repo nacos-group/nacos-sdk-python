@@ -94,7 +94,8 @@ class ConfigGRPCClientProxy:
                 'Timestamp': str(now),
             })
 
-            if self.client_config.access_key is not None and self.client_config.secret_key is not None:
+            credentials = self.client_config.credentials_provider.get_credentials()
+            if credentials.get_access_key_id() and credentials.get_access_key_secret():
                 if request.tenant:
                     resource = request.tenant + "+" + request.group
                 else:
@@ -106,11 +107,13 @@ class ConfigGRPCClientProxy:
                     sign_str = str(now)
 
                 request.put_all_headers({
-                    'Spas-AccessKey': self.client_config.access_key,
+                    'Spas-AccessKey': credentials.get_access_key_id(),
                     'Spas-Signature': base64.encodebytes(
-                        hmac.new(self.client_config.secret_key.encode(), sign_str.encode(),
+                        hmac.new(credentials.get_access_key_secret().encode(), sign_str.encode(),
                                  digestmod=hashlib.sha1).digest()).decode().strip(),
                 })
+                if credentials.get_security_token():
+                    request.put_header("Spas-SecurityToken", credentials.get_security_token())
 
             response = await rpc_client.request(request, self.client_config.grpc_config.grpc_timeout)
             if response.get_result_code() != 200:

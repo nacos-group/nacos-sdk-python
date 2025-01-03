@@ -8,6 +8,7 @@ from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, DeregisterInstanceParam, \
     BatchRegisterInstanceParam, GetServiceParam, ListServiceParam, SubscribeServiceParam, ListInstanceParam
 from v2.nacos.naming.nacos_naming_service import NacosNamingService
+from v2.nacos.common.auth import CredentialsProvider, Credentials
 
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
@@ -17,13 +18,30 @@ client_config = (ClientConfigBuilder()
                  .grpc_config(GRPCConfig(grpc_timeout=5000))
                  .build())
 
+class CustomCredentialsProvider(CredentialsProvider):
+    def __init__(self, ak="", sk="", token=""):
+        self.credential = Credentials(ak, sk, token)
+
+    def get_credentials(self):
+        return self.credential
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
-    async def test_register_with_endpoint(self):
+    async def test_register_with_endpoint_and_fixed_ak(self):
         config = (ClientConfigBuilder()
                          .access_key(os.getenv('NACOS_ACCESS_KEY'))
                          .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                         .endpoint(os.getenv('NACOS_SERVER_ENDPOINT', 'localhost:8848'))
+                         .log_level('INFO')
+                         .grpc_config(GRPCConfig(grpc_timeout=5000))
+                         .build())
+
+        client = await NacosNamingService.create_naming_service(config)
+        assert await client.server_health()
+
+    async def test_register_with_endpoint_and_provider(self):
+        config = (ClientConfigBuilder()
+                         .credentials_provider(CustomCredentialsProvider(os.getenv('NACOS_ACCESS_KEY'), os.getenv('NACOS_SECRET_KEY')))
                          .endpoint(os.getenv('NACOS_SERVER_ENDPOINT', 'localhost:8848'))
                          .log_level('INFO')
                          .grpc_config(GRPCConfig(grpc_timeout=5000))
