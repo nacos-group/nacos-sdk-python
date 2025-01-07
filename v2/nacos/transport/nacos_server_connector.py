@@ -32,6 +32,9 @@ class NacosServerConnector:
             asyncio.create_task(self.auth_client.get_access_token(True))
 
     async def init(self):
+        if len(self.server_list) != 0:
+            return
+
         await self._get_server_list_from_endpoint()
         if len(self.server_list) == 0:
             raise NacosException(INVALID_SERVER_STATUS, "server list is empty")
