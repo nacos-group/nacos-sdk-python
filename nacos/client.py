@@ -749,6 +749,7 @@ class NacosClient:
             cache_pool[cache_key] = CacheData(cache_key, self)
 
         while cache_list:
+            time.sleep(1)
             unused_keys = set(cache_pool.keys())
             contains_init_key = False
             probe_update_string = ""
@@ -786,10 +787,8 @@ class NacosClient:
                 logger.info("[do-pulling] following keys are changed from server %s" % truncate(str(changed_keys)))
             except NacosException as e:
                 logger.error("[do-pulling] nacos exception: %s, waiting for recovery" % str(e))
-                time.sleep(1)
             except Exception as e:
                 logger.exception("[do-pulling] exception %s occur, return empty list, waiting for recovery" % str(e))
-                time.sleep(1)
 
             for cache_key, cache_data in cache_pool.items():
                 cache_data.is_init = False
