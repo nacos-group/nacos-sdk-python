@@ -51,6 +51,7 @@ class ConfigGRPCClientProxy:
                                                                self.namespace_id,
                                                                config_filter_chain_manager,
                                                                self.execute_config_listen_channel)
+        self.max_retries = RpcClient.RETRY_TIMES
 
     async def start(self):
         await self.nacos_server_connector.init()
@@ -190,7 +191,9 @@ class ConfigGRPCClientProxy:
         await self.config_subscribe_manager.remove_listener(data_id, group, self.namespace_id, listener)
 
     async def _execute_config_listen_task(self):
-        while not self.stop_event.is_set():
+        current_retires = 0
+        while not self.stop_event.is_set() and current_retires < self.max_retries:
+            current_retires += 1
             try:
                 await asyncio.wait_for(self.execute_config_listen_channel.get(), timeout=5)
             except asyncio.TimeoutError:
