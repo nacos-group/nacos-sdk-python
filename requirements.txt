@@ -1,0 +1,9 @@
+aiofiles>=24.1.0
+aiohttp>=3.10.11
+alibabacloud_kms20160120>=2.2.3
+alibabacloud_tea_openapi>=0.3.12
+grpcio>=1.66.1
+protobuf>=3.20.3
+psutil>=5.9.6
+pycryptodome>=3.19.1
+pydantic>=2.10.4

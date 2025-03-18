@@ -8,6 +8,7 @@ import nacos
 from nacos import files
 from nacos.listener import SubscribeListener, SimpleListenerManager
 from nacos.timer import NacosTimer, NacosTimerManager
+from nacos.auth import CredentialsProvider, Credentials
 import time
 import shutil
 
@@ -24,6 +25,13 @@ PASSWORD = None
 client = nacos.NacosClient(SERVER_ADDRESSES, namespace=NAMESPACE, username=USERNAME, password=PASSWORD)
 # Set the following option if http requests need through by proxy
 # client.set_options(proxies={"http":"192.168.56.1:809"})
+
+class CustomCredentialsProvider(CredentialsProvider):
+    def __init__(self, ak="", sk="", token=""):
+        self.credential = Credentials(ak, sk, token)
+
+    def get_credentials(self):
+        return self.credential
 
 class TestClient(unittest.TestCase):
     def test_get_server(self):
@@ -315,7 +323,7 @@ class TestClient(unittest.TestCase):
         self.assertEqual(0, len(headers))
         self.assertEqual(0, len(params))
 
-    def test_inject_auth_info_of_config(self):
+    def test_inject_auth_info_of_config_with_fixed_ak(self):
         headers = {}
         params = {"tenant": "abc", "group": "bbb"}
         client_auth = nacos.NacosClient(SERVER_ADDRESSES, ak="1", sk="1")
@@ -325,7 +333,7 @@ class TestClient(unittest.TestCase):
         self.assertTrue("timeStamp" in headers)
         self.assertTrue("Spas-Signature" in headers)
 
-    def test_inject_auth_info_of_naming(self):
+    def test_inject_auth_info_of_naming_with_fixed_ak(self):
         headers = {}
         params = {"serviceName": "abc", "groupName": "bbb"}
         client_auth = nacos.NacosClient(SERVER_ADDRESSES, ak="1", sk="1")
@@ -335,6 +343,48 @@ class TestClient(unittest.TestCase):
         self.assertTrue("data" in params)
         self.assertTrue("signature" in params)
 
+    def test_inject_auth_info_of_config_with_provider(self):
+        headers = {}
+        params = {"tenant": "abc", "group": "bbb"}
+
+        # access_key
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, credentials_provider=CustomCredentialsProvider("1", "1"))
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="config")
+        self.assertEqual("1", headers.get("Spas-AccessKey"))
+        self.assertTrue("timeStamp" in headers)
+        self.assertTrue("Spas-Signature" in headers)
+        self.assertTrue("Spas-SecurityToken" not in headers)
+
+        # security_token
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, credentials_provider=CustomCredentialsProvider("1", "1", "1"))
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="config")
+        self.assertEqual("1", headers.get("Spas-AccessKey"))
+        self.assertEqual("1", headers.get("Spas-SecurityToken"))
+        self.assertTrue("timeStamp" in headers)
+        self.assertTrue("Spas-Signature" in headers)
+
+    def test_inject_auth_info_of_naming_with_provider(self):
+        headers = {}
+        params = {"serviceName": "abc", "groupName": "bbb"}
+        # access_key
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, credentials_provider=CustomCredentialsProvider("1", "1"))
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="naming")
+        self.assertEqual("1", params.get("ak"))
+        self.assertTrue("data" in params)
+        self.assertTrue("signature" in params)
+        self.assertTrue("Spas-SecurityToken" not in headers)
+
+        # security_token
+        client_auth = nacos.NacosClient(SERVER_ADDRESSES, credentials_provider=CustomCredentialsProvider("1", "1", "1"))
+        self.assertFalse(client_auth.auth_enabled is None)
+        client_auth._inject_auth_info(headers, params, data=None, module="naming")
+        self.assertEqual("1", params.get("ak"))
+        self.assertEqual("1", params.get("Spas-SecurityToken"))
+        self.assertTrue("data" in params)
+        self.assertTrue("signature" in params)
 
 if __name__ == '__main__':
     unittest.main()
