@@ -238,9 +238,9 @@ Remove one data item from Nacos.
 
 ### Subscribe Service Instances Changed
 
-> `NacosClient.subscribe(listener_fn, listener_interval=7, *args, **kwargs)`
+>`NacosClient.subscribe(listener_fn, listener_interval=7, *args, **kwargs)`
 
-* `param` *listener_fn*  **required** Customized listener function.
+* `param` *listener_fn*  **required** Customized listener function.  with signature `fn_listener1(event, instance)->None`
 * `param` *listener_interval*  Listen interval , default 7 second.
 * `param` *service_name*  **required** Service name which subscribes.
 * `param` *clusters* Cluster names separated by comma.
