@@ -8,16 +8,12 @@ CLIENT_DETECTION_REQUEST_TYPE = "ClientDetectionRequest"
 
 
 class InternalRequest(Request, ABC):
-    def __init__(self):
-        super().__init__()
 
     def get_module(self) -> str:
         return 'internal'
 
 
 class HealthCheckRequest(InternalRequest):
-    def __init__(self):
-        super().__init__()
 
     def get_request_type(self):
         return "HealthCheckRequest"
