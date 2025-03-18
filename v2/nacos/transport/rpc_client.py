@@ -374,7 +374,7 @@ class RpcClient(ABC):
                 # when client request immediately after  server starts, server may not ready to serve new request
                 # the server will return code 3xx, tell the client to retry after a while
                 # this situation, just return true,because the healthCheck will start again after 5 seconds
-                if response.get_error_code() >= 300 and response.get_error_code < 400:
+                if response.get_error_code() >= 300 and response.get_error_code() < 400:
                     return True
                 return False
             return response and response.is_success()
