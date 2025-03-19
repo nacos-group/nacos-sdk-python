@@ -6,7 +6,7 @@ import pydantic
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.nacos_exception import NacosException
+from v2.nacos.common.nacos_exception import NacosException, CLIENT_DISCONNECT
 from v2.nacos.transport.connection import Connection
 from v2.nacos.transport.grpc_connection import GrpcConnection
 from v2.nacos.transport.grpc_util import GrpcUtils
@@ -57,7 +57,7 @@ class GrpcClient(RpcClient):
             await asyncio.wait_for(channel.channel_ready(), self.grpc_config.grpc_timeout / 1000)
         except asyncio.TimeoutError as e:
             await channel.close()
-            raise NacosException('failed to connect nacos server') from e
+            raise NacosException(CLIENT_DISCONNECT, 'failed to connect nacos server') from e
         else:
             return channel
 
