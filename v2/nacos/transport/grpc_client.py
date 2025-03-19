@@ -53,9 +53,13 @@ class GrpcClient(RpcClient):
         else:
             channel = grpc.aio.insecure_channel(f'{server_ip}:{grpc_port}',
                                                 options=options)
-        await channel.channel_ready()
-
-        return channel
+        try:
+            await asyncio.wait_for(channel.channel_ready(), self.grpc_config.grpc_timeout / 1000)
+        except asyncio.TimeoutError as e:
+            await channel.close()
+            raise NacosException('failed to connect nacos server') from e
+        else:
+            return channel
 
     async def _server_check(self, server_ip, server_port, channel_stub: RequestStub):
         for i in range(self.RETRY_TIMES):
