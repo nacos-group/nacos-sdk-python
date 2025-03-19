@@ -814,35 +814,38 @@ class NacosClient:
         logger.info("[init-pulling] init completed")
 
     def _process_polling_result(self):
-        while True:
-            cache_key, content, md5 = self.notify_queue.get()
-            logger.info("[process-polling-result] receive an event:%s" % cache_key)
-            wl = self.watcher_mapping.get(cache_key)
-            if not wl:
-                logger.warning("[process-polling-result] no watcher on %s, ignored" % cache_key)
-                continue
+        try:
+            while True:
+                cache_key, content, md5 = self.notify_queue.get()
+                logger.info("[process-polling-result] receive an event:%s" % cache_key)
+                wl = self.watcher_mapping.get(cache_key)
+                if not wl:
+                    logger.warning("[process-polling-result] no watcher on %s, ignored" % cache_key)
+                    continue
 
-            data_id, group, namespace = parse_key(cache_key)
-            plain_content = content
+                data_id, group, namespace = parse_key(cache_key)
+                plain_content = content
 
-            params = {
-                "data_id": data_id,
-                "group": group,
-                "namespace": namespace,
-                "raw_content": content,
-                "content": plain_content,
-            }
-            for watcher in wl:
-                if not watcher.last_md5 == md5:
-                    logger.info(
-                        "[process-polling-result] md5 changed since last call, calling %s with changed md5: %s ,params: %s"
-                        % (watcher.callback.__name__, md5, params))
-                    try:
-                        self.callback_tread_pool.apply(watcher.callback, (params,))
-                    except Exception as e:
-                        logger.exception("[process-polling-result] exception %s occur while calling %s " % (
-                            str(e), watcher.callback.__name__))
-                    watcher.last_md5 = md5
+                params = {
+                    "data_id": data_id,
+                    "group": group,
+                    "namespace": namespace,
+                    "raw_content": content,
+                    "content": plain_content,
+                }
+                for watcher in wl:
+                    if not watcher.last_md5 == md5:
+                        logger.info(
+                            "[process-polling-result] md5 changed since last call, calling %s with changed md5: %s ,params: %s"
+                            % (watcher.callback.__name__, md5, params))
+                        try:
+                            self.callback_tread_pool.apply(watcher.callback, (params,))
+                        except Exception as e:
+                            logger.exception("[process-polling-result] exception %s occur while calling %s " % (
+                                str(e), watcher.callback.__name__))
+                        watcher.last_md5 = md5
+        except (EOFError, OSError) as e:
+            logger.exception(f"[process-polling-result] break when receive exception of {type(e)}")
 
     @staticmethod
     def _inject_version_info(headers):
