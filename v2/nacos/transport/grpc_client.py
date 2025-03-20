@@ -32,6 +32,8 @@ class GrpcClient(RpcClient):
         options = [
             ('grpc.max_call_recv_msg_size', self.grpc_config.max_receive_message_length),
             ('grpc.keepalive_time_ms', self.grpc_config.max_keep_alive_ms),
+            ('grpc.use_local_subchannel_pool', 1),  # 禁用全局连接池
+            ('grpc.so_reuseport', 0)  # 禁止端口复用
         ]
 
         if self.tls_config and self.tls_config.enabled:
@@ -101,12 +103,14 @@ class GrpcClient(RpcClient):
             return None
 
         connection_id = server_check_response.get_connection_id()
-
+        self.logger.info(
+            f"connect to server success,labels:{self.labels},tenant:{self.tenant},connection_id:{connection_id}")
         bi_request_stream_stub = BiRequestStreamStub(managed_channel)
         grpc_conn = GrpcConnection(server_info, connection_id, managed_channel,
                                    channel_stub, bi_request_stream_stub)
 
-        connection_setup_request = ConnectionSetupRequest(Constants.CLIENT_VERSION, self.tenant, self.labels)
+        connection_setup_request = ConnectionSetupRequest(clientVersion=Constants.CLIENT_VERSION, tenant=self.tenant,
+                                                          labels=self.labels)
         await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
         asyncio.create_task(self._server_request_watcher(grpc_conn))
         await asyncio.sleep(0.1)
