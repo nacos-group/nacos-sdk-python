@@ -43,11 +43,5 @@ class ConnectionSetupRequest(InternalRequest):
     tenant: Optional[str] = ''
     labels: dict = {}
 
-    def __init__(self, client_version: str, tenant: str, labels: dict):
-        super().__init__()
-        self.clientVersion = client_version
-        self.tenant = tenant
-        self.labels = labels
-
     def get_request_type(self):
         return "ConnectionSetupRequest"

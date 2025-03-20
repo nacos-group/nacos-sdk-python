@@ -2,12 +2,14 @@ import asyncio
 import os
 import unittest
 
+from v2.nacos import ConfigParam
 from v2.nacos.common.client_config import GRPCConfig
 from v2.nacos.common.client_config_builder import ClientConfigBuilder
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, DeregisterInstanceParam, \
     BatchRegisterInstanceParam, GetServiceParam, ListServiceParam, SubscribeServiceParam, ListInstanceParam
 from v2.nacos.naming.nacos_naming_service import NacosNamingService
+from v2.nacos.config.nacos_config_service import NacosConfigService
 from v2.nacos.common.auth import CredentialsProvider, Credentials
 
 client_config = (ClientConfigBuilder()
@@ -26,6 +28,32 @@ class CustomCredentialsProvider(CredentialsProvider):
         return self.credential
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
+
+    async def test_init_naming_and_config_service(self):
+        config_client = await NacosConfigService.create_config_service(client_config)
+        assert await config_client.server_health()
+        naming_client = await NacosNamingService.create_naming_service(client_config)
+        assert await naming_client.server_health()
+        response = await naming_client.register_instance(
+            request=RegisterInstanceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', ip='1.1.1.1',
+                                          port=7001, weight=1.0, cluster_name='c1', metadata={'a': 'b'},
+                                          enabled=True,
+                                          healthy=True, ephemeral=True))
+        self.assertEqual(response, True)
+        print('register instance')
+
+        data_id = "com.alibaba.nacos.test.config"
+        group = "DEFAULT_GROUP"
+
+        content = await config_client.get_config(ConfigParam(
+            data_id=data_id,
+            group=group,
+        ))
+
+        assert content == ""
+        await asyncio.sleep(10000)
+
+
 
     async def test_register_with_endpoint_and_fixed_ak(self):
         config = (ClientConfigBuilder()
