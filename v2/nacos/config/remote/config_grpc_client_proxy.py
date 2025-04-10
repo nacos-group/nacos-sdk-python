@@ -197,53 +197,53 @@ class ConfigGRPCClientProxy:
                 self.logger.debug("Timeout occurred")
             except asyncio.CancelledError:
                 return
-            finally:
-                has_changed_keys = False
-                is_sync_all = (get_current_time_millis() - self.last_all_sync_time) >= 5 * 60 * 1000
-                listen_task_map = await self.config_subscribe_manager.execute_listener_and_build_tasks(is_sync_all)
-                if len(listen_task_map) == 0:
+            
+            has_changed_keys = False
+            is_sync_all = (get_current_time_millis() - self.last_all_sync_time) >= 5 * 60 * 1000
+            listen_task_map = await self.config_subscribe_manager.execute_listener_and_build_tasks(is_sync_all)
+            if len(listen_task_map) == 0:
+                continue
+
+            for task_id, cache_data_list in listen_task_map.items():
+                if len(cache_data_list) == 0:
+                    continue
+                request = ConfigBatchListenRequest(group='', dataId='', tenant='')
+                for cache_data in cache_data_list:
+                    config_listen_context = ConfigListenContext(group=cache_data.group,
+                                                                md5=cache_data.md5,
+                                                                dataId=cache_data.data_id,
+                                                                tenant=cache_data.tenant)
+                    request.configListenContexts.append(config_listen_context)
+                try:
+                    rpc_client = await self.fetch_rpc_client(task_id)
+                    response: ConfigChangeBatchListenResponse = await self.request_config_server(
+                        rpc_client, request, ConfigChangeBatchListenResponse)
+
+                    if len(response.changedConfigs) > 0:
+                        has_changed_keys = True
+
+                    for config_ctx in response.changedConfigs:
+                        change_key = get_config_cache_key(config_ctx.dataId, config_ctx.group, config_ctx.tenant)
+                        try:
+                            content, encrypted_data_key = await self.query_config(config_ctx.dataId,
+                                                                                  config_ctx.group)
+                            await self.config_subscribe_manager.update_subscribe_cache(config_ctx.dataId,
+                                                                                       config_ctx.group,
+                                                                                       self.namespace_id,
+                                                                                       content,
+                                                                                       encrypted_data_key)
+                        except Exception as e:
+                            self.logger.error(f"failed to refresh config:{change_key},error:{str(e)}")
+                            continue
+                except Exception as e:
+                    self.logger.error(f"failed to batch listen config ,error:{str(e)}")
                     continue
 
-                for task_id, cache_data_list in listen_task_map.items():
-                    if len(cache_data_list) == 0:
-                        continue
-                    request = ConfigBatchListenRequest(group='', dataId='', tenant='')
-                    for cache_data in cache_data_list:
-                        config_listen_context = ConfigListenContext(group=cache_data.group,
-                                                                    md5=cache_data.md5,
-                                                                    dataId=cache_data.data_id,
-                                                                    tenant=cache_data.tenant)
-                        request.configListenContexts.append(config_listen_context)
-                    try:
-                        rpc_client = await self.fetch_rpc_client(task_id)
-                        response: ConfigChangeBatchListenResponse = await self.request_config_server(
-                            rpc_client, request, ConfigChangeBatchListenResponse)
+            if is_sync_all:
+                self.last_all_sync_time = get_current_time_millis()
 
-                        if len(response.changedConfigs) > 0:
-                            has_changed_keys = True
-
-                        for config_ctx in response.changedConfigs:
-                            change_key = get_config_cache_key(config_ctx.dataId, config_ctx.group, config_ctx.tenant)
-                            try:
-                                content, encrypted_data_key = await self.query_config(config_ctx.dataId,
-                                                                                      config_ctx.group)
-                                await self.config_subscribe_manager.update_subscribe_cache(config_ctx.dataId,
-                                                                                           config_ctx.group,
-                                                                                           self.namespace_id,
-                                                                                           content,
-                                                                                           encrypted_data_key)
-                            except Exception as e:
-                                self.logger.error(f"failed to refresh config:{change_key},error:{str(e)}")
-                                continue
-                    except Exception as e:
-                        self.logger.error(f"failed to batch listen config ,error:{str(e)}")
-                        continue
-
-                if is_sync_all:
-                    self.last_all_sync_time = get_current_time_millis()
-
-                if has_changed_keys:
-                    await self.execute_config_listen_channel.put(None)
+            if has_changed_keys:
+                await self.execute_config_listen_channel.put(None)
 
     async def server_health(self):
         return (await self.fetch_rpc_client()).is_running()
