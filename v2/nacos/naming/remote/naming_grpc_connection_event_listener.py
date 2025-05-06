@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service import Service
@@ -48,7 +49,7 @@ class NamingGrpcConnectionEventListener(ConnectionEventListener):
         async with self.lock:
             self.registered_instance_cached[key] = instance
 
-    async def cache_instances_for_redo(self, service_name: str, group_name: str, instances: list[Instance]) -> None:
+    async def cache_instances_for_redo(self, service_name: str, group_name: str, instances: List[Instance]) -> None:
         key = get_group_name(service_name, group_name)
         async with self.lock:
             self.registered_instance_cached[key] = instances

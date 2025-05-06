@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service import Service
@@ -34,7 +34,7 @@ class InstanceRequest(AbstractNamingRequest):
 
 class BatchInstanceRequest(AbstractNamingRequest):
     type: Optional[str]
-    instances: Optional[list[Instance]]
+    instances: Optional[List[Instance]]
 
     def get_request_type(self) -> str:
         return 'BatchInstanceRequest'

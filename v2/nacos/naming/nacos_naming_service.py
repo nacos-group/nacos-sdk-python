@@ -1,4 +1,6 @@
 import asyncio
+from typing import List
+
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
@@ -137,7 +139,7 @@ class NacosNamingService(NacosClient):
 
         return await self.grpc_client_proxy.list_services(request)
 
-    async def list_instances(self, request: ListInstanceParam) -> list[Instance]:
+    async def list_instances(self, request: ListInstanceParam) -> List[Instance]:
         if not request.service_name:
             raise NacosException(INVALID_PARAM, "service_name can not be empty")
 

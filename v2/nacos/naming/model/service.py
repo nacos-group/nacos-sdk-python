@@ -1,6 +1,6 @@
 import time
 import urllib.parse
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -22,7 +22,7 @@ class Service(BaseModel):
     groupName: str
     clusters: Optional[str] = ''
     cacheMillis: int = 1000
-    hosts: list[Instance] = []
+    hosts: List[Instance] = []
     lastRefTime: int = 0
     checksum: str = ""
     allIps: bool = False
@@ -114,4 +114,4 @@ class Service(BaseModel):
 
 class ServiceList(BaseModel):
     count: int
-    services: list[str]
+    services: List[str]

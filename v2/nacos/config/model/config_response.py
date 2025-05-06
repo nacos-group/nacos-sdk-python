@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from pydantic import BaseModel
 
@@ -12,7 +12,7 @@ class ConfigContext(BaseModel):
 
 
 class ConfigChangeBatchListenResponse(Response):
-    changedConfigs: list[ConfigContext] = []
+    changedConfigs: List[ConfigContext] = []
 
     def get_response_type(self) -> str:
         return "ConfigChangeBatchListenResponse"
