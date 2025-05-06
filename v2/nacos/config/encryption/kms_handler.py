@@ -1,3 +1,5 @@
+from typing import Dict
+
 from v2.nacos.common.client_config import KMSConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
@@ -11,7 +13,7 @@ from v2.nacos.config.model.config_param import HandlerParam
 
 class KMSHandler:
     def __init__(self, kms_config: KMSConfig):
-        self.kms_plugins: dict[str, EncryptionPlugin] = {}
+        self.kms_plugins: Dict[str, EncryptionPlugin] = {}
         self.kms_client = KmsClient.create_kms_client(kms_config)
         kms_aes_128_encryption_plugin = KmsAes128EncryptionPlugin(self.kms_client)
         self.kms_plugins[kms_aes_128_encryption_plugin.algorithm_name()] = kms_aes_128_encryption_plugin

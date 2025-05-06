@@ -70,7 +70,7 @@ class RpcClient(ABC):
     def __init__(self, logger, name: str, nacos_server: NacosServerConnector):
         self.logger = logger
         self.name = name
-        self.labels: dict[str, str] = {}
+        self.labels: Dict[str, str] = {}
         self.current_connection = None
         self.rpc_client_status = RpcClientStatus.INITIALIZED
         self.event_chan = asyncio.Queue()

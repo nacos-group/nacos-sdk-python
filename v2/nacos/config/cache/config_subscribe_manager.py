@@ -1,6 +1,6 @@
 import asyncio
 from logging import Logger
-from typing import Optional, Callable, List
+from typing import Optional, Callable, List, Dict
 
 from v2.nacos.common.constants import Constants
 from v2.nacos.config.cache.config_info_cache import ConfigInfoCache
@@ -15,7 +15,7 @@ class ConfigSubscribeManager:
     def __init__(self, logger: Logger, config_info_cache: ConfigInfoCache, namespace_id: str,
                  config_filter_chain_manager: ConfigFilterChainManager,
                  execute_config_listen_channel: asyncio.Queue):
-        self.subscribe_cache_map: dict[str, SubscribeCacheData] = {}
+        self.subscribe_cache_map: Dict[str, SubscribeCacheData] = {}
         self.logger = logger
         self.lock = asyncio.Lock()
         self.namespace_id = namespace_id
@@ -87,7 +87,7 @@ class ConfigSubscribeManager:
             await subscribe_cache.execute_listener()
 
     async def execute_listener_and_build_tasks(self, is_sync_all: bool):
-        listen_fetch_task_map: dict[int, List[SubscribeCacheData]] = {}
+        listen_fetch_task_map: Dict[int, List[SubscribeCacheData]] = {}
         for cache_data in self.subscribe_cache_map.values():
             if cache_data.is_sync_with_server:
                 await cache_data.execute_listener()
