@@ -1,4 +1,4 @@
-from typing import Optional, Callable, List
+from typing import Optional, Callable, List, Dict
 from pydantic import BaseModel
 
 from v2.nacos.common.constants import Constants
@@ -10,7 +10,7 @@ class RegisterInstanceParam(BaseModel):
     weight: float = 1.0
     enabled: bool = True
     healthy: bool = True
-    metadata: dict[str, str] = {}
+    metadata: Dict[str, str] = {}
     cluster_name: str = ''
     service_name: str
     group_name: str = Constants.DEFAULT_GROUP

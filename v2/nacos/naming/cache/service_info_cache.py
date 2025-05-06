@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Callable, Optional, List
+from typing import Callable, Optional, List, Dict
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
@@ -18,7 +18,7 @@ class ServiceInfoCache:
     def __init__(self, client_config: ClientConfig):
         self.logger = logging.getLogger(Constants.NAMING_MODULE)
         self.cache_dir = os.path.join(client_config.cache_dir, Constants.NAMING_MODULE, client_config.namespace_id)
-        self.service_info_map: dict[str, Service] = {}
+        self.service_info_map: Dict[str, Service] = {}
         self.update_time_map = {}
         self.lock = asyncio.Lock()
         self.sub_callback_manager = SubscribeManager()
