@@ -284,7 +284,7 @@ instance_list = await client.list_instances(ListInstanceParam(service_name='naco
 ### Subscribe
 
 ```angular2html
-async def cb(instance_list: list[Instance]):
+async def cb(instance_list: List[Instance]):
   print('received subscribe callback', str(instance_list))
 
 await client.subscribe(
@@ -295,7 +295,7 @@ await client.subscribe(
 ### Unsubscribe
 
 ```angular2html
-async def cb(instance_list: list[Instance]):
+async def cb(instance_list: List[Instance]):
   print('received subscribe callback', str(instance_list))
 
 await client.unsubscribe(

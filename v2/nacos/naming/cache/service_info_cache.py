@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import os
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
@@ -124,7 +124,7 @@ class ServiceInfoCache:
         return old_instance != new_instance
 
     @staticmethod
-    def sort_instances(instances: list[Instance]) -> list[Instance]:
+    def sort_instances(instances: List[Instance]) -> List[Instance]:
         def instance_key(instance: Instance) -> (int, int):
             ip_num = int(''.join(instance.ip.split('.')))
             return ip_num, instance.port

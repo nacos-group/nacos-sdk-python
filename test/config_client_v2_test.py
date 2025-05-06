@@ -9,12 +9,15 @@ from v2.nacos.config.nacos_config_service import NacosConfigService
 from v2.nacos.common.auth import CredentialsProvider, Credentials
 
 client_config = (ClientConfigBuilder()
-                 .access_key(os.getenv('NACOS_ACCESS_KEY'))
-                 .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                 # .access_key(os.getenv('NACOS_ACCESS_KEY'))
+                 # .secret_key(os.getenv('NACOS_SECRET_KEY'))
+                 .username(os.getenv('NACOS_USERNAME'))
+                 .password(os.getenv('NACOS_PASSWORD'))
                  .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
                  .log_level('INFO')
                  .grpc_config(GRPCConfig(grpc_timeout=5000))
                  .build())
+
 
 class CustomCredentialsProvider(CredentialsProvider):
     def __init__(self, ak="", sk="", token=""):
@@ -22,6 +25,7 @@ class CustomCredentialsProvider(CredentialsProvider):
 
     def get_credentials(self):
         return self.credential
+
 
 class TestClientV2(unittest.IsolatedAsyncioTestCase):
     async def test_publish_config(self):
@@ -46,7 +50,7 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         assert res
         print("success to publish")
 
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(0.2)
         content = await client.get_config(ConfigParam(
             data_id=data_id,
             group=group,
@@ -268,7 +272,8 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
     async def test_gray_config_with_provider(self):
         client_cfg = (ClientConfigBuilder()
-                      .credentials_provider(CustomCredentialsProvider(os.getenv('NACOS_ACCESS_KEY'), os.getenv('NACOS_SECRET_KEY')))
+                      .credentials_provider(
+            CustomCredentialsProvider(os.getenv('NACOS_ACCESS_KEY'), os.getenv('NACOS_SECRET_KEY')))
                       .server_address(os.getenv('NACOS_SERVER_ADDR', 'localhost:8848'))
                       .log_level('INFO')
                       .app_conn_labels({"k1": "v1", "k2": "v2", "nacos_config_gray_label": "gray"})

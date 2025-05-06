@@ -1,6 +1,7 @@
 import asyncio
 import os
 import unittest
+from typing import List
 
 from v2.nacos import ConfigParam
 from v2.nacos.common.client_config import GRPCConfig
@@ -82,7 +83,7 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         client = await NacosNamingService.create_naming_service(client_config)
         assert await client.server_health()
 
-        async def cb(instance_list: list[Instance]):
+        async def cb(instance_list: List[Instance]):
             print('received subscribe callback', str(instance_list))
 
         await client.subscribe(

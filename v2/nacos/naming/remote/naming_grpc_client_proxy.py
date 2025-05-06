@@ -4,7 +4,7 @@ import hashlib
 import hmac
 import logging
 import uuid
-from typing import Optional
+from typing import Optional, List
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
@@ -107,7 +107,7 @@ class NamingGRPCClientProxy:
         response = await self.request_naming_server(request, InstanceResponse)
         return response.is_success()
 
-    async def batch_register_instance(self, service_name: str, group_name: str, instances: list[Instance]) -> bool:
+    async def batch_register_instance(self, service_name: str, group_name: str, instances: List[Instance]) -> bool:
         self.logger.info("batch register instance service_name:%s, group_name:%s, namespace:%s,instances:%s" % (
             service_name, group_name, self.namespace_id, str(instances)))
 

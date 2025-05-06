@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List
 
 from v2.nacos.config.model.config import ConfigListenContext
 from v2.nacos.transport.model.rpc_request import Request
@@ -24,7 +24,7 @@ class AbstractConfigRequest(Request, ABC):
 
 class ConfigBatchListenRequest(AbstractConfigRequest):
     listen: bool = True
-    configListenContexts: list[ConfigListenContext] = []
+    configListenContexts: List[ConfigListenContext] = []
 
     def get_request_type(self):
         return "ConfigBatchListenRequest"

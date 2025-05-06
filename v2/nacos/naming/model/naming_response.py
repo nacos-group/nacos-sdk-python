@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, List
 
 from v2.nacos.naming.model.service import Service
 from v2.nacos.transport.model.rpc_response import Response
@@ -31,7 +31,7 @@ class BatchInstanceResponse(Response):
 
 class ServiceListResponse(Response):
     count: int
-    serviceNames: list[str]
+    serviceNames: List[str]
 
     def get_response_type(self) -> str:
         return "ServiceListResponse"

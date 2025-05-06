@@ -22,7 +22,7 @@ class ConfigPage(BaseModel):
     totalCount: int = 0
     pageNumber: int = 0
     pagesAvailable: int = 0
-    pageItems: list[ConfigItem] = []
+    pageItems: List[ConfigItem] = []
 
 
 class ConfigListenContext(BaseModel):
