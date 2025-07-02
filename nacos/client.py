@@ -425,7 +425,7 @@ class NacosClient:
             params["type"] = config_type
 
         try:
-            resp = self._do_sync_req("/nacos/v1/cs/configs", None, params, None,
+            resp = self._do_sync_req("/nacos/v1/cs/configs", None, None, params,
                                      timeout or self.default_timeout, "POST")
             c = resp.read()
             logger.info("[publish] publish content, group:%s, data_id:%s, server response:%s" % (

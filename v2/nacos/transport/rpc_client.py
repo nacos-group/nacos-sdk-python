@@ -137,11 +137,10 @@ class RpcClient(ABC):
                         self.logger.error("%s server healthy check fail, currentConnection=%s"
                                           , self.name, self.current_connection.get_connection_id())
 
-                        async with self.lock:
-                            if self.rpc_client_status == RpcClientStatus.SHUTDOWN:
-                                continue
-                            self.rpc_client_status = RpcClientStatus.UNHEALTHY
-                            await self.reconnect(ReconnectContext(server_info=None, on_request_fail=False))
+                        if self.rpc_client_status == RpcClientStatus.SHUTDOWN:
+                            continue
+                        self.rpc_client_status = RpcClientStatus.UNHEALTHY
+                        await self.reconnect(ReconnectContext(server_info=None, on_request_fail=False))
                 except asyncio.CancelledError:
                     break
         except asyncio.CancelledError:
