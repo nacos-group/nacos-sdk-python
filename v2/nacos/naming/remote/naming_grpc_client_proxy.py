@@ -12,8 +12,10 @@ from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import ListServiceParam
-from v2.nacos.naming.model.naming_request import InstanceRequest, NOTIFY_SUBSCRIBER_REQUEST_TYPE, \
-    SubscribeServiceRequest, AbstractNamingRequest, ServiceListRequest, BatchInstanceRequest
+from v2.nacos.naming.model.naming_request import InstanceRequest, \
+    NOTIFY_SUBSCRIBER_REQUEST_TYPE, \
+    SubscribeServiceRequest, AbstractNamingRequest, ServiceListRequest, \
+    BatchInstanceRequest, PersistentInstanceRequest
 from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, InstanceResponse, ServiceListResponse, \
     BatchInstanceResponse
 from v2.nacos.naming.model.service import Service
@@ -99,6 +101,18 @@ class NamingGRPCClientProxy:
             service_name, group_name, self.namespace_id, str(instance)))
         await self.event_listener.cache_instance_for_redo(service_name, group_name, instance)
         request = InstanceRequest(
+            namespace=self.namespace_id,
+            serviceName=service_name,
+            groupName=group_name,
+            instance=instance,
+            type=NamingRemoteConstants.REGISTER_INSTANCE)
+        response = await self.request_naming_server(request, InstanceResponse)
+        return response.is_success()
+
+    async def register_persistent_instance(self, service_name: str, group_name: str, instance: Instance):
+        self.logger.info("register persistent instance service_name:%s, group_name:%s, namespace:%s, instance:%s" % (
+            service_name, group_name, self.namespace_id, str(instance)))
+        request = PersistentInstanceRequest(
             namespace=self.namespace_id,
             serviceName=service_name,
             groupName=group_name,

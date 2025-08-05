@@ -31,6 +31,12 @@ class InstanceRequest(AbstractNamingRequest):
     def get_request_type(self) -> str:
         return 'InstanceRequest'
 
+class PersistentInstanceRequest(AbstractNamingRequest):
+    type: Optional[str]
+    instance: Optional[Instance]
+    def get_request_type(self) -> str:
+        return 'PersistentInstanceRequest'
+
 
 class BatchInstanceRequest(AbstractNamingRequest):
     type: Optional[str]

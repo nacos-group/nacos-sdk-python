@@ -50,7 +50,12 @@ class NacosNamingService(NacosClient):
 
         instance.check_instance_is_legal()
 
-        return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
+        if instance.ephemeral:
+            return await self.grpc_client_proxy.register_instance(
+                request.service_name, request.group_name, instance)
+        else:
+            return await self.grpc_client_proxy.register_persistent_instance(
+                request.service_name, request.group_name, instance)
 
     async def batch_register_instances(self, request: BatchRegisterInstanceParam) -> bool:
         if not request.service_name:
@@ -112,7 +117,10 @@ class NacosNamingService(NacosClient):
 
         instance.check_instance_is_legal()
 
-        return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
+        if instance.ephemeral:
+            return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
+        else:
+            return await self.grpc_client_proxy.register_persistent_instance(request.service_name, request.group_name, instance)
 
     async def get_service(self, request: GetServiceParam) -> Service:
         if not request.service_name:
