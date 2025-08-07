@@ -165,7 +165,7 @@ class NamingGRPCClientProxy:
     async def deregister_persistent_instance(self, service_name:str, group_name:str, instance:Instance) -> bool:
         self.logger.info("deregister persistent instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
             instance.ip, instance.port, service_name, group_name, self.namespace_id))
-        request = InstanceRequest(
+        request = PersistentInstanceRequest(
                 namespace=self.namespace_id,
                 serviceName=service_name,
                 groupName=group_name,
