@@ -97,15 +97,22 @@ class NamingGRPCClientProxy:
             raise NacosException(SERVER_ERROR, "Request nacos naming server failed: " + str(e))
 
     async def register_instance(self, service_name: str, group_name: str, instance: Instance):
-        self.logger.info("register instance service_name:%s, group_name:%s, namespace:%s, instance:%s" % (
+        if instance.ephemeral:
+            return await self.register_ephemeral_instance(service_name, group_name, instance)
+        else:
+            return await self.register_persistent_instance(service_name, group_name, instance)
+
+    async def register_ephemeral_instance(self, service_name: str, group_name: str, instance: Instance):
+        self.logger.info("register ephemeral instance service_name:%s, group_name:%s, namespace:%s, instance:%s" % (
             service_name, group_name, self.namespace_id, str(instance)))
-        await self.event_listener.cache_instance_for_redo(service_name, group_name, instance)
+        await self.event_listener.cache_instance_for_redo(service_name,
+                                                          group_name, instance)
         request = InstanceRequest(
-            namespace=self.namespace_id,
-            serviceName=service_name,
-            groupName=group_name,
-            instance=instance,
-            type=NamingRemoteConstants.REGISTER_INSTANCE)
+                namespace=self.namespace_id,
+                serviceName=service_name,
+                groupName=group_name,
+                instance=instance,
+                type=NamingRemoteConstants.REGISTER_INSTANCE)
         response = await self.request_naming_server(request, InstanceResponse)
         return response.is_success()
 
@@ -136,17 +143,37 @@ class NamingGRPCClientProxy:
         return response.is_success()
 
     async def deregister_instance(self, service_name: str, group_name: str, instance: Instance) -> bool:
-        self.logger.info("deregister instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
+        if instance.ephemeral:
+            return await self.deregister_ephemeral_instance(service_name, group_name, instance)
+        else:
+            return await self.deregister_persistent_instance(service_name, group_name, instance)
+
+    async def deregister_ephemeral_instance(self, service_name:str, group_name:str, instance:Instance) -> bool:
+        self.logger.info("deregister ephemeral instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
             instance.ip, instance.port, service_name, group_name, self.namespace_id))
         request = InstanceRequest(
-            namespace=self.namespace_id,
-            serviceName=service_name,
-            groupName=group_name,
-            instance=instance,
-            type=NamingRemoteConstants.DE_REGISTER_INSTANCE)
+                namespace=self.namespace_id,
+                serviceName=service_name,
+                groupName=group_name,
+                instance=instance,
+                type=NamingRemoteConstants.DE_REGISTER_INSTANCE)
         response = await self.request_naming_server(request, InstanceResponse)
-        await self.event_listener.remove_instance_for_redo(service_name, group_name)
+        await self.event_listener.remove_instance_for_redo(service_name,
+                                                           group_name)
         return response.is_success()
+
+    async def deregister_persistent_instance(self, service_name:str, group_name:str, instance:Instance) -> bool:
+        self.logger.info("deregister persistent instance ip:%s, port:%s, service_name:%s, group_name:%s, namespace:%s" % (
+            instance.ip, instance.port, service_name, group_name, self.namespace_id))
+        request = InstanceRequest(
+                namespace=self.namespace_id,
+                serviceName=service_name,
+                groupName=group_name,
+                instance=instance,
+                type=NamingRemoteConstants.DE_REGISTER_INSTANCE)
+        response = await self.request_naming_server(request, InstanceResponse)
+        return response.is_success()
+
 
     async def list_services(self, param: ListServiceParam) -> ServiceList:
         self.logger.info("listService group_name:%s, namespace:%s", param.group_name, param.namespace_id)

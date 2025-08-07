@@ -50,12 +50,7 @@ class NacosNamingService(NacosClient):
 
         instance.check_instance_is_legal()
 
-        if instance.ephemeral:
-            return await self.grpc_client_proxy.register_instance(
-                request.service_name, request.group_name, instance)
-        else:
-            return await self.grpc_client_proxy.register_persistent_instance(
-                request.service_name, request.group_name, instance)
+        return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
 
     async def batch_register_instances(self, request: BatchRegisterInstanceParam) -> bool:
         if not request.service_name:
@@ -72,7 +67,7 @@ class NacosNamingService(NacosClient):
                 metadata=instance.metadata,
                 clusterName=instance.cluster_name,
                 healthy=instance.healthy,
-                enable=instance.enabled,
+                enabled=instance.enabled,
                 weight=instance.weight,
                 ephemeral=instance.ephemeral,
             ))
@@ -89,7 +84,7 @@ class NacosNamingService(NacosClient):
 
         instance = Instance(ip=request.ip,
                             port=request.port,
-                            cluster_name=request.cluster_name,
+                            clusterName=request.cluster_name,
                             ephemeral=request.ephemeral,
                             )
 
@@ -117,10 +112,7 @@ class NacosNamingService(NacosClient):
 
         instance.check_instance_is_legal()
 
-        if instance.ephemeral:
-            return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
-        else:
-            return await self.grpc_client_proxy.register_persistent_instance(request.service_name, request.group_name, instance)
+        return await self.grpc_client_proxy.register_instance(request.service_name, request.group_name, instance)
 
     async def get_service(self, request: GetServiceParam) -> Service:
         if not request.service_name:
