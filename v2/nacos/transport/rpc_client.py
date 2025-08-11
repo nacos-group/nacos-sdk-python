@@ -200,6 +200,7 @@ class RpcClient(ABC):
                     f"rpc client successfully connected to server:{self.current_connection.server_info.get_address()}, connection_id:{self.current_connection.get_connection_id()}")
                 async with self.lock:
                     self.rpc_client_status = RpcClientStatus.RUNNING
+                    await self._notify_connection_change(ConnectionStatus.CONNECTED)
 
         if connection is None:
             raise NacosException(CLIENT_DISCONNECT, "failed to connect server")
