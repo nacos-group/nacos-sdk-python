@@ -184,33 +184,6 @@ class NamingGRPCClientProxy:
 
         return retain_instances
 
-        # de_register_instance_map = {instance: instance for instance in
-        #                             deregister_instances}
-        # # 存储需要保留的实例
-        # retain_instances = []
-        # # 遍历所有已注册的实例
-        # for redo_instance in all_redo_instances:
-        #     need_retained = True
-        #     # 创建临时列表存储需要删除的项
-        #     items_to_remove = []
-        #     # 检查当前已注册实例是否在待注销列表中
-        #     for de_register_instance in de_register_instance_map.keys():
-        #         # 仅比较IP和端口，因为redoInstance的instanceId或serviceName可能为null
-        #         if self.compare_ip_and_port(de_register_instance,
-        #                                     redo_instance):
-        #             need_retained = False
-        #             items_to_remove.append(de_register_instance)
-        #             break
-        #     # 从待注销映射中删除已处理的项
-        #     for item in items_to_remove:
-        #         del de_register_instance_map[item]
-        #
-        #     # 如果不需要注销，则添加到保留列表中
-        #     if need_retained:
-        #         retain_instances.append(redo_instance)
-        #
-        # return retain_instances
-
     def compare_ip_and_port(self, de_register_instance: Instance,
             redo_instance: Instance) -> bool:
         """
