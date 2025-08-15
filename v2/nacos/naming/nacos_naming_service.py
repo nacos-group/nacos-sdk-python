@@ -74,6 +74,29 @@ class NacosNamingService(NacosClient):
 
         return await self.grpc_client_proxy.batch_register_instance(request.service_name, request.group_name,
                                                                     instance_list)
+    async def batch_deregister_instances(self, request: BatchRegisterInstanceParam) -> bool:
+        if not request.service_name:
+            raise NacosException(INVALID_PARAM, "service_name can not be empty")
+        instance_list = []
+        for instance in request.instances:
+            if not instance.ephemeral:
+                raise NacosException(INVALID_PARAM,
+                                     f"batch de registration does not allow persistent instance:{instance}")
+            instance_list.append(Instance(
+                ip=instance.ip,
+                port=instance.port,
+                metadata=instance.metadata,
+                clusterName=instance.cluster_name,
+                healthy=instance.healthy,
+                enabled=instance.enabled,
+                weight=instance.weight,
+                ephemeral=instance.ephemeral,
+            ))
+
+        return await self.grpc_client_proxy.batch_deregister_instance(request.service_name, request.group_name,
+                                                                    instance_list)
+
+
 
     async def deregister_instance(self, request: DeregisterInstanceParam) -> bool:
         if not request.service_name:
