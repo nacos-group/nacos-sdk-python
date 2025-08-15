@@ -16,9 +16,10 @@ from v2.nacos.naming.model.naming_param import ListServiceParam
 from v2.nacos.naming.model.naming_request import InstanceRequest, \
     NOTIFY_SUBSCRIBER_REQUEST_TYPE, \
     SubscribeServiceRequest, AbstractNamingRequest, ServiceListRequest, \
-    BatchInstanceRequest, PersistentInstanceRequest
-from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, InstanceResponse, ServiceListResponse, \
-    BatchInstanceResponse
+    BatchInstanceRequest, PersistentInstanceRequest, ServiceQueryRequest
+from v2.nacos.naming.model.naming_response import SubscribeServiceResponse, \
+    InstanceResponse, ServiceListResponse, \
+    BatchInstanceResponse, QueryServiceResponse
 from v2.nacos.naming.model.service import Service
 from v2.nacos.naming.model.service import ServiceList
 from v2.nacos.naming.redo.naming_grpc_redo_service import NamingGrpcRedoService, \
@@ -97,6 +98,19 @@ class NamingGRPCClientProxy:
         except Exception as e:
             self.logger.error("failed to invoke nacos naming server : " + str(e))
             raise NacosException(SERVER_ERROR, "Request nacos naming server failed: " + str(e))
+
+    async def query_instance_of_service(self, service_name: str, group_name: str, clusters: str, health_only:bool):
+        self.logger.info(
+				f"Query instance of service:{service_name} group_name:{group_name}, namespace:{self.namespace_id}, clusters:{clusters}")
+        request = ServiceQueryRequest(
+                namespace=self.namespace_id,
+                serviceName=service_name,
+                groupName=group_name,
+                cluster=clusters,
+                healthOnly=health_only,
+        )
+        response = await self.request_naming_server(request, QueryServiceResponse)
+        return response.serviceInfo
 
     async def register_instance(self, service_name: str, group_name: str, instance: Instance):
         if instance.ephemeral:

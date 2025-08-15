@@ -7,8 +7,9 @@ from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
     ConfigChangeBatchListenResponse, ConfigRemoveResponse
 from v2.nacos.naming.model.naming_request import NotifySubscriberRequest
-from v2.nacos.naming.model.naming_response import InstanceResponse, SubscribeServiceResponse, BatchInstanceResponse, \
-    ServiceListResponse
+from v2.nacos.naming.model.naming_response import InstanceResponse, \
+    SubscribeServiceResponse, BatchInstanceResponse, \
+    ServiceListResponse, QueryServiceResponse
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.transport.model import ServerCheckResponse
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest
@@ -22,8 +23,9 @@ class GrpcUtils:
     SERVICE_INFO_KEY = "serviceInfo"
 
     remote_type = {
+        "QueryServiceResponse": QueryServiceResponse,
         "ServerCheckResponse": ServerCheckResponse,
-        "NotifySubscriberRequest": NotifySubscriberRequest,
+        # "NotifySubscriberRequest": NotifySubscriberRequest,
         "ErrorResponse": ErrorResponse,
         "InstanceResponse": InstanceResponse,
         "ServiceListResponse": ServiceListResponse,

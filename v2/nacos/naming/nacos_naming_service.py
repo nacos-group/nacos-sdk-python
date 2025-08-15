@@ -6,6 +6,7 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.nacos_client import NacosClient
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
+from v2.nacos.naming.cache.service_info_updater import ServiceInfoUpdater
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, BatchRegisterInstanceParam, \
     DeregisterInstanceParam, ListInstanceParam, SubscribeServiceParam, GetServiceParam, ListServiceParam
@@ -21,6 +22,11 @@ class NacosNamingService(NacosClient):
         self.namespace_id = client_config.namespace_id
         self.service_info_holder = ServiceInfoCache(client_config)
         self.grpc_client_proxy = NamingGRPCClientProxy(client_config, self.http_agent, self.service_info_holder)
+        self.service_info_updater = ServiceInfoUpdater(
+                self.service_info_holder, client_config.update_thread_num,
+                self.grpc_client_proxy)
+        if client_config.async_update_service:
+            asyncio.create_task(self.service_info_updater.async_update_service())
 
     @staticmethod
     async def create_naming_service(client_config: ClientConfig) -> 'NacosNamingService':
@@ -222,3 +228,4 @@ class NacosNamingService(NacosClient):
 
     async def shutdown(self) -> None:
         await self.grpc_client_proxy.close_client()
+        await self.service_info_updater.stop()

@@ -77,6 +77,8 @@ class ClientConfig:
         self.load_cache_at_start = True
         self.update_cache_when_empty = False
         self.app_conn_labels = app_conn_labels
+        self.async_update_service = False
+        self.update_thread_num = 5
 
     def set_log_level(self, log_level):
         self.log_level = log_level
@@ -124,4 +126,12 @@ class ClientConfig:
 
     def set_app_conn_labels(self, app_conn_labels: dict):
         self.app_conn_labels = app_conn_labels
+        return self
+
+    def set_async_update_service(self, async_update_service: bool):
+        self.async_update_service = async_update_service
+        return self
+
+    def set_update_thread_num(self, update_thread_num: int):
+        self.update_thread_num = update_thread_num
         return self

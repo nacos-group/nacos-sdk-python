@@ -8,6 +8,14 @@ class NotifySubscriberResponse(Response):
     def get_response_type(self) -> str:
         return "NotifySubscriberResponse"
 
+class QueryServiceResponse(Response):
+    serviceInfo: Optional[Service] = None
+
+    def get_service_info(self) -> Service:
+        return self.serviceInfo
+
+    def get_response_type(self) -> str:
+        return "QueryServiceResponse"
 
 class SubscribeServiceResponse(Response):
     serviceInfo: Optional[Service] = None
