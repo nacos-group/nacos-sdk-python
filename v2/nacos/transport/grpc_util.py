@@ -25,7 +25,7 @@ class GrpcUtils:
     remote_type = {
         "QueryServiceResponse": QueryServiceResponse,
         "ServerCheckResponse": ServerCheckResponse,
-        # "NotifySubscriberRequest": NotifySubscriberRequest,
+        "NotifySubscriberRequest": NotifySubscriberRequest,
         "ErrorResponse": ErrorResponse,
         "InstanceResponse": InstanceResponse,
         "ServiceListResponse": ServiceListResponse,
