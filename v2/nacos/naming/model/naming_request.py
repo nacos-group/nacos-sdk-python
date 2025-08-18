@@ -23,6 +23,14 @@ class AbstractNamingRequest(Request, ABC):
 
 NOTIFY_SUBSCRIBER_REQUEST_TYPE = "NotifySubscriberRequest"
 
+class ServiceQueryRequest(AbstractNamingRequest):
+    cluster: Optional[str]
+    healthOnly: Optional[bool]
+    udpPort: Optional[int] = None
+
+    def get_request_type(self) -> str:
+        return 'ServiceQueryRequest'
+
 
 class InstanceRequest(AbstractNamingRequest):
     type: Optional[str]

@@ -6,6 +6,9 @@ from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, INVALID_PARAM
 from v2.nacos.nacos_client import NacosClient
 from v2.nacos.naming.cache.service_info_cache import ServiceInfoCache
+from v2.nacos.naming.cache.service_info_updater import ServiceInfoUpdater
+from v2.nacos.naming.cache.subscribe_callback_wrapper import ClusterSelector, \
+    SubscribeCallbackFuncWrapper
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.naming_param import RegisterInstanceParam, BatchRegisterInstanceParam, \
     DeregisterInstanceParam, ListInstanceParam, SubscribeServiceParam, GetServiceParam, ListServiceParam
@@ -21,6 +24,11 @@ class NacosNamingService(NacosClient):
         self.namespace_id = client_config.namespace_id
         self.service_info_holder = ServiceInfoCache(client_config)
         self.grpc_client_proxy = NamingGRPCClientProxy(client_config, self.http_agent, self.service_info_holder)
+        self.service_info_updater = ServiceInfoUpdater(
+                self.service_info_holder, client_config.update_thread_num,
+                self.grpc_client_proxy)
+        if client_config.async_update_service:
+            asyncio.create_task(self.service_info_updater.async_update_service())
 
     @staticmethod
     async def create_naming_service(client_config: ClientConfig) -> 'NacosNamingService':
@@ -145,9 +153,12 @@ class NacosNamingService(NacosClient):
             request.group_name = Constants.DEFAULT_GROUP
 
         clusters = ",".join(request.clusters)
-        service = await self.service_info_holder.get_service_info(request.service_name, request.group_name, clusters)
+        service = await self.service_info_holder.get_service_info(request.service_name, request.group_name, "")
+        cluster_selector = ClusterSelector(request.clusters)
         if not service:
-            service = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, clusters)
+            service = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
+        service.clusters = clusters
+        service.hosts = cluster_selector.select_instance(service)
         return service
 
     async def list_services(self, request: ListServiceParam) -> ServiceList:
@@ -169,19 +180,18 @@ class NacosNamingService(NacosClient):
         if not request.group_name:
             request.group_name = Constants.DEFAULT_GROUP
 
-        clusters = ",".join(request.clusters)
-
+        cluster_selector = ClusterSelector(request.clusters)
         service_info = None
         # 如果subscribe为true, 则优先从缓存中获取服务信息，并订阅该服务
         if request.subscribe:
             service_info = await self.service_info_holder.get_service_info(request.service_name, request.group_name,
-                                                                           clusters)
+                                                                           "")
         if service_info is None:
-            service_info = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, clusters)
+            service_info = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
 
         instance_list = []
         if service_info is not None and len(service_info.hosts) > 0:
-            instance_list = service_info.hosts
+            instance_list = cluster_selector.select_instance(service_info)
 
         # 如果设置了healthy_only参数,表示需要查询健康或不健康的实例列表，为true时仅会返回健康的实例列表，反之则返回不健康的实例列表。默认为None
         if request.healthy_only is not None:
@@ -198,11 +208,11 @@ class NacosNamingService(NacosClient):
         if not request.group_name:
             request.group_name = Constants.DEFAULT_GROUP
 
-        clusters = ",".join(request.clusters)
-
+        cluster_selector = ClusterSelector(request.clusters)
+        callback_wrapper = SubscribeCallbackFuncWrapper(cluster_selector, request.subscribe_callback)
         await self.service_info_holder.register_callback(get_group_name(request.service_name, request.group_name),
-                                                         clusters, request.subscribe_callback)
-        await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, clusters)
+                                                         "", callback_wrapper)
+        await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
 
     async def unsubscribe(self, request: SubscribeServiceParam) -> None:
         if not request.service_name:
@@ -211,14 +221,16 @@ class NacosNamingService(NacosClient):
         if not request.group_name:
             request.group_name = Constants.DEFAULT_GROUP
 
-        clusters = ",".join(request.clusters)
-
+        cluster_selector = ClusterSelector(request.clusters)
+        callback_wrapper = SubscribeCallbackFuncWrapper(cluster_selector, request.subscribe_callback)
         await self.service_info_holder.deregister_callback(get_group_name(request.service_name, request.group_name),
-                                                           clusters, request.subscribe_callback)
-        await self.grpc_client_proxy.unsubscribe(request.service_name, request.group_name, clusters)
+                                                           "", callback_wrapper)
+        if not await self.service_info_holder.is_subscribed(get_group_name(request.service_name, request.group_name), ""):
+            await self.grpc_client_proxy.unsubscribe(request.service_name, request.group_name, "")
 
     async def server_health(self) -> bool:
         return self.grpc_client_proxy.server_health()
 
     async def shutdown(self) -> None:
         await self.grpc_client_proxy.close_client()
+        await self.service_info_updater.stop()

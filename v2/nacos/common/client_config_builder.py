@@ -101,5 +101,13 @@ class ClientConfigBuilder:
         self._config.endpoint_query_header.update(endpoint_query_header)
         return self
 
+    def async_update_service(self, async_update_service: bool) -> "ClientConfigBuilder":
+        self._config.set_async_update_service(async_update_service)
+        return self
+
+    def update_thread_num(self, update_thread_num: int) -> "ClientConfigBuilder":
+        self._config.update_thread_num = update_thread_num
+        return self
+
     def build(self):
         return self._config

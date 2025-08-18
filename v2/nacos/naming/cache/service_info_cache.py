@@ -6,6 +6,8 @@ from typing import Callable, Optional, List, Dict
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
+from v2.nacos.naming.cache.subscribe_callback_wrapper import \
+    SubscribeCallbackFuncWrapper
 from v2.nacos.naming.cache.subscribe_manager import SubscribeManager
 from v2.nacos.naming.model.instance import Instance
 from v2.nacos.naming.model.service import Service
@@ -131,11 +133,11 @@ class ServiceInfoCache:
 
         return sorted(instances, key=instance_key)
 
-    async def register_callback(self, service_name: str, clusters: str, callback_func: Callable):
-        await self.sub_callback_manager.add_callback_func(service_name, clusters, callback_func)
+    async def register_callback(self, service_name: str, clusters: str, callback_func_wrapper: SubscribeCallbackFuncWrapper):
+        await self.sub_callback_manager.add_callback_func(service_name, clusters, callback_func_wrapper)
 
-    async def deregister_callback(self, service_name: str, clusters: str, callback_func: Callable):
-        await self.sub_callback_manager.remove_callback_func(service_name, clusters, callback_func)
+    async def deregister_callback(self, service_name: str, clusters: str, callback_func_wrapper: SubscribeCallbackFuncWrapper):
+        await self.sub_callback_manager.remove_callback_func(service_name, clusters, callback_func_wrapper)
 
     async def is_subscribed(self, service_name: str, clusters: str) -> bool:
         return await self.sub_callback_manager.is_subscribed(service_name, clusters)
