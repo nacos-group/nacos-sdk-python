@@ -18,9 +18,14 @@ class ClientDetectionResponse(Response):
     def get_response_type(self) -> str:
         return "ClientDetectionResponse"
 
+class SetupAckResponse(Response):
+    def get_response_type(self) -> str:
+        return "SetupAckResponse"
+
 
 class ServerCheckResponse(Response):
     connectionId: Optional[str] = ''
+    supportAbilityNegotiation : bool = False
 
     def get_response_type(self) -> str:
         return "ServerCheckResponse"

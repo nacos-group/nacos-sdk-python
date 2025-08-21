@@ -47,7 +47,11 @@ class NamingGRPCClientProxy:
 
         self.service_info_cache = service_info_cache
         self.rpc_client = None
-        self.namespace_id = client_config.namespace_id
+        if not client_config.namespace_id or len(
+                client_config.namespace_id) == 0:
+            self.namespace_id = "public"
+        else:
+            self.namespace_id = client_config.namespace_id
         self.nacos_server_connector = NacosServerConnector(self.logger, client_config, http_client)
         self.redo_service = NamingGrpcRedoService(self)
 
