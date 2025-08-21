@@ -21,7 +21,11 @@ from v2.nacos.naming.util.naming_client_util import get_group_name
 class NacosNamingService(NacosClient):
     def __init__(self, client_config: ClientConfig):
         super().__init__(client_config, Constants.NAMING_MODULE)
-        self.namespace_id = client_config.namespace_id
+        if not client_config.namespace_id or len(
+                client_config.namespace_id) == 0:
+            self.namespace_id = "public"
+        else:
+            self.namespace_id = client_config.namespace_id
         self.service_info_holder = ServiceInfoCache(client_config)
         self.grpc_client_proxy = NamingGRPCClientProxy(client_config, self.http_agent, self.service_info_holder)
         self.service_info_updater = ServiceInfoUpdater(

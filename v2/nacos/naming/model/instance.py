@@ -59,6 +59,17 @@ class Instance(BaseModel):
                 INVALID_PARAM,
                 "Instance 'heart beat interval' must less than 'heart beat timeout' and 'ip delete timeout'."
             )
+        self.fill_default_value()
+
+        if not self.ip or len(self.ip) == 0:
+            raise NacosException(INVALID_PARAM, "Instance 'ip' can not be empty.")
+
+        if self.port < 0 or self.port > 65535:
+            raise NacosException(INVALID_PARAM, "Instance 'port' must be between 0 and 65535.")
+
+    def fill_default_value(self):
+        if self.clusterName is None or len(self.clusterName) == 0:
+            self.clusterName = Constants.DEFAULT_CLUSTER_NAME
 
     def contains_metadata(self, key: str) -> bool:
         if not self.metadata:
