@@ -43,7 +43,7 @@ class McpServerRemoteServiceConfig(BaseModel):
 	# Export path for the remote service
 	exportPath: Optional[str] = None
 	# List of frontend endpoint configurations
-	frontEndpointConfigList: Optional[List[FrontEndpointConfig]] = None
+	frontEndpointConfigList: Optional[List[FrontEndpointConfig]] = []
 
 
 class McpCapability(Enum):
@@ -62,7 +62,9 @@ class McpServerBasicInfo(BaseModel):
 	id: Optional[str] = None
 	# Name of the MCP server
 	name: Optional[str] = None
-	# Backend protocol used by the MCP server mcp-sse/mcp-streamable/stdio
+	# Backend protocol used by the MCP server.
+	# When value is 'mcp-sse' or 'mcp-streamable' or 'stdio', it indicates native MCP server protocol support.
+	# When value is 'http' or 'https', it indicates legacy interface conversion.
 	protocol: Optional[str] = None
 	# Frontend protocol for client access mcp-sse/mcp-streamable
 	frontProtocol: Optional[str] = None
@@ -74,7 +76,7 @@ class McpServerBasicInfo(BaseModel):
 	packages: Optional[List[Package]] = None
 	# Detailed version information
 	versionDetail: Optional[ServerVersionDetail] = None
-	# Version string of the server
+	# Version string of the server, deprecated, please use versionDetail.version instead
 	version: Optional[str] = None
 	# Configuration for remote service access
 	remoteServerConfig: Optional[McpServerRemoteServiceConfig] = None
@@ -169,7 +171,7 @@ class McpEndpointSpce(BaseModel):
 
 	# Endpoint data, format depends on type:
 	# For DIRECT type: should include 'address' and 'port' keys
-	# For REF type: should include 'namespaceId', 'groupName' and 'serviceName' keys
+	# For REF type: should include 'groupName' and 'serviceName' keys
 	data: Optional[Dict[str, str]] = None
 
 
