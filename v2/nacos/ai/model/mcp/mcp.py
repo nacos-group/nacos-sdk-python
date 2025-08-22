@@ -148,7 +148,7 @@ class McpToolSpecification(BaseModel):
 	securitySchema: Optional[List[SecuritySchema]] = None
 
 
-class McpServerDetailInfo(BaseModel):
+class McpServerDetailInfo(McpServerBasicInfo):
 	"""Detailed information about an MCP server including endpoints and tools"""
 	# List of backend endpoints for internal server communication
 	backendEndpoints: Optional[List[McpEndpointInfo]] = None
