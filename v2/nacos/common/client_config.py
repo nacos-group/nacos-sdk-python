@@ -41,7 +41,7 @@ class GRPCConfig:
         self.initial_window_size = initial_window_size
         self.initial_conn_window_size = initial_conn_window_size
         self.grpc_timeout = grpc_timeout
-        self.capability_negotiation_timeout =
+        self.capability_negotiation_timeout = capability_negotiation_timeout
 
 
 class ClientConfig:

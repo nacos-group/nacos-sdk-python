@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from v2.nacos.transport.grpc_client import RecAbilityContext
 from v2.nacos.transport.model.internal_request import ClientDetectionRequest, \
     SetupAckRequest
 from v2.nacos.transport.model.internal_response import ClientDetectionResponse, \
     SetupAckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.rpc_response import Response
+from v2.nacos.transport.rec_ability_context import RecAbilityContext
 
 
 class IServerRequestHandler(ABC):

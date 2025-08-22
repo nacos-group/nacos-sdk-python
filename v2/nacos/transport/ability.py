@@ -18,23 +18,23 @@ class AbilityKey(Enum):
 
 	SERVER_DISTRIBUTED_LOCK = (
 	"lock", "Server whether support distributed lock",
-	AbilityMode.SERVER),
+	AbilityMode.SERVER)
 
 	SERVER_MCP_REGISTRY = ("mcp",
 						   "Server whether support release mcp server and register endpoint for mcp server",
-						   AbilityMode.SERVER),
+						   AbilityMode.SERVER)
 
 	SDK_CLIENT_FUZZY_WATCH = ("fuzzyWatch",
 							  "Client whether support fuzzy watch service or config",
-							  AbilityMode.SDK_CLIENT),
+							  AbilityMode.SDK_CLIENT)
 
 	SDK_CLIENT_DISTRIBUTED_LOCK = ("lock",
 								   "Client whether support distributed lock",
-								   AbilityMode.SDK_CLIENT),
+								   AbilityMode.SDK_CLIENT)
 
 	SDK_MCP_REGISTRY = ("mcp",
 						"Client whether support release mcp server and register endpoint for mcp server",
-						AbilityMode.SDK_CLIENT),
+						AbilityMode.SDK_CLIENT)
 
 	def __init__(self, key_name: str, description: str, mode: AbilityMode):
 		self.key_name = key_name

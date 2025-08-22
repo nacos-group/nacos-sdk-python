@@ -1,4 +1,5 @@
 from v2.nacos import ClientConfig, NacosException, Instance
+from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.ai_param import GetMcpServerParam, ReleaseMcpServerParam, \
 	RegisterMcpServerEndpointParam, SubscribeMcpServerParam
 from v2.nacos.ai.model.cache.mcp_server_info_cache import \
@@ -51,9 +52,15 @@ class NacosAIService(NacosClient):
 		if not param.server_spec.versionDetail.version or len(param.server_spec.versionDetail.version) == 0:
 			raise NacosException(INVALID_PARAM, "serverSpec.versionDetail.version is required")
 
+		if not param.mcp_endpoint_spec is None and param.mcp_endpoint_spec.type == AIConstants.MCP_ENDPOINT_TYPE_REF:
+			if "namespaceId" not in param.mcp_endpoint_spec.data:
+				param.mcp_endpoint_spec.data["namespaceId"] = self.namespace_id
+			elif param.mcp_endpoint_spec.data["namespaceId"] != self.namespace_id:
+				raise NacosException(INVALID_PARAM, "mcpEndpointSpec.data.namespaceId is not match")
+
 		return await self.grpc_client_proxy.release_mcp_server(param.server_spec, param.tool_spec, param.mcp_endpoint_spec)
 
-	async def release_mcp_server_endpoint(self, param: RegisterMcpServerEndpointParam):
+	async def register_mcp_server_endpoint(self, param: RegisterMcpServerEndpointParam):
 		if not param.mcp_name or len(param.mcp_name) == 0:
 			raise NacosException(INVALID_PARAM, "mcpName is required")
 

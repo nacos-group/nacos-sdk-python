@@ -34,12 +34,12 @@ class KeyValueInput(InputWithVariables):
 	name: Optional[str] = None
 
 
-class Argument(ABC):
+class Argument(BaseModel,ABC):
 	"""Abstract base class for MCP tool arguments"""
 	pass
 
 
-class PositionalArgument(BaseModel, Argument):
+class PositionalArgument(Argument):
 	"""Positional argument for MCP tool execution"""
 	# Argument type identifier
 	type: Literal["positional"] = "positional"
@@ -53,7 +53,7 @@ class PositionalArgument(BaseModel, Argument):
 	variables: Optional[Dict[str, Input]] = None
 
 
-class NamedArgument(BaseModel, Argument):
+class NamedArgument(Argument):
 	"""Named argument for MCP tool execution"""
 	# Argument type identifier
 	type: Literal["named"] = "named"

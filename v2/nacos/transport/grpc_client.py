@@ -19,68 +19,9 @@ from v2.nacos.transport.model.internal_response import ServerCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.server_info import ServerInfo
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
+from v2.nacos.transport.rec_ability_context import RecAbilityContext
 from v2.nacos.transport.rpc_client import RpcClient, ConnectionType
 from v2.nacos.transport.server_request_handler import SetupAckRequestHandler
-
-
-class RecAbilityContext:
-
-    def __init__(self, logger, connection: Optional[GrpcConnection] = None):
-
-        self.connection = connection
-        self.blocker: Optional[asyncio.Event] = asyncio.Event()
-        self.need_to_sync = False
-        self.logger = logger
-
-        # 初始化状态
-        if connection is not None:
-            self.blocker.set()  # 默认设置为已触发状态
-        else:
-            self.blocker.clear()
-
-    def is_need_to_sync(self) -> bool:
-        return self.need_to_sync
-
-    def reset(self, connection: GrpcConnection) -> None:
-        self.connection = connection
-        self.blocker = asyncio.Event()  # 创建新的事件对象
-        self.need_to_sync = True
-
-    def release(self, abilities: Optional[Dict[str, bool]]) -> None:
-        if self.connection is not None:
-            self.connection.set_ability_table(abilities)
-            # 避免重复设置
-            self.connection = None
-
-        if self.blocker is not None:
-            self.blocker.set()
-
-        self.need_to_sync = False
-
-    async def await_abilities(self, timeout: float) -> None:
-        if self.blocker is not None:
-            try:
-                await asyncio.wait_for(self.blocker.wait(), timeout=timeout/1000)
-            except asyncio.TimeoutError:
-                self.logger.warning("Waiting for server abilities timeout")
-                raise
-        self.need_to_sync = False
-
-    def check(self, connection: GrpcConnection) -> bool:
-
-        if not connection.is_abilities_set():
-            self.logger.error(
-                    "Client don't receive server abilities table even empty table "
-                    "but server supports ability negotiation. "
-                    "You can check if it is need to adjust the timeout of ability "
-                    "negotiation if always fail to connect."
-            )
-            connection.set_abandon(True)
-            connection.close()
-            return False
-        return True
-
-
 
 
 class GrpcClient(RpcClient):
@@ -162,7 +103,7 @@ class GrpcClient(RpcClient):
 
     def get_connection_ability(self, ability_key: AbilityKey) -> Optional[AbilityStatus]:
         if self.current_connection is not None:
-            return self.current_connection.get_ability(ability_key)
+            return self.current_connection.get_connection_ability(ability_key)
         return None
 
     async def connect_to_server(self, server_info: ServerInfo) -> Optional[Connection]:
@@ -190,12 +131,12 @@ class GrpcClient(RpcClient):
                                                               tenant=self.tenant,
                                                               labels=self.labels,
                                                               abilityTable=SDK_ABILITY_TABLE)
+            asyncio.create_task(self._server_request_watcher(grpc_conn))
             await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
             if self.rec_ability_context.is_need_to_sync():
                 await self.rec_ability_context.await_abilities(self.grpc_config.capability_negotiation_timeout)
                 if not self.rec_ability_context.check(grpc_conn):
                     return None
-            asyncio.create_task(self._server_request_watcher(grpc_conn))
             await asyncio.sleep(0.1)
             return grpc_conn
         except Exception as e:
