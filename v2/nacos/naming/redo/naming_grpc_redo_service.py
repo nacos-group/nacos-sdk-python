@@ -20,7 +20,7 @@ class NamingGrpcRedoService(AbstractRedoService):
 			NamingGRPCClientProxy
 		if not isinstance(client_proxy, NamingGRPCClientProxy):
 			raise TypeError(
-				"client_proxy must be NamingGRPCClientProxy instance")
+					"client_proxy must be NamingGRPCClientProxy instance")
 		self.proxy = client_proxy
 
 	async def redo_task(self):
@@ -52,16 +52,17 @@ class NamingGrpcRedoService(AbstractRedoService):
 					instance_redo_data.get()
 			)
 		elif redo_type is RedoType.REMOVE:
-			await self.remove_instance_for_redo(instance_redo_data.service_name,instance_redo_data.group_name)
-
+			await self.remove_instance_for_redo(instance_redo_data.service_name,
+												instance_redo_data.group_name)
 
 	async def process_instance_register_redo_type(self,
 			instance_redo_data: NamingRedoData):
 		data = instance_redo_data.get()
 		if isinstance(data, List):
 			await self.proxy.batch_register_instance(
-				instance_redo_data.service_name, instance_redo_data.group_name,
-				data)
+					instance_redo_data.service_name,
+					instance_redo_data.group_name,
+					data)
 			return
 		await self.proxy.register_instance(
 				instance_redo_data.service_name,
@@ -84,7 +85,9 @@ class NamingGrpcRedoService(AbstractRedoService):
 		if redo_type is RedoType.REGISTER:
 			if not self.proxy.server_health():
 				return
-			await self.proxy.subscribe(subscribe_redo_data.service_name,subscribe_redo_data.group_name,subscribe_redo_data.get())
+			await self.proxy.subscribe(subscribe_redo_data.service_name,
+									   subscribe_redo_data.group_name,
+									   subscribe_redo_data.get())
 		elif redo_type is RedoType.UNREGISTER:
 			if not self.proxy.server_health():
 				return
@@ -94,9 +97,9 @@ class NamingGrpcRedoService(AbstractRedoService):
 					subscribe_redo_data.get()
 			)
 		elif redo_type is RedoType.REMOVE:
-			await self.remove_subscribe_for_redo(subscribe_redo_data.service_name,subscribe_redo_data.group_name,subscribe_redo_data.get())
-
-
+			await self.remove_subscribe_for_redo(
+				subscribe_redo_data.service_name,
+				subscribe_redo_data.group_name, subscribe_redo_data.get())
 
 	async def cache_instance_for_redo(self, service_name: str, group_name: str,
 			instance: Instance) -> None:
@@ -139,13 +142,14 @@ class NamingGrpcRedoService(AbstractRedoService):
 		await super().remove_redo_data(key, INSTANCE_REDO_DATA_TYPE)
 
 	async def find_instance_redo_data(self) -> Set[NamingRedoData]:
-		redo_data_set =  await super().find_redo_data(INSTANCE_REDO_DATA_TYPE)
+		redo_data_set = await super().find_redo_data(INSTANCE_REDO_DATA_TYPE)
 		return cast(Set[NamingRedoData], redo_data_set)
 
 	async def find_instance_redo_data_by_service_key(self,
-			service_name: str, group_name:str) -> NamingRedoData | None:
+			service_name: str, group_name: str) -> NamingRedoData | None:
 		service_key = get_group_name(service_name, group_name)
-		redo_data = await super().get_redo_data(service_key, INSTANCE_REDO_DATA_TYPE)
+		redo_data = await super().get_redo_data(service_key,
+												INSTANCE_REDO_DATA_TYPE)
 		if isinstance(redo_data, NamingRedoData):
 			return redo_data
 
@@ -159,6 +163,12 @@ class NamingGrpcRedoService(AbstractRedoService):
 				group_name=group_name,
 		)
 		await super().cached_redo_data(key, redo_data, SUBSCRIBE_REDO_DATA_TYPE)
+
+	async def is_subscribe_registered(self, service_name: str, group_name: str,
+			cluster: str):
+		service_key = get_group_name(service_name, group_name)
+		key = get_service_cache_key(service_key, cluster)
+		return await super().is_data_registered(key, SUBSCRIBE_REDO_DATA_TYPE)
 
 	async def subscribe_registered(self, service_name: str, group_name: str,
 			cluster: str) -> None:

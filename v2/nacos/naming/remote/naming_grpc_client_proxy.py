@@ -25,7 +25,8 @@ from v2.nacos.naming.model.service import ServiceList
 from v2.nacos.naming.redo.naming_grpc_redo_service import NamingGrpcRedoService, \
     INSTANCE_REDO_DATA_TYPE
 from v2.nacos.naming.remote.naming_push_request_handler import NamingPushRequestHandler
-from v2.nacos.naming.util.naming_client_util import get_group_name
+from v2.nacos.naming.util.naming_client_util import get_group_name, \
+    get_service_cache_key
 from v2.nacos.naming.util.naming_remote_constants import NamingRemoteConstants
 from v2.nacos.transport.http_agent import HttpAgent
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
@@ -257,30 +258,42 @@ class NamingGRPCClientProxy:
             services=response.serviceNames
         )
 
-    async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[Service]:
-        self.logger.info("subscribe service_name:%s, group_name:%s, clusters:%s, namespace:%s",
-                         service_name, group_name, clusters, self.namespace_id)
+    async def do_subscribe(self,service_name:str, group_name:str, clusters:str) -> Optional[Service]:
+        self.logger.info(
+            "subscribe service_name:%s, group_name:%s, clusters:%s, namespace:%s",
+            service_name, group_name, clusters, self.namespace_id)
 
-        await self.redo_service.cache_subscribe_for_redo(service_name,group_name, clusters)
+        await self.redo_service.cache_subscribe_for_redo(service_name,
+                                                         group_name, clusters)
 
         request = SubscribeServiceRequest(
-            namespace=self.namespace_id,
-            groupName=group_name,
-            serviceName=service_name,
-            clusters=clusters,
-            subscribe=True)
+                namespace=self.namespace_id,
+                groupName=group_name,
+                serviceName=service_name,
+                clusters=clusters,
+                subscribe=True)
 
         request.put_header("app", self.client_config.app_name)
-        response = await self.request_naming_server(request, SubscribeServiceResponse)
+        response = await self.request_naming_server(request,
+                                                    SubscribeServiceResponse)
         if not response.is_success():
             self.logger.error(
-                "failed to subscribe service_name:%s, group_name:%s, clusters:%s, namespace:%s, response:%s",
-                service_name, group_name, clusters, self.namespace_id, response)
+                    "failed to subscribe service_name:%s, group_name:%s, clusters:%s, namespace:%s, response:%s",
+                    service_name, group_name, clusters, self.namespace_id,
+                    response)
             return None
 
-        await self.redo_service.subscribe_registered(service_name, group_name, clusters)
+        await self.redo_service.subscribe_registered(service_name, group_name,
+                                                     clusters)
 
         return response.serviceInfo
+
+    async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[Service]:
+        service_info = self.service_info_cache.get_service_info(service_name, group_name, clusters)
+        if service_info is None or not self.redo_service.is_subscribe_registered(service_name,group_name,clusters):
+            service_info = await self.do_subscribe(service_name, group_name, clusters)
+        await self.service_info_cache.process_service(service_info)
+        return service_info
 
     async def unsubscribe(self, service_name: str, group_name: str, clusters: str):
         self.logger.info("unSubscribe service_name:%s, group_name:%s, clusters:%s, namespace:%s",
