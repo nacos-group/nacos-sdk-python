@@ -3,6 +3,7 @@ from typing import Optional
 
 import grpc
 import pydantic
+import itertools
 
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
@@ -112,7 +113,7 @@ class GrpcClient(RpcClient):
         connection_setup_request = ConnectionSetupRequest(clientVersion=Constants.CLIENT_VERSION, tenant=self.tenant,
                                                           labels=self.labels)
         await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
-        asyncio.create_task(self._server_request_watcher(grpc_conn))
+        asyncio.create_task(self._server_request_watcher_new(grpc_conn))
         await asyncio.sleep(0.1)
         return grpc_conn
 
@@ -153,6 +154,71 @@ class GrpcClient(RpcClient):
 
             except Exception as e:
                 self.logger.error(f"[{grpc_conn.connection_id}] handle server request occur exception: {e}")
+
+    async def _server_request_watcher_new(self, grpc_conn: GrpcConnection):
+        """
+        包裹 gRPC 双向流，异常兜底 + 自动重连
+        """
+        backoff = (min(60, 2 ** i) for i in itertools.count(0))  # 1,2,4,8,...,60s
+        while True:
+            try:
+                async for payload in grpc_conn.bi_stream_send():
+                    try:
+                        request = GrpcUtils.parse(payload)
+                        if request:
+                            await self._handle_server_request(request, grpc_conn)
+                    except Exception as e:
+                        self.logger.error(f"[{grpc_conn.connection_id}] handle server request error: {e}")
+                # 如果 async-for 正常结束（少见），也当作断开处理
+                raise grpc.aio.AioRpcError(grpc.StatusCode.UNAVAILABLE, "stream ended")
+            except grpc.aio.AioRpcError as e:
+                self.logger.warning(
+                    f"[{getattr(grpc_conn, 'connection_id', '?')}] stream broken: {e.code()} {e.details()}"
+                )
+                delay = next(backoff)
+                self.logger.info(f"will reconnect after {delay}s ...")
+                await asyncio.sleep(delay)
+                try:
+                    grpc_conn = await self._reconnect(grpc_conn)
+                    backoff = (min(60, 2 ** i) for i in itertools.count(0))  # 重置 backoff
+                    self.logger.info(f"reconnected. new connection_id={grpc_conn.get_connection_id()}")
+                except Exception as re:
+                    self.logger.error(f"reconnect failed: {re}")
+            except Exception as e:
+                self.logger.error(f"watcher unexpected error: {e}")
+                await asyncio.sleep(1)
+
+    async def _reconnect(self, old_conn: GrpcConnection) -> GrpcConnection:
+        """
+        重连逻辑：关闭旧连接 → 新建 channel → 再次发 setup
+        """
+        try:
+            await self._shunt_down_channel(old_conn.channel)
+        except Exception:
+            pass
+
+        server_info = old_conn.server_info
+        managed_channel = await self._create_new_managed_channel(server_info.server_ip, server_info.server_port)
+        channel_stub = RequestStub(managed_channel)
+        response = await self._server_check(server_info.server_ip, server_info.server_port, channel_stub)
+        if not response:
+            await self._shunt_down_channel(managed_channel)
+            raise NacosException(CLIENT_DISCONNECT, "server check failed during reconnect")
+
+        connection_id = response.get_connection_id()
+        grpc_conn = GrpcConnection(
+            server_info, connection_id, managed_channel,
+            channel_stub, BiRequestStreamStub(managed_channel)
+        )
+
+        setup_req = ConnectionSetupRequest(
+            clientVersion=Constants.CLIENT_VERSION,
+            tenant=self.tenant,
+            labels=self.labels
+        )
+        await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(setup_req))
+        await asyncio.sleep(0.1)
+        return grpc_conn
 
     @staticmethod
     async def _shunt_down_channel(channel):
