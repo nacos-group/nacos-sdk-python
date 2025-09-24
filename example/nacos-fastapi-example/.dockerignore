@@ -1,0 +1,23 @@
+# Version control
+.git
+.gitignore
+
+# Editor/IDE settings
+.idea/
+.vscode/
+
+# Python caches and local envs
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+.pdm-python/
+
+# Local runtime artifacts
+logs/
+nacos-data/
+*.log
+
+# Environment and secret files
+.env
+.env.*
