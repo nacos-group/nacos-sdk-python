@@ -18,7 +18,7 @@ class AbstractAIRequest(Request, ABC):
 class AbstractMcpRequest(AbstractAIRequest, ABC):
 	"""Abstract base class for MCP (Model Context Protocol) requests"""
 	# Namespace ID for isolating MCP servers between different tenants
-	namespace: Optional[str] = None
+	namespaceId: Optional[str] = None
 	# Unique identifier of the MCP server
 	mcpId: Optional[str] = None
 	# Name of the MCP server
