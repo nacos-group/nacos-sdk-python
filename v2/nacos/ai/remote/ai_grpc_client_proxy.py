@@ -83,7 +83,7 @@ class AIGRPCClientProxy:
 
 			credentials = self.client_config.credentials_provider.get_credentials()
 			if credentials.get_access_key_id() and credentials.get_access_key_secret():
-				resource = request.namespace + "+" + "DEFAULT_GROUP"
+				resource = request.namespaceId + "+" + "DEFAULT_GROUP"
 				if resource.strip():
 					sign_str = f"{resource}+{now}"
 				else:
@@ -131,7 +131,7 @@ class AIGRPCClientProxy:
 			raise NacosException(SERVER_NOT_IMPLEMENTED,"Request Nacos server version is too low, not support mcp registry feature.")
 
 		request = QueryMcpServerRequest(
-				namespace=self.namespace_id,
+				namespaceId=self.namespace_id,
 				mcpName=mcp_name,
 				version=version,
 		)
@@ -146,7 +146,7 @@ class AIGRPCClientProxy:
 			raise NacosException(SERVER_NOT_IMPLEMENTED,"Request Nacos server version is too low, not support mcp registry feature.")
 
 		request = ReleaseMcpServerRequest(
-				namespace=self.namespace_id,
+				namespaceId=self.namespace_id,
 				mcpName=server_spec.name,
 				serverSpecification=server_spec,
 				toolSpecification=tool_spec,
@@ -166,7 +166,7 @@ class AIGRPCClientProxy:
 	async def do_register_mcp_server_endpoint(self,mcp_name:str, address: str, port: int, version:str):
 		await self.redo_service.cached_mcp_server_endpoint_for_redo(mcp_name, address, port, version)
 		request = McpServerEndpointRequest(
-				namespace= self.namespace_id,
+				namespaceId= self.namespace_id,
 				mcpName=mcp_name,
 				address=address,
 				port=port,
@@ -185,7 +185,7 @@ class AIGRPCClientProxy:
 	async def do_deregister_mcp_server_endpoint(self,mcp_name:str, address: str, port: int):
 		await self.redo_service.mcp_server_endpoint_deregister(mcp_name)
 		request = McpServerEndpointRequest(
-				namespace= self.namespace_id,
+				namespaceId= self.namespace_id,
 				mcpName=mcp_name,
 				address=address,
 				port=port,
