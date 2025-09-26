@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional, List, Dict, Literal
+from typing import Optional, List, Dict, Literal, Any
 
 from pydantic import Field, BaseModel
 
@@ -47,11 +47,6 @@ class PositionalArgument(Argument):
 	valueHint: Optional[str] = None
 	# Whether this argument can be repeated multiple times
 	isRepeated: Optional[bool] = Field(None, alias='is_repeated')
-	# Current value of the positional argument
-	value: Optional[str] = None
-	# Dictionary of variable definitions for this argument
-	variables: Optional[Dict[str, Input]] = None
-
 
 class NamedArgument(Argument):
 	"""Named argument for MCP tool execution"""
@@ -61,20 +56,20 @@ class NamedArgument(Argument):
 	name: Optional[str] = None
 	# Whether this argument can be repeated multiple times
 	isRepeated: Optional[bool] = Field(None, alias='is_repeated')
-	# Current value of the named argument
-	value: Optional[str] = None
-	# Dictionary of variable definitions for this argument
-	variables: Optional[Dict[str, Input]] = None
 
 
 class Package(BaseModel):
 	"""Package definition for MCP server deployment"""
 	# Name of the package registry
-	registryName: Optional[str] = None
+	registryType: Optional[str] = Field(None, alias='registry_type')
 	# Name of the package
-	name: Optional[str] = None
+	registryBaseUrl: Optional[ str ] = Field(None, alias='registry_base_url')
+
+	identifier: Optional[str]
 	# Version of the package
 	version: Optional[str] = None
+
+	fileSha256: Optional[str] = Field(None, alias='file_sha256')
 	# Hint about the runtime environment required
 	runtimeHint: Optional[str] = Field(None, alias='runtime_hint')
 	# Arguments for the runtime environment
@@ -96,6 +91,8 @@ class Repository(BaseModel):
 	source: Optional[str] = None
 	# Unique identifier of the repository
 	id: Optional[str] = None
+
+	subfolder: Optional[str] = Field(None, alias='subfolder')
 
 
 class ServerVersionDetail(BaseModel):

@@ -14,3 +14,7 @@ class AIConstants:
 
 	# Reference endpoint type: reference to a service already registered in Nacos
 	MCP_ENDPOINT_TYPE_REF = "REF"
+
+	MCP_STATUS_ACTIVE = "active"
+
+	MCP_STATUS_DEPRECATED = "deprecated"

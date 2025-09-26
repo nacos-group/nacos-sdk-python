@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any, Literal
 
 from pydantic import BaseModel, Field
 
+from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.registry import Repository, Package, \
 	ServerVersionDetail, KeyValueInput
 
@@ -84,6 +85,8 @@ class McpServerBasicInfo(BaseModel):
 	localServerConfig: Optional[Dict[str, Any]] = None
 	# Whether the server is enabled
 	enabled: Optional[bool] = True
+	# Current lifecycle status of MCP server, should be one of 'active' or 'deprecated'
+	status: Optional[str] = AIConstants.MCP_STATUS_ACTIVE
 	# List of capabilities provided by the server
 	capabilities: Optional[List[McpCapability]] = None
 
@@ -129,7 +132,7 @@ class SecuritySchema(BaseModel):
 	# Type of security (API key, OAuth, etc.)
 	type: Optional[str] = None
 	# Schema definition for the security mechanism
-	schema: Optional[str] = None
+	schema_field: Optional[str] = Field(None, alias="schema")
 	# Location where the security credential should be included
 	in_: Optional[str] = Field(None, alias="in")
 	# Name of the security parameter
@@ -137,9 +140,15 @@ class SecuritySchema(BaseModel):
 	# Default credential value if available
 	defaultCredential: Optional[str] = None
 
+class EncryptObject (BaseModel):
+	data: Optional[str] = None
+	encryptInfo: Optional[Dict[str,str]] = None
+
 
 class McpToolSpecification(BaseModel):
 	"""Complete specification of tools provided by MCP server"""
+	specificationType: Optional[str] = None
+	encryptData: Optional[EncryptObject] = None
 	# List of tools available on the MCP server
 	tools: Optional[List[McpTool]] = None
 	# Metadata for each tool, keyed by tool name
