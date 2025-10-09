@@ -3,6 +3,8 @@ class Constants:
 
     CONFIG_MODULE = "config"
 
+    AI_MODULE = "ai"
+
     LABEL_SOURCE = "source"
 
     LABEL_SOURCE_SDK = "sdk"
@@ -11,7 +13,7 @@ class Constants:
 
     LABEL_MODULE = "module"
 
-    CLIENT_VERSION = "Nacos-Python-Client:v2.0.0"
+    CLIENT_VERSION = "Nacos-Python-Client:v3.0.0"
 
     DATA_IN_BODY_VERSION = 204
 
@@ -215,6 +217,8 @@ class Constants:
     INTERNAL_TIME_MILLS = 3000
 
     DEFAULT_GRPC_TIMEOUT_MILLS = 3000
+
+    GRPC_CAPABILITY_NEGOTIATION_TIMEOUT = 5000
 
     DEFAULT_TIMEOUT_MILLS = 10000
 

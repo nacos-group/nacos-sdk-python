@@ -2,6 +2,8 @@ import json
 
 from google.protobuf.any_pb2 import Any
 
+from v2.nacos.ai.model.ai_response import QueryMcpServerResponse, \
+    ReleaseMcpServerResponse, McpServerEndpointResponse
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
@@ -12,7 +14,8 @@ from v2.nacos.naming.model.naming_response import InstanceResponse, \
     ServiceListResponse, QueryServiceResponse
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload, Metadata
 from v2.nacos.transport.model import ServerCheckResponse
-from v2.nacos.transport.model.internal_request import ClientDetectionRequest
+from v2.nacos.transport.model.internal_request import ClientDetectionRequest, \
+    SetupAckRequest
 from v2.nacos.transport.model.internal_response import ErrorResponse, HealthCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.rpc_response import Response
@@ -37,7 +40,11 @@ class GrpcUtils:
         "ConfigQueryResponse": ConfigQueryResponse,
         "ConfigChangeNotifyRequest": ConfigChangeNotifyRequest,
         "ConfigChangeBatchListenResponse": ConfigChangeBatchListenResponse,
-        "ConfigRemoveResponse": ConfigRemoveResponse
+        "ConfigRemoveResponse": ConfigRemoveResponse,
+        "SetupAckRequest": SetupAckRequest,
+        "QueryMcpServerResponse": QueryMcpServerResponse,
+		"McpServerEndpointResponse": McpServerEndpointResponse,
+		"ReleaseMcpServerResponse": ReleaseMcpServerResponse
     }
 
     @staticmethod

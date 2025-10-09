@@ -1,5 +1,5 @@
 import asyncio
-from typing import Optional
+from typing import Optional, Dict
 
 import grpc
 import pydantic
@@ -7,16 +7,21 @@ import pydantic
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, CLIENT_DISCONNECT
+from v2.nacos.transport.ability import SDK_ABILITY_TABLE, AbilityKey, \
+    AbilityStatus
 from v2.nacos.transport.connection import Connection
 from v2.nacos.transport.grpc_connection import GrpcConnection
 from v2.nacos.transport.grpc_util import GrpcUtils
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2_grpc import BiRequestStreamStub, RequestStub
-from v2.nacos.transport.model.internal_request import ConnectionSetupRequest, ServerCheckRequest
+from v2.nacos.transport.model.internal_request import ConnectionSetupRequest, \
+    ServerCheckRequest, SETUP_REQUEST_TYPE
 from v2.nacos.transport.model.internal_response import ServerCheckResponse
 from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.server_info import ServerInfo
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
+from v2.nacos.transport.rec_ability_context import RecAbilityContext
 from v2.nacos.transport.rpc_client import RpcClient, ConnectionType
+from v2.nacos.transport.server_request_handler import SetupAckRequestHandler
 
 
 class GrpcClient(RpcClient):
@@ -27,6 +32,10 @@ class GrpcClient(RpcClient):
         self.tls_config = client_config.tls_config
         self.grpc_config = client_config.grpc_config
         self.tenant = client_config.namespace_id
+        self.rec_ability_context = RecAbilityContext(logger=self.logger,connection=None)
+        self.setup_ack_request_handler = SetupAckRequestHandler(self.rec_ability_context)
+
+
 
     async def _create_new_managed_channel(self, server_ip, grpc_port):
         options = [
@@ -92,32 +101,55 @@ class GrpcClient(RpcClient):
                     self.logger.error("current client requires tls encrypted, server must support tls, please check.")
             return None
 
+    def get_connection_ability(self, ability_key: AbilityKey) -> Optional[AbilityStatus]:
+        if self.current_connection is not None:
+            return self.current_connection.get_connection_ability(ability_key)
+        return None
+
     async def connect_to_server(self, server_info: ServerInfo) -> Optional[Connection]:
-        managed_channel = await self._create_new_managed_channel(server_info.server_ip, server_info.server_port)
-        # Create a stub
-        channel_stub = RequestStub(managed_channel)
-        server_check_response = await self._server_check(server_info.server_ip, server_info.server_port,
-                                                         channel_stub)
-        if not server_check_response:
-            await self._shunt_down_channel(managed_channel)
-            return None
+        try:
+            managed_channel = await self._create_new_managed_channel(server_info.server_ip, server_info.server_port)
+            # Create a stub
+            channel_stub = RequestStub(managed_channel)
+            server_check_response = await self._server_check(server_info.server_ip, server_info.server_port,
+                                                             channel_stub)
+            if not server_check_response:
+                await self._shunt_down_channel(managed_channel)
+                return None
 
-        connection_id = server_check_response.get_connection_id()
-        self.logger.info(
-            f"connect to server success,labels:{self.labels},tenant:{self.tenant},connection_id:{connection_id}")
-        bi_request_stream_stub = BiRequestStreamStub(managed_channel)
-        grpc_conn = GrpcConnection(server_info, connection_id, managed_channel,
-                                   channel_stub, bi_request_stream_stub)
+            connection_id = server_check_response.get_connection_id()
+            self.logger.info(
+                f"connect to server success,labels:{self.labels},tenant:{self.tenant},connection_id:{connection_id}")
+            bi_request_stream_stub = BiRequestStreamStub(managed_channel)
+            grpc_conn = GrpcConnection(server_info, connection_id, managed_channel,
+                                       channel_stub, bi_request_stream_stub)
+            if server_check_response.supportAbilityNegotiation:
+                self.rec_ability_context.reset(grpc_conn)
+                grpc_conn.set_ability_table(None)
 
-        connection_setup_request = ConnectionSetupRequest(clientVersion=Constants.CLIENT_VERSION, tenant=self.tenant,
-                                                          labels=self.labels)
-        await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
-        asyncio.create_task(self._server_request_watcher(grpc_conn))
-        await asyncio.sleep(0.1)
-        return grpc_conn
+            connection_setup_request = ConnectionSetupRequest(clientVersion=Constants.CLIENT_VERSION,
+                                                              tenant=self.tenant,
+                                                              labels=self.labels,
+                                                              abilityTable=SDK_ABILITY_TABLE)
+            asyncio.create_task(self._server_request_watcher(grpc_conn))
+            await grpc_conn.send_bi_request(GrpcUtils.convert_request_to_payload(connection_setup_request))
+            if self.rec_ability_context.is_need_to_sync():
+                await self.rec_ability_context.await_abilities(self.grpc_config.capability_negotiation_timeout)
+                if not self.rec_ability_context.check(grpc_conn):
+                    return None
+            await asyncio.sleep(0.1)
+            return grpc_conn
+        except Exception as e:
+            self.logger.error(f"connect to server fail,labels:{self.labels},name:{self.name},error={e}")
+            self.rec_ability_context.release(None)
+            raise NacosException(CLIENT_DISCONNECT, f"failed to connect nacos server,name:{self.name},error={e}")
 
     async def _handle_server_request(self, request: Request, grpc_connection: GrpcConnection):
         request_type = request.get_request_type()
+        if request_type == SETUP_REQUEST_TYPE:
+            await self.setup_ack_request_handler.request_reply(request)
+            return
+
         server_request_handler_instance = self.server_request_handler_mapping.get(request_type)
         if not server_request_handler_instance:
             self.logger.error("unsupported payload type:%s, grpc connection id:%s", request_type,
