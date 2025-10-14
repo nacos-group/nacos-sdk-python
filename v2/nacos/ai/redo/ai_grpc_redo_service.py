@@ -1,12 +1,14 @@
 from typing import Set, cast
 
+from v2.nacos.ai.model.a2a.a2a import AgentEndpoint
 from v2.nacos.ai.redo.ai_redo_data import McpServerEndpointRedoData, \
-	McpServerEndpoint
+	McpServerEndpoint, AgentEndpointRedoData
 from v2.nacos.common.constants import Constants
 from v2.nacos.redo.abstract_redo_service import AbstractRedoService
 from v2.nacos.redo.redo_data import RedoType
 
 MCP_SERVER_ENDPOINT_REDO_DATA_TYPE = "McpServerEndpointRedoData"
+AGENT_ENDPOINT_REDO_DATA_TYPE = "AgentEndpointRedoData"
 
 
 class AIGrpcRedoService(AbstractRedoService):
@@ -63,6 +65,15 @@ class AIGrpcRedoService(AbstractRedoService):
 		await super().cached_redo_data(mcp_name, endpoint_redo_data,
 									   MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
 
+	async def cached_agent_endpoint_for_redo(self, agent_name: str,
+			agent_endpoint: AgentEndpoint) -> None:
+		agent_endpoint_redo_data = AgentEndpointRedoData(
+				agent_name = agent_name,
+				data = agent_endpoint
+		)
+		await super().cached_redo_data(agent_name, agent_endpoint_redo_data,
+									   AGENT_ENDPOINT_REDO_DATA_TYPE)
+
 	async def remove_mcp_server_endpoint_for_redo(self, mcp_name: str) -> None:
 		await super().remove_redo_data(mcp_name,
 									   MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
@@ -71,13 +82,25 @@ class AIGrpcRedoService(AbstractRedoService):
 		await super().data_registered(mcp_name,
 									  MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
 
+	async def agent_endpoint_registered(self, agent_name: str):
+		await super().data_registered(agent_name,
+									  AGENT_ENDPOINT_REDO_DATA_TYPE)
+
 	async def mcp_server_endpoint_deregister(self, mcp_name: str) -> None:
 		await super().data_deregistered(mcp_name,
 										MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
 
+	async def agent_endpoint_deregister(self, agent_name: str) -> None:
+		await super().data_deregistered(agent_name,
+										AGENT_ENDPOINT_REDO_DATA_TYPE)
+
 	async def mcp_server_endpoint_deregistered(self, mcp_name: str) -> None:
 		await super().data_deregistered(mcp_name,
 										MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
+
+	async def agent_endpoint_deregistered(self, agent_name: str) -> None:
+		await super().data_deregistered(agent_name,
+										AGENT_ENDPOINT_REDO_DATA_TYPE)
 
 	async def is_mcp_server_endpoint_registered(self, mcp_name: str) -> bool:
 		return await super().is_data_registered(mcp_name,

@@ -1,7 +1,9 @@
 from abc import ABC
 from typing import Optional
 
-from v2.nacos.ai.model.a2a.a2a import AgentEndpoint, AgentCard
+from a2a.types import AgentCard
+
+from v2.nacos.ai.model.a2a.a2a import AgentEndpoint
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
 	McpEndpointSpce
