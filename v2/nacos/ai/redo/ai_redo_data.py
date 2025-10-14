@@ -2,6 +2,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel
 
+from v2.nacos.ai.model.a2a.a2a import AgentEndpoint
 from v2.nacos.redo.redo_data import RedoData
 
 
@@ -21,3 +22,10 @@ class McpServerEndpoint(BaseModel):
 		if isinstance(other, McpServerEndpoint):
 			return self.address == other.address and self.port == other.port and self.version == other.version
 		return False
+
+
+class AgentEndpointRedoData(RedoData):
+
+	def __init__(self, data: AgentEndpoint, agent_name: str) -> None:
+		super().__init__(data)
+		self.agent_name = agent_name

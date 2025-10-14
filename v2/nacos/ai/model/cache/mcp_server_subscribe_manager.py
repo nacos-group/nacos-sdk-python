@@ -31,4 +31,6 @@ class McpServerSubscribeManager:
 
 	async def is_subscribed(self, mcp_name:str, version:str) -> bool:
 		key = build_mcp_server_key(mcp_name, version)
-		return key in self.subscribers
+		if key not in self.subscribers:
+			return False
+		return len(self.subscribers[key]) > 0
