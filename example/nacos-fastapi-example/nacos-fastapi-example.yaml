@@ -1,2 +1,8 @@
-test:
-  info: /test
+# 数据库配置
+database:
+  mysql:
+    host: localhost
+    port: 3306
+    database: test
+    username: root
+    password: 123456

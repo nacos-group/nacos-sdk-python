@@ -6,9 +6,10 @@ from fastapi import FastAPI, Request
 from loguru import logger
 
 from app import settings
-from app.nacos_config import init_nacos_config, stop_nacos_config, get_config_snapshot
+from app.nacos_config import init_nacos_config, stop_nacos_config
 from app.nacos_registry import BasicNacosRegistrar
 from src.utils.logging import logging_config
+from app.routes import router as api_router
 
 logging_config()
 
@@ -43,6 +44,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.APP_NAME, debug=settings.DEBUG, lifespan=lifespan)
 
+app.include_router(api_router)
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     from src.utils.trace import new_trace_id, set_trace_id
@@ -64,14 +67,3 @@ async def log_requests(request: Request, call_next):
                 f"{response.status_code} - {process_time:.4f}s")
 
     return response
-
-@app.get("/health", operation_id="health")
-async def health():
-    logger.info("health check")
-    return {"ok": True, "env": settings.APP_ENV}
-
-@app.get("/config/nacos", operation_id="nacos_config")
-async def nacos_config():
-    """打印当前所有配置：环境 + Nacos 动态解析 + 原文（可去掉 raw）"""
-    nacos_snapshot = get_config_snapshot()
-    return {"nacos": nacos_snapshot}
