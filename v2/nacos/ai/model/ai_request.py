@@ -20,7 +20,10 @@ class AbstractAIRequest(Request, ABC):
 
 
 class AbstractAgentRequest(AbstractAIRequest, ABC):
+	"""Abstract base class for Agent requests"""
+	# Namespace ID for isolating agents between different tenants
 	namespaceId: Optional[str] = None
+	# Name of the agent
 	agentName: Optional[str] = None
 
 	def get_request_type(self) -> str:
@@ -46,6 +49,7 @@ class AgentEndpointRequest(AbstractAgentRequest):
 
 class QueryAgentCardRequest(AbstractAgentRequest):
 	"""Request for querying agent card details"""
+	# Version of the agent card to query
 	version: Optional[str] = None
 	# A2A_ENDPOINT_TYPE_URL or A2A_ENDPOINT_TYPE_SERVICE from AIConstants
 	registrationType: Optional[str] = None
@@ -57,9 +61,11 @@ class QueryAgentCardRequest(AbstractAgentRequest):
 
 class ReleaseAgentCardRequest(AbstractAgentRequest):
 	"""Request for releasing/publishing a new Agent to the registry"""
+	# Agent card information to be released
 	agentCard: Optional[AgentCard] = None
 	# A2A_ENDPOINT_TYPE_URL or A2A_ENDPOINT_TYPE_SERVICE from AIConstants
 	registrationType: Optional[str] = AIConstants.A2A_ENDPOINT_TYPE_SERVICE
+	# Whether to set this version as the latest
 	setAsLatest: Optional[bool] = False
 
 	def get_request_type(self) -> str:

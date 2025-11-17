@@ -86,6 +86,16 @@ class GrpcUtils:
 
     @staticmethod
     def to_json(obj):
+        # Check if object is a Pydantic BaseModel and use model_dump with aliases
+        if hasattr(obj, 'model_dump'):
+            try:
+                # Use model_dump with by_alias=True to convert snake_case to camelCase
+                return obj.model_dump(by_alias=True, exclude_none=True)
+            except Exception:
+                # Fallback to original method if model_dump fails
+                pass
+        
+        # Fallback for non-Pydantic objects or when model_dump fails
         d = {}
         d.update(obj.__dict__)
         return d

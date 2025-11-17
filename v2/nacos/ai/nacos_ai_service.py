@@ -169,7 +169,7 @@ class NacosAIService(NacosClient):
 			return
 		await self.agent_subscribe_manager.deregister_subscriber(
 			param.agent_name, param.version, param.subscribe_callback)
-		if not self.agent_subscribe_manager.is_subscribed(param.agent_name, param.version):
+		if not await self.agent_subscribe_manager.is_subscribed(param.agent_name, param.version):
 			await self.grpc_client_proxy.unsubscribe_agent(param.agent_name, param.version)
 
 	async def shutdown(self):

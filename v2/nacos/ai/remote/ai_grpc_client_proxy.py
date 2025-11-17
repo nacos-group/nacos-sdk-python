@@ -74,7 +74,7 @@ class AIGRPCClientProxy:
 
 	async def request_ai_server(self, request: AbstractAIRequest, response_class):
 		try:
-			if not isinstance(request, AbstractMcpRequest):
+			if not isinstance(request, AbstractAIRequest):
 				raise NacosException(f"Unknown AI Request Type:{request.get_request_type()}")
 			await self.nacos_server_connector.inject_security_info(
 				request.get_headers())

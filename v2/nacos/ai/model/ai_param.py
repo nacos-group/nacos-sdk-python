@@ -3,6 +3,7 @@ from typing import Optional, Callable, Awaitable
 from a2a.types import AgentCard
 from pydantic import BaseModel
 
+from v2.nacos.ai.model.a2a.a2a import AgentCardDetailInfo
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
 	McpEndpointSpce, McpServerDetailInfo
@@ -96,4 +97,4 @@ class SubscribeAgentCardParam(BaseModel):
 	version: Optional[str] = None
 	# Parameters: agent_name, agent_card_detail_info
 	subscribe_callback: Optional[
-		Callable[[str, AgentCard], Awaitable[None]]] = None
+		Callable[[str, AgentCardDetailInfo], Awaitable[None]]] = None
