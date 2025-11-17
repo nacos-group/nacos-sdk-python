@@ -1,0 +1,39 @@
+[project]
+name = "nacos-fastapi-example"
+version = "0.1.0"
+description = "FastAPI + Nacos example with PDM"
+keywords = ["fastapi", "uvicorn", "loguru", "trace-id", "nacos", "pdm"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Framework :: FastAPI",
+]
+
+dependencies = ["uvicorn>=0.36.0", "fastapi>=0.117.1", "loguru>=0.7.3", "nacos-sdk-python>=2.0.9", "pyyaml>=6.0.2", "python-dotenv>=1.1.1"]
+requires-python = "==3.13.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm]
+distribution = false
+# 如果你偏好把虚拟环境放在项目内，解除注释：
+# venv.in_project = true
+
+[tool.pdm.scripts]
+# 开发
+dev = "python -m app.server --reload"
+# 生产（选 uvicorn 多进程）
+start = "python -m app.server"
+lint = "ruff check ."
+fmt = "ruff check --select I --fix . && ruff format ."
+typecheck = "mypy app"
+test = "pytest -q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+strict = false
+ignore_missing_imports = true
