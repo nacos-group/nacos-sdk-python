@@ -169,7 +169,10 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         print('get service', str(service))
         assert service.name == 'nacos.test.1'
 
-        service_list = await client.list_services(ListServiceParam())
+        service_list = await client.list_services(ListServiceParam(
+                namespace_id="public",
+                group_name='DEFAULT_GROUP',
+        ))
         assert service_list.count == 1
 
         instance_list = await client.list_instances(ListInstanceParam(service_name='nacos.test.1', healthy_only=True))
