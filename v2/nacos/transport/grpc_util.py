@@ -3,7 +3,8 @@ import json
 from google.protobuf.any_pb2 import Any
 
 from v2.nacos.ai.model.ai_response import QueryMcpServerResponse, \
-    ReleaseMcpServerResponse, McpServerEndpointResponse
+    ReleaseMcpServerResponse, McpServerEndpointResponse, QueryAgentCardResponse, \
+    ReleaseAgentCardResponse, AgentEndpointResponse
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
@@ -44,7 +45,10 @@ class GrpcUtils:
         "SetupAckRequest": SetupAckRequest,
         "QueryMcpServerResponse": QueryMcpServerResponse,
 		"McpServerEndpointResponse": McpServerEndpointResponse,
-		"ReleaseMcpServerResponse": ReleaseMcpServerResponse
+		"ReleaseMcpServerResponse": ReleaseMcpServerResponse,
+        "QueryAgentCardResponse": QueryAgentCardResponse,
+        "ReleaseAgentCardResponse": ReleaseAgentCardResponse,
+        "AgentEndpointResponse": AgentEndpointResponse,
     }
 
     @staticmethod
@@ -82,6 +86,16 @@ class GrpcUtils:
 
     @staticmethod
     def to_json(obj):
+        # Check if object is a Pydantic BaseModel and use model_dump with aliases
+        if hasattr(obj, 'model_dump'):
+            try:
+                # Use model_dump with by_alias=True to convert snake_case to camelCase
+                return obj.model_dump(by_alias=True, exclude_none=True)
+            except Exception:
+                # Fallback to original method if model_dump fails
+                pass
+        
+        # Fallback for non-Pydantic objects or when model_dump fails
         d = {}
         d.update(obj.__dict__)
         return d
