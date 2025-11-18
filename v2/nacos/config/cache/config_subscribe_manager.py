@@ -84,7 +84,8 @@ class ConfigSubscribeManager:
             subscribe_cache.encrypted_data_key = encrypted_data_key
             subscribe_cache.md5 = md5(content)
             subscribe_cache.is_sync_with_server = True
-            await subscribe_cache.execute_listener()
+
+        await subscribe_cache.execute_listener()
 
     async def execute_listener_and_build_tasks(self, is_sync_all: bool):
         listen_fetch_task_map: Dict[int, List[SubscribeCacheData]] = {}

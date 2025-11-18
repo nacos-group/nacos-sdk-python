@@ -293,8 +293,8 @@ class NamingGRPCClientProxy:
         return response.serviceInfo
 
     async def subscribe(self, service_name: str, group_name: str, clusters: str) -> Optional[Service]:
-        service_info = self.service_info_cache.get_service_info(service_name, group_name, clusters)
-        if service_info is None or not self.redo_service.is_subscribe_registered(service_name,group_name,clusters):
+        service_info = await self.service_info_cache.get_service_info(service_name, group_name, clusters)
+        if service_info is None or not await self.redo_service.is_subscribe_registered(service_name,group_name,clusters):
             service_info = await self.do_subscribe(service_name, group_name, clusters)
         await self.service_info_cache.process_service(service_info)
         return service_info
