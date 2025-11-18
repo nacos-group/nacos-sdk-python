@@ -69,13 +69,13 @@ client_config = (ClientConfigBuilder()
   * *secret_key* - 阿里云 secretKey
   * *password* - 阿里云 KMS 密码
 
-## 配置客户端
+## 配置中心客户端
 
 ```python
 config_client = await NacosConfigService.create_config_service(client_config)
 ```
 
-### 配置客户端通用参数
+### 配置中心客户端通用参数
 
 > `param: ConfigParam`
 
@@ -113,7 +113,7 @@ content = await config_client.get_config(ConfigParam(
 
 * 步骤 3 - 从快照目录获取
 
-### 添加监听器
+### 添加配置监听器
 
 ```python
 async def config_listener(tenant, data_id, group, content):
@@ -132,7 +132,7 @@ await config_client.add_listener(dataID, groupName, config_listener)
 * 如果配置项在服务器中已存在，回调函数将被调用一次
 * 回调函数从当前进程调用
 
-### 移除监听器
+### 移除配置监听器
 
 ```python
 await client.remove_listener(dataID, groupName, config_listener)
@@ -176,13 +176,13 @@ res = await client.remove_config(ConfigParam(
 
 从 Nacos 删除一个配置数据项。
 
-### 停止配置客户端
+### 停止配置中心客户端
 
 ```python
 await client.shutdown()
 ```
 
-## 命名客户端
+## 注册中心客户端
 
 ```python
 naming_client = await NacosNamingService.create_naming_service(client_config)
@@ -299,7 +299,7 @@ await client.unsubscribe(
             SubscribeServiceParam(service_name='nacos.test.1', group_name='DEFAULT_GROUP', subscribe_callback=cb))
 ```
 
-### 停止命名客户端
+### 停止注册中心客户端
 
 ```python
 await client.shutdown()
