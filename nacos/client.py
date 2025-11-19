@@ -710,7 +710,7 @@ class NacosClient:
                 else:
                     req = Request(url=server_url + url, data=urlencode(data).encode() if data else None,
                                   headers=all_headers, method=method)
-                    ctx = ssl.SSLContext()
+                    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
                 # build a new opener that adds proxy setting so that http request go through the proxy
                 if self.proxies:
                     proxy_support = ProxyHandler(self.proxies)
