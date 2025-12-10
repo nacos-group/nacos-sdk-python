@@ -11,7 +11,7 @@ see: https://nacos.io/zh-cn/docs/open-API.html
 
 ### Supported Python version：
 
-Python 3.7+
+Python 3.10+
 
 ### Supported Nacos version
 

@@ -11,7 +11,7 @@ Nacos OpenAPI 的 Python 实现。
 
 ### 支持的 Python 版本
 
-Python 3.7+
+Python 3.10+
 
 ### 支持的 Nacos 版本
 

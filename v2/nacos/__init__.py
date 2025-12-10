@@ -1,3 +1,5 @@
+__version__ = "3.0.0"
+
 from .common.client_config import (KMSConfig,
                                    GRPCConfig,
                                    TLSConfig,

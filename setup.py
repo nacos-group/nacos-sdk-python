@@ -53,7 +53,7 @@ class UploadCommand(Command):
 
 setup(
     name="nacos-sdk-python",
-    version="2.0.5",
+    version="3.0.0",
     packages=find_packages(
         exclude=["test", "*.tests", "*.tests.*", "tests.*", "tests"]),
     url="https://github.com/nacos-group/nacos-sdk-python",
@@ -62,9 +62,11 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.7",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7"
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13"
     ],
     keywords=['nacos', 'nacos-sdk-python'],
     author="nacos",
@@ -77,7 +79,7 @@ setup(
     cmdclass={
         'upload': UploadCommand,
     },
-    # python_requires='>=3.6',
+    python_requires='>=3.10',
     project_urls={
         'Documentation': 'https://github.com/nacos-group/nacos-sdk-python',
         'Source': 'https://github.com/nacos-group/nacos-sdk-python',
