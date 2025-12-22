@@ -53,7 +53,7 @@ class UploadCommand(Command):
 
 setup(
     name="nacos-sdk-python",
-    version="3.0.0",
+    version="3.0.1",
     packages=find_packages(
         exclude=["test", "*.tests", "*.tests.*", "tests.*", "tests"]),
     url="https://github.com/nacos-group/nacos-sdk-python",
