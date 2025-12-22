@@ -13,7 +13,7 @@ from v2.nacos.ai.model.ai_param import GetMcpServerParam, ReleaseMcpServerParam,
 	ReleaseAgentCardParam, GetAgentCardParam, RegisterAgentEndpointParam, \
 	SubscribeAgentCardParam, DeregisterAgentEndpointParam
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, \
-	McpServerRemoteServiceConfig, McpEndpointSpce, McpServerDetailInfo
+	McpServerRemoteServiceConfig, McpEndpointSpec, McpServerDetailInfo
 from v2.nacos.ai.model.mcp.registry import ServerVersionDetail
 from v2.nacos.ai.nacos_ai_service import NacosAIService
 
@@ -162,7 +162,7 @@ class TestAIClientV2(unittest.IsolatedAsyncioTestCase):
 								exportPath="/test/export/path",
 						),
 				),
-				mcp_endpoint_spec = McpEndpointSpce(
+				mcp_endpoint_spec = McpEndpointSpec(
 						type= AIConstants.MCP_ENDPOINT_TYPE_REF,
 						data={
 								"groupName":"group1",

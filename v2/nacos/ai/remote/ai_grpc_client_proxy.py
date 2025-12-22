@@ -20,7 +20,7 @@ from v2.nacos.ai.model.cache.agent_info_cache import AgentInfoCacheHolder
 from v2.nacos.ai.model.cache.mcp_server_info_cache import \
 	McpServerInfoCacheHolder
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
-	McpEndpointSpce, McpServerDetailInfo
+	McpEndpointSpec, McpServerDetailInfo
 from v2.nacos.ai.redo.ai_grpc_redo_service import AIGrpcRedoService
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import SERVER_ERROR, SERVER_NOT_IMPLEMENTED
@@ -147,7 +147,7 @@ class AIGRPCClientProxy:
 		response = await self.request_ai_server(request, QueryMcpServerResponse)
 		return response.mcpServerDetailInfo
 
-	async def release_mcp_server(self,server_spec: McpServerBasicInfo, tool_spec: McpToolSpecification, endpoint_spec: McpEndpointSpce):
+	async def release_mcp_server(self,server_spec: McpServerBasicInfo, tool_spec: McpToolSpecification, endpoint_spec: McpEndpointSpec):
 		self.logger.info(
 			f"[{self.uuid}] release mcp server: {server_spec.name}, version {server_spec.versionDetail.version}")
 		if not self.is_ability_supported_by_server(AbilityKey.SERVER_MCP_REGISTRY):

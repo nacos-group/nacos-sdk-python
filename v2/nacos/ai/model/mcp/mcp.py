@@ -171,7 +171,7 @@ class McpServerDetailInfo(McpServerBasicInfo):
 	namespaceId: Optional[str] = None
 
 
-class McpEndpointSpce(BaseModel):
+class McpEndpointSpec(BaseModel):
 	"""Specification for MCP server endpoint configuration"""
 	# Endpoint type: Should be AIConstants.MCP_ENDPOINT_TYPE_DIRECT or AIConstants.MCP_ENDPOINT_TYPE_REF
 	# DIRECT: specify address and port directly
