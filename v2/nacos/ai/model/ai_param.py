@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from v2.nacos.ai.model.a2a.a2a import AgentCardDetailInfo
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
-	McpEndpointSpce, McpServerDetailInfo
+	McpEndpointSpec, McpServerDetailInfo
 
 
 class GetMcpServerParam(BaseModel):
@@ -24,7 +24,7 @@ class ReleaseMcpServerParam(BaseModel):
 	# Tool specification defining the tools provided by MCP server
 	tool_spec: Optional[McpToolSpecification] = None
 	# Endpoint specification for MCP server network configuration
-	mcp_endpoint_spec: Optional[McpEndpointSpce] = None
+	mcp_endpoint_spec: Optional[McpEndpointSpec] = None
 
 
 class RegisterMcpServerEndpointParam(BaseModel):

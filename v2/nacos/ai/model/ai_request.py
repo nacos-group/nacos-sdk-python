@@ -6,7 +6,7 @@ from a2a.types import AgentCard
 from v2.nacos.ai.model.a2a.a2a import AgentEndpoint
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
-	McpEndpointSpce
+	McpEndpointSpec
 from v2.nacos.common.constants import Constants
 from v2.nacos.transport.model.rpc_request import Request
 
@@ -126,7 +126,7 @@ class ReleaseMcpServerRequest(AbstractMcpRequest):
 	# Tool specification defining the capabilities of the MCP server
 	toolSpecification: Optional[McpToolSpecification] = None
 	# Endpoint specification for accessing the MCP server
-	endpointSpecification: Optional[McpEndpointSpce] = None
+	endpointSpecification: Optional[McpEndpointSpec] = None
 
 	def get_request_type(self) -> str:
 		"""Returns the release MCP server request type"""
