@@ -82,7 +82,7 @@ class NacosAIService(NacosClient):
 
 		instance.check_instance_is_legal()
 
-		return await self.grpc_client_proxy.register_mcp_server_endpoint(param.mcp_name, param.version, param.port,param.version)
+		return await self.grpc_client_proxy.register_mcp_server_endpoint(param.mcp_name, param.address, param.port, param.version)
 
 
 	async def subscribe_mcp_server(self, param: SubscribeMcpServerParam) -> McpServerDetailInfo:
