@@ -23,6 +23,7 @@ class AIGrpcRedoService(AbstractRedoService):
 
 	async def redo_task(self):
 		await self.redo_for_mcp_server_endpoints()
+		await self.redo_for_agent_endpoints()
 
 	async def redo_for_mcp_server_endpoints(self):
 		for redo_data in await self.find_mcp_server_endpoint_redo_data():
@@ -53,6 +54,34 @@ class AIGrpcRedoService(AbstractRedoService):
 		elif redo_type is RedoType.REMOVE:
 			await self.remove_mcp_server_endpoint_for_redo(mcp_name)
 			return
+
+	async def redo_for_agent_endpoints(self):
+		for redo_data in await self.find_agent_endpoint_redo_data():
+			try:
+				await self.redo_for_agent_endpoint(redo_data)
+			except Exception as e:
+				self._logger.error(
+						f"Redo agent endpoint operation {redo_data.get_redo_type()} for agent:{redo_data.agent_name} failed, error:{e}"
+				)
+
+	async def redo_for_agent_endpoint(self, redo_data: AgentEndpointRedoData):
+		redo_type = redo_data.get_redo_type()
+		agent_name = redo_data.agent_name
+		self._logger.info(
+			f"Redo agent endpoint operation {redo_type} for {agent_name}.")
+		agent_endpoint = redo_data.get()
+		if redo_type is RedoType.REGISTER:
+			if not self.proxy.is_enabled():
+				return
+			await self.proxy.do_register_agent_endpoint(agent_name, agent_endpoint)
+		elif redo_type is RedoType.UNREGISTER:
+			if not self.proxy.is_enabled():
+				return
+			await self.proxy.do_deregister_agent_endpoint(agent_name, agent_endpoint)
+		elif redo_type is RedoType.REMOVE:
+			await self.remove_agent_endpoint_for_redo(agent_name)
+			return
+
 	async def cached_mcp_server_endpoint_for_redo(self, mcp_name: str,
 			address: str, port: int, version: str) -> None:
 		redo_endpoint = McpServerEndpoint(
@@ -77,6 +106,10 @@ class AIGrpcRedoService(AbstractRedoService):
 	async def remove_mcp_server_endpoint_for_redo(self, mcp_name: str) -> None:
 		await super().remove_redo_data(mcp_name,
 									   MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
+
+	async def remove_agent_endpoint_for_redo(self, agent_name: str) -> None:
+		await super().remove_redo_data(agent_name,
+									   AGENT_ENDPOINT_REDO_DATA_TYPE)
 
 	async def mcp_server_endpoint_registered(self, mcp_name: str) -> None:
 		await super().data_registered(mcp_name,
@@ -106,11 +139,20 @@ class AIGrpcRedoService(AbstractRedoService):
 		return await super().is_data_registered(mcp_name,
 												MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
 
+	async def is_agent_endpoint_registered(self, agent_name: str) -> bool:
+		return await super().is_data_registered(agent_name,
+												AGENT_ENDPOINT_REDO_DATA_TYPE)
+
 	async def find_mcp_server_endpoint_redo_data(self) -> Set[
 		McpServerEndpointRedoData]:
 		redo_data_set = await super().find_redo_data(
 			MCP_SERVER_ENDPOINT_REDO_DATA_TYPE)
 		return cast(Set[McpServerEndpointRedoData], redo_data_set)
+
+	async def find_agent_endpoint_redo_data(self) -> Set[AgentEndpointRedoData]:
+		redo_data_set = await super().find_redo_data(
+			AGENT_ENDPOINT_REDO_DATA_TYPE)
+		return cast(Set[AgentEndpointRedoData], redo_data_set)
 
 	async def get_mcp_server_endpoint_by_key(self,
 			mcp_name: str) -> McpServerEndpoint | None:
