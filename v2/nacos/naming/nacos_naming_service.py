@@ -21,7 +21,7 @@ from v2.nacos.naming.util.naming_client_util import get_group_name
 class NacosNamingService(NacosClient):
     def __init__(self, client_config: ClientConfig):
         super().__init__(client_config, Constants.NAMING_MODULE)
-        self.namespace_id = client_config.namespace_id
+        self.namespace_id = client_config.namespace_id or Constants.NAMING_DEFAULT_NAMESPACE_ID
         self.service_info_holder = ServiceInfoCache(client_config)
         self.grpc_client_proxy = NamingGRPCClientProxy(client_config, self.http_agent, self.service_info_holder)
         self.service_info_updater = ServiceInfoUpdater(
@@ -166,10 +166,7 @@ class NacosNamingService(NacosClient):
             request.group_name = Constants.DEFAULT_GROUP
 
         if not request.namespace_id:
-            if not self.client_config.namespace_id:
-                request.namespace_id = Constants.DEFAULT_NAMESPACE_ID
-            else:
-                request.namespace_id = self.client_config.namespace_id
+            request.namespace_id = self.namespace_id
 
         return await self.grpc_client_proxy.list_services(request)
 
