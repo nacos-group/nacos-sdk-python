@@ -218,6 +218,8 @@ class Constants:
 
     DEFAULT_GRPC_TIMEOUT_MILLS = 3000
 
+    GRPC_PORT_OFFSET = 1000  # gRPC port = HTTP port + offset
+
     DEFAULT_TIMEOUT_MILLS = 10000
 
     PER_TASK_CONFIG_SIZE = 3000
