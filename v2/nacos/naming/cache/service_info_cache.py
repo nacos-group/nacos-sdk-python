@@ -127,11 +127,7 @@ class ServiceInfoCache:
 
     @staticmethod
     def sort_instances(instances: List[Instance]) -> List[Instance]:
-        def instance_key(instance: Instance) -> (int, int):
-            ip_num = int(''.join(instance.ip.split('.')))
-            return ip_num, instance.port
-
-        return sorted(instances, key=instance_key)
+        return sorted(instances, key=lambda inst: (inst.ip, inst.port))
 
     async def register_callback(self, service_name: str, clusters: str, callback_func_wrapper: SubscribeCallbackFuncWrapper):
         await self.sub_callback_manager.add_callback_func(service_name, clusters, callback_func_wrapper)
