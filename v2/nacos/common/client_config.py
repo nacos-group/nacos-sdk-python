@@ -45,7 +45,7 @@ class GRPCConfig:
 class ClientConfig:
     def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
-                 log_rotation_backup_count=None, app_conn_labels=None, credentials_provider=None):
+                 log_rotation_backup_count=None, app_conn_labels=None, credentials_provider=None, grpc_port_offset=1000):
         self.server_list = []
         try:
             if server_addresses is not None and server_addresses.strip() != "":
@@ -74,6 +74,7 @@ class ClientConfig:
         self.kms_config = KMSConfig(enabled=False)
         self.tls_config = TLSConfig(enabled=False)
         self.grpc_config = GRPCConfig()
+        self.grpc_port_offset = grpc_port_offset  # gRPC port offset, default 1000
         self.load_cache_at_start = True
         self.update_cache_when_empty = False
         self.app_conn_labels = app_conn_labels
@@ -134,4 +135,12 @@ class ClientConfig:
 
     def set_update_thread_num(self, update_thread_num: int):
         self.update_thread_num = update_thread_num
+        return self
+
+    def set_grpc_port_offset(self, grpc_port_offset: int):
+        """
+        Set gRPC port offset. The gRPC port will be calculated as HTTP port + offset.
+        Default is 1000.
+        """
+        self.grpc_port_offset = grpc_port_offset
         return self

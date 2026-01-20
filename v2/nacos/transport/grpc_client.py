@@ -27,6 +27,7 @@ class GrpcClient(RpcClient):
         self.tls_config = client_config.tls_config
         self.grpc_config = client_config.grpc_config
         self.tenant = client_config.namespace_id
+        self.grpc_port_offset = client_config.grpc_port_offset  # gRPC port offset, default 1000
 
     async def _create_new_managed_channel(self, server_ip, grpc_port):
         options = [
@@ -163,4 +164,4 @@ class GrpcClient(RpcClient):
         return ConnectionType.GRPC
 
     def get_rpc_port_offset(self) -> int:
-        return 1000
+        return self.grpc_port_offset

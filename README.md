@@ -47,6 +47,7 @@ client_config = (ClientConfigBuilder()
 * *cache_dir* - cache dir path. | default: `~/nacos/cache`
 * *log_dir* - log dir path. | default: `~/logs/nacos`
 * *namespace_id* - namespace id.  | default: ``
+* *grpc_port_offset* - gRPC port offset. The gRPC port = HTTP port + offset. | default: `1000`
 * *grpc_config* - grpc config.
   * *max_receive_message_length* - max receive message length in grpc.  | default: 100 * 1024 * 1024
   * *max_keep_alive_ms* - max keep alive ms in grpc. | default: 60 * 1000

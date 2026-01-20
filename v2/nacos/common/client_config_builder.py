@@ -109,5 +109,13 @@ class ClientConfigBuilder:
         self._config.update_thread_num = update_thread_num
         return self
 
+    def grpc_port_offset(self, grpc_port_offset: int) -> "ClientConfigBuilder":
+        """
+        Set gRPC port offset. The gRPC port will be calculated as HTTP port + offset.
+        Default is 1000.
+        """
+        self._config.grpc_port_offset = grpc_port_offset
+        return self
+
     def build(self):
         return self._config
