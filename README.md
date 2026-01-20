@@ -56,7 +56,9 @@ client_config = (ClientConfigBuilder()
   * *max_keep_alive_ms* - max keep alive ms in grpc. | default: 60 * 1000
   * *initial_window_size* - initial window size in grpc.  | default: 10 * 1024 * 1024
   * *initial_conn_window_size* - initial connection window size in grpc. | default: 10 * 1024 * 1024
-  * *grpc_timeout* - grpc timeout in milliseconds. default: 3000
+  * *grpc_timeout* - grpc timeout in milliseconds. | default: 3000
+  * *port_offset* - gRPC port offset. The gRPC port = HTTP port + offset. | default: 1000
+  * *capability_negotiation_timeout* - timeout for capability negotiation in milliseconds. | default: 5000
 * *tls_config* - tls config
   * *enabled* - whether enable tls.
   * *ca_file* - ca file path.
