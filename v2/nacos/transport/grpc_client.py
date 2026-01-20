@@ -163,4 +163,4 @@ class GrpcClient(RpcClient):
         return ConnectionType.GRPC
 
     def get_rpc_port_offset(self) -> int:
-        return 1000
+        return self.grpc_config.port_offset

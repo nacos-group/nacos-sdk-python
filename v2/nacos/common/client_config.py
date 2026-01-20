@@ -34,12 +34,14 @@ class GRPCConfig:
                  max_keep_alive_ms=Constants.GRPC_KEEPALIVE_TIME_MILLS,
                  initial_window_size=Constants.GRPC_INITIAL_WINDOW_SIZE,
                  initial_conn_window_size=Constants.GRPC_INITIAL_CONN_WINDOW_SIZE,
-                 grpc_timeout=Constants.DEFAULT_GRPC_TIMEOUT_MILLS):
+                 grpc_timeout=Constants.DEFAULT_GRPC_TIMEOUT_MILLS,
+                 port_offset=Constants.GRPC_PORT_OFFSET):
         self.max_receive_message_length = max_receive_message_length
         self.max_keep_alive_ms = max_keep_alive_ms
         self.initial_window_size = initial_window_size
         self.initial_conn_window_size = initial_conn_window_size
         self.grpc_timeout = grpc_timeout
+        self.port_offset = port_offset  # gRPC port offset, default 1000
 
 
 class ClientConfig:
