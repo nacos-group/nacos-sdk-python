@@ -42,7 +42,7 @@ class AbstractRedoService(ConnectionEventListener,ABC):
 
 			if not self._connected:
 				self._logger.warning("Grpc Connection is disconnect, skip current redo task")
-				return
+				continue
 
 			try:
 				await self.redo_task()
