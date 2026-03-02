@@ -26,17 +26,17 @@ def _get_app_version() -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
-    # Nacos 配置监听 & 服务注册（同步）
-    nacos_config_client = init_nacos_config()
+    # Nacos 配置监听 & 服务注册（V2 async）
+    nacos_config_client = await init_nacos_config()
     naming_client = await BasicNacosRegistrar.register(service_name=settings.SERVICE_NAME, port=settings.APP_PORT, enabled=True)
 
     try:
         yield
     finally:
         try:
-            stop_nacos_config(nacos_config_client)
+            await stop_nacos_config(nacos_config_client)
         except Exception as e:
-            logger.warning(f"Nacos remove watcher failed: {e}")
+            logger.warning(f"Nacos config shutdown failed: {e}")
         try:
             await BasicNacosRegistrar.deregister(naming_client, service_name=settings.SERVICE_NAME, port=settings.APP_PORT)
         except Exception as e:

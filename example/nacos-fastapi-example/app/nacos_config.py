@@ -1,22 +1,21 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
-import threading
 from typing import Any, Callable, Dict, Optional, Type, TypeVar
 
-import nacos
 import yaml
 from loguru import logger
 
+from v2.nacos import NacosConfigService, ClientConfigBuilder, ConfigParam, GRPCConfig
 from app import settings
 
 T = TypeVar("T")
 
-_client_lock = threading.RLock()
-_client: Optional[nacos.NacosClient] = None
+_client_lock = asyncio.Lock()
+_client: Optional[NacosConfigService] = None
 
-_state_lock = threading.RLock()
 _state: Dict[str, Any] = {
     "raw": "",
     "data": {},
@@ -51,26 +50,20 @@ def _update_state(raw: Optional[str]) -> Dict[str, Any]:
     parsed = _parse_text(content)
     md5 = hashlib.md5(content.encode("utf-8")).hexdigest() if content else None
 
-    with _state_lock:
-        _state["raw"] = content
-        _state["data"] = parsed
-        _state["md5"] = md5
-        snapshot = {
-            "md5": md5,
-            "data": parsed.copy(),
-        }
-        snapshot["raw"] = content
-        return snapshot
+    _state["raw"] = content
+    _state["data"] = parsed
+    _state["md5"] = md5
+    return {
+        "md5": md5,
+        "data": parsed.copy(),
+        "raw": content,
+    }
 
 
 def _snapshot(include_raw: bool = True) -> Dict[str, Any]:
-    with _state_lock:
-        raw = _state["raw"]
-        data = _state["data"].copy()
-        md5 = _state["md5"]
-    snap: Dict[str, Any] = {"md5": md5, "data": data}
+    snap: Dict[str, Any] = {"md5": _state["md5"], "data": _state["data"].copy()}
     if include_raw:
-        snap["raw"] = raw
+        snap["raw"] = _state["raw"]
     return snap
 
 
@@ -94,44 +87,34 @@ def _notify(snapshot: Dict[str, Any]) -> None:
             logger.warning(f"[ConfigSubscriber] callback error: {exc}")
 
 
-def _register_watcher(client: nacos.NacosClient) -> None:
-    """Register config change watcher for different SDK versions."""
-    if hasattr(client, "add_config_watcher"):
-        client.add_config_watcher(settings.NACOS_DATA_ID, settings.NACOS_GROUP, _on_config_change)
-    else:
-        client.add_listener(settings.NACOS_DATA_ID, settings.NACOS_GROUP, _on_config_change)
-
-
-def _unregister_watcher(client: nacos.NacosClient) -> None:
-    try:
-        if hasattr(client, "remove_config_watcher"):
-            client.remove_config_watcher(settings.NACOS_DATA_ID, settings.NACOS_GROUP, _on_config_change)
-        elif hasattr(client, "remove_listener"):
-            client.remove_listener(settings.NACOS_DATA_ID, settings.NACOS_GROUP, _on_config_change)
-    except Exception as exc:
-        logger.warning(f"[Nacos] remove watcher failed: {exc}")
-
-
-def init_nacos_config() -> nacos.NacosClient:
+async def init_nacos_config() -> NacosConfigService:
     """
-    Initialize the Nacos client and snapshot using the SDK's own caching/failover.
+    Initialize the Nacos V2 config client (async + gRPC).
     Returns the client for lifecycle management.
     """
     global _client
 
-    with _client_lock:
+    async with _client_lock:
         if _client is not None:
             return _client
-        client = nacos.NacosClient(
-            server_addresses=settings.NACOS_SERVER_ADDR,
-            namespace=settings.NACOS_NAMESPACE,
-            username=settings.NACOS_USERNAME or None,
-            password=settings.NACOS_PASSWORD or None,
-        )
+
+        client_config = (ClientConfigBuilder()
+                         .server_address(settings.NACOS_SERVER_ADDR)
+                         .namespace_id(settings.NACOS_NAMESPACE)
+                         .username(settings.NACOS_USERNAME)
+                         .password(settings.NACOS_PASSWORD)
+                         .log_level('INFO')
+                         .grpc_config(GRPCConfig(grpc_timeout=5000))
+                         .build())
+
+        client = await NacosConfigService.create_config_service(client_config)
         _client = client
 
     try:
-        content = _client.get_config(settings.NACOS_DATA_ID, settings.NACOS_GROUP)
+        content = await _client.get_config(ConfigParam(
+            data_id=settings.NACOS_DATA_ID,
+            group=settings.NACOS_GROUP,
+        ))
     except Exception as exc:
         logger.error(f"[Nacos] Failed to load config via SDK: {exc}")
         content = None
@@ -146,19 +129,15 @@ def init_nacos_config() -> nacos.NacosClient:
             "[Nacos] Config content is empty; relying on SDK failover/local snapshot if available."
         )
 
-    _register_watcher(_client)
-    logger.info("[Nacos] Config watcher/listener registered.")
+    await _client.add_listener(settings.NACOS_DATA_ID, settings.NACOS_GROUP, _on_config_change)
+    logger.info("[Nacos] Config listener registered.")
 
     _notify(snapshot)
     return _client
 
 
-def _on_config_change(args: Dict[str, Any]) -> None:
-    """Callback invoked by the SDK when config changes."""
-    data_id = args.get("dataId")
-    group = args.get("group")
-    content = args.get("content")
-
+async def _on_config_change(tenant: str, group: str, data_id: str, content: str) -> None:
+    """Callback invoked by the V2 SDK when config changes (via gRPC push)."""
     snapshot = _update_state(content)
     logger.info(
         f"[Nacos][ConfigChanged] dataId={data_id}, group={group}, md5={snapshot['md5']}, keys={list(snapshot['data'].keys())}"
@@ -166,11 +145,13 @@ def _on_config_change(args: Dict[str, Any]) -> None:
     _notify(snapshot)
 
 
-def stop_nacos_config(client: Optional[nacos.NacosClient]) -> None:
-    """Remove watcher on shutdown."""
+async def stop_nacos_config(client: Optional[NacosConfigService]) -> None:
+    """Shutdown the V2 config client and release gRPC resources."""
+    global _client
     if not client:
         return
-    _unregister_watcher(client)
+    await client.shutdown()
+    _client = None
 
 
 def get_config_snapshot(include_raw: bool = True) -> Dict[str, Any]:
