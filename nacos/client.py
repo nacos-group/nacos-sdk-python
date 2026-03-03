@@ -806,13 +806,17 @@ class NacosClient:
         if self.puller_mapping is not None:
             logger.info("[init-pulling] puller is already initialized")
             return
-        self.puller_mapping = dict()
-        self.notify_queue = Queue()
-        self.callback_tread_pool = pool.ThreadPool(self.callback_thread_num)
-        self.process_mgr = Manager()
+        notify_queue = Queue()
+        callback_tread_pool = pool.ThreadPool(self.callback_thread_num)
+        process_mgr = Manager()
         t = Thread(target=self._process_polling_result)
         t.setDaemon(True)
         t.start()
+        
+        self.notify_queue = notify_queue
+        self.callback_tread_pool = callback_tread_pool
+        self.process_mgr = process_mgr
+        self.puller_mapping = dict()
         logger.info("[init-pulling] init completed")
 
     def _process_polling_result(self):
