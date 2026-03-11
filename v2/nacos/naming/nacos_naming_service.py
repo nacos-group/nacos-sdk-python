@@ -230,4 +230,4 @@ class NacosNamingService(NacosClient):
 
     async def shutdown(self) -> None:
         await self.grpc_client_proxy.close_client()
-        await self.service_info_updater.stop()
+        self.service_info_updater.stop()
