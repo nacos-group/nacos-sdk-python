@@ -20,7 +20,7 @@ from v2.nacos.transport.model.rpc_request import Request
 from v2.nacos.transport.model.server_info import ServerInfo
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
 from v2.nacos.transport.rec_ability_context import RecAbilityContext
-from v2.nacos.transport.rpc_client import RpcClient, ConnectionType
+from v2.nacos.transport.rpc_client import RpcClient, RpcClientStatus, ConnectionType
 from v2.nacos.transport.server_request_handler import SetupAckRequestHandler
 
 
@@ -175,16 +175,24 @@ class GrpcClient(RpcClient):
                     f"{grpc_connection.get_connection_id()} failed to send response:{response.get_response_type()}, ackId:{request.requestId},error:{str(e)}")
 
     async def _server_request_watcher(self, grpc_conn: GrpcConnection):
-        async for payload in grpc_conn.bi_stream_send():
-            try:
-                self.logger.info("receive stream server request, connection_id:%s, original info: %s"
-                                 % (grpc_conn.get_connection_id(), str(payload)))
-                request = GrpcUtils.parse(payload)
-                if request:
-                    await self._handle_server_request(request, grpc_conn)
+        try:
+            async for payload in grpc_conn.bi_stream_send():
+                try:
+                    self.logger.info("receive stream server request, connection_id:%s, original info: %s"
+                                     % (grpc_conn.get_connection_id(), str(payload)))
+                    request = GrpcUtils.parse(payload)
+                    if request:
+                        await self._handle_server_request(request, grpc_conn)
 
-            except Exception as e:
-                self.logger.error(f"[{grpc_conn.connection_id}] handle server request occur exception: {e}")
+                except Exception as e:
+                    self.logger.error(f"[{grpc_conn.connection_id}] handle server request occur exception: {e}")
+        except Exception as e:
+            self.logger.warning(f"[{grpc_conn.connection_id}] bi stream broken: {e}")
+            if not self.is_shutdown():
+                async with self.lock:
+                    if self.is_running():
+                        self.rpc_client_status = RpcClientStatus.UNHEALTHY
+                await self.switch_server_async(None, False)
 
     @staticmethod
     async def _shunt_down_channel(channel):
