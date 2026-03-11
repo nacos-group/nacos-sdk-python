@@ -131,3 +131,27 @@ class ReleaseMcpServerRequest(AbstractMcpRequest):
 	def get_request_type(self) -> str:
 		"""Returns the release MCP server request type"""
 		return RELEASE_MCP_SERVER_REQUEST_TYPE
+
+
+# ==================== Prompt Requests ====================
+
+QUERY_PROMPT_REQUEST_TYPE = "QueryPromptRequest"
+
+
+class AbstractPromptRequest(AbstractAIRequest, ABC):
+	"""Abstract base class for Prompt requests"""
+	namespaceId: Optional[str] = None
+	promptKey: Optional[str] = None
+
+	def get_request_type(self) -> str:
+		raise NotImplementedError("Subclasses should implement this method.")
+
+
+class QueryPromptRequest(AbstractPromptRequest):
+	"""Request for querying prompt by key, version, or label"""
+	version: Optional[str] = None
+	label: Optional[str] = None
+	md5: Optional[str] = None
+
+	def get_request_type(self) -> str:
+		return QUERY_PROMPT_REQUEST_TYPE

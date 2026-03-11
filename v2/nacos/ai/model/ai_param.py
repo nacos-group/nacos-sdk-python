@@ -7,6 +7,7 @@ from v2.nacos.ai.model.a2a.a2a import AgentCardDetailInfo
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, \
 	McpEndpointSpec, McpServerDetailInfo
+from v2.nacos.ai.model.prompt.prompt import Prompt
 
 
 class GetMcpServerParam(BaseModel):
@@ -98,3 +99,21 @@ class SubscribeAgentCardParam(BaseModel):
 	# Parameters: agent_name, agent_card_detail_info
 	subscribe_callback: Optional[
 		Callable[[str, AgentCardDetailInfo], Awaitable[None]]] = None
+
+
+# ==================== Prompt Params ====================
+
+class GetPromptParam(BaseModel):
+	"""Parameter model for retrieving prompt information"""
+	prompt_key: str
+	version: Optional[str] = None
+	label: Optional[str] = None
+
+
+class SubscribePromptParam(BaseModel):
+	"""Parameter model for subscribing to prompt changes"""
+	prompt_key: str
+	version: Optional[str] = None
+	label: Optional[str] = None
+	subscribe_callback: Optional[
+		Callable[[str, Prompt], Awaitable[None]]] = None

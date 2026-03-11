@@ -109,5 +109,13 @@ class ClientConfigBuilder:
         self._config.update_thread_num = update_thread_num
         return self
 
+    def ai_transport_mode(self, ai_transport_mode: str) -> "ClientConfigBuilder":
+        self._config.ai_transport_mode = ai_transport_mode
+        return self
+
+    def ai_prompt_cache_update_interval(self, interval: int) -> "ClientConfigBuilder":
+        self._config.ai_prompt_cache_update_interval = interval
+        return self
+
     def build(self):
         return self._config

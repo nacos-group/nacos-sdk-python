@@ -1,10 +1,13 @@
+import logging
+
 from v2.nacos import ClientConfig, NacosException, Instance
 from v2.nacos.ai.model.a2a.a2a import AgentEndpoint, AgentCardDetailInfo
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.ai_param import GetMcpServerParam, ReleaseMcpServerParam, \
 	RegisterMcpServerEndpointParam, SubscribeMcpServerParam, GetAgentCardParam, \
 	ReleaseAgentCardParam, RegisterAgentEndpointParam, \
-	DeregisterAgentEndpointParam, SubscribeAgentCardParam
+	DeregisterAgentEndpointParam, SubscribeAgentCardParam, \
+	GetPromptParam, SubscribePromptParam
 from v2.nacos.ai.model.cache.agent_info_cache import AgentInfoCacheHolder
 from v2.nacos.ai.model.cache.agent_subscribe_manager import \
 	AgentSubscribeManager
@@ -12,8 +15,13 @@ from v2.nacos.ai.model.cache.mcp_server_info_cache import \
 	McpServerInfoCacheHolder
 from v2.nacos.ai.model.cache.mcp_server_subscribe_manager import \
 	McpServerSubscribeManager
+from v2.nacos.ai.model.cache.prompt_cache_holder import PromptCacheHolder
+from v2.nacos.ai.model.cache.prompt_subscribe_manager import \
+	PromptSubscribeManager
 from v2.nacos.ai.model.mcp.mcp import McpServerDetailInfo
+from v2.nacos.ai.model.prompt.prompt import Prompt
 from v2.nacos.ai.remote.ai_grpc_client_proxy import AIGRPCClientProxy
+from v2.nacos.ai.remote.ai_http_client_proxy import AiHttpClientProxy
 from v2.nacos.ai.util.agent_util import validate_agent_card_field, \
 	validate_agent_endpoint
 from v2.nacos.common.constants import Constants
@@ -25,6 +33,7 @@ class NacosAIService(NacosClient):
 
 	def __init__(self, client_config: ClientConfig):
 		super().__init__(client_config, Constants.NAMING_MODULE)
+		self.logger = logging.getLogger(Constants.AI_MODULE)
 		if not client_config.namespace_id or len(
 				client_config.namespace_id) == 0:
 			self.namespace_id = "public"
@@ -32,12 +41,29 @@ class NacosAIService(NacosClient):
 			self.namespace_id = client_config.namespace_id
 		self.mcp_server_subscribe_manager = McpServerSubscribeManager()
 		self.agent_subscribe_manager = AgentSubscribeManager()
+		self.prompt_subscribe_manager = PromptSubscribeManager()
 
 		self.grpc_client_proxy = AIGRPCClientProxy(client_config, self.http_agent)
 		self.mcp_server_cache_holder = McpServerInfoCacheHolder(
-			self.mcp_server_subscribe_manager,self.grpc_client_proxy)
+			self.mcp_server_subscribe_manager, self.grpc_client_proxy)
 		self.agent_info_cache_holder = AgentInfoCacheHolder(
-			self.agent_subscribe_manager,self.grpc_client_proxy)
+			self.agent_subscribe_manager, self.grpc_client_proxy)
+
+		transport_mode = getattr(client_config, 'ai_transport_mode',
+			AIConstants.AI_TRANSPORT_MODE_GRPC)
+		if transport_mode == AIConstants.AI_TRANSPORT_MODE_HTTP:
+			self.logger.info("AI transport mode is HTTP, using AiHttpClientProxy.")
+			self.ai_client_proxy = AiHttpClientProxy(
+				client_config, self.http_agent,
+				self.grpc_client_proxy.nacos_server_connector)
+		else:
+			self.ai_client_proxy = self.grpc_client_proxy
+
+		update_interval = getattr(client_config, 'ai_prompt_cache_update_interval',
+			AIConstants.DEFAULT_PROMPT_CACHE_UPDATE_INTERVAL)
+		self.prompt_cache_holder = PromptCacheHolder(
+			self.prompt_subscribe_manager, self.ai_client_proxy,
+			update_interval=update_interval)
 
 	@staticmethod
 	async def create_ai_service(client_config: ClientConfig) -> 'NacosAIService':
@@ -172,13 +198,42 @@ class NacosAIService(NacosClient):
 		if not self.agent_subscribe_manager.is_subscribed(param.agent_name, param.version):
 			await self.grpc_client_proxy.unsubscribe_agent(param.agent_name, param.version)
 
+	# ==================== Prompt Methods ====================
+
+	async def get_prompt(self, param: GetPromptParam) -> Prompt:
+		if not param.prompt_key or len(param.prompt_key) == 0:
+			raise NacosException(INVALID_PARAM, "promptKey is required")
+		return await self.ai_client_proxy.query_prompt(
+			param.prompt_key, param.version, param.label, None)
+
+	async def subscribe_prompt(self, param: SubscribePromptParam) -> Prompt:
+		if not param.prompt_key or len(param.prompt_key) == 0:
+			raise NacosException(INVALID_PARAM, "promptKey is required")
+		if not param.subscribe_callback:
+			raise NacosException(INVALID_PARAM, "subscribe_callback is required")
+
+		await self.prompt_subscribe_manager.register_subscriber(
+			param.prompt_key, param.version, param.label, param.subscribe_callback)
+		result = await self.prompt_cache_holder.subscribe_prompt(
+			param.prompt_key, param.version, param.label)
+		return result
+
+	async def unsubscribe_prompt(self, param: SubscribePromptParam):
+		if not param.prompt_key or len(param.prompt_key) == 0:
+			raise NacosException(INVALID_PARAM, "promptKey is required")
+		if param.subscribe_callback is None:
+			return
+		await self.prompt_subscribe_manager.deregister_subscriber(
+			param.prompt_key, param.version, param.label, param.subscribe_callback)
+		if not self.prompt_subscribe_manager.is_subscribed(
+				param.prompt_key, param.version, param.label):
+			self.prompt_cache_holder.unsubscribe_prompt(
+				param.prompt_key, param.version, param.label)
+
 	async def shutdown(self):
 		await self.grpc_client_proxy.close_client()
 		await self.mcp_server_cache_holder.shutdown()
 		await self.agent_info_cache_holder.shutdown()
-
-
-
-
+		await self.prompt_cache_holder.shutdown()
 
 
