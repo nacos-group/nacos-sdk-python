@@ -12,10 +12,12 @@ from v2.nacos.ai.model.a2a.a2a import AgentCardDetailInfo, AgentEndpoint
 from v2.nacos.ai.model.ai_constant import AIConstants
 from v2.nacos.ai.model.ai_request import AbstractAIRequest, AbstractMcpRequest, \
 	QueryMcpServerRequest, ReleaseMcpServerRequest, McpServerEndpointRequest, \
-	QueryAgentCardRequest, ReleaseAgentCardRequest, AgentEndpointRequest
+	QueryAgentCardRequest, ReleaseAgentCardRequest, AgentEndpointRequest, \
+	QueryPromptRequest
 from v2.nacos.ai.model.ai_response import QueryMcpServerResponse, \
 	ReleaseMcpServerResponse, McpServerEndpointResponse, QueryAgentCardResponse, \
-	ReleaseAgentCardResponse, AgentEndpointResponse
+	ReleaseAgentCardResponse, AgentEndpointResponse, QueryPromptResponse
+from v2.nacos.ai.model.prompt.prompt import Prompt
 from v2.nacos.ai.model.cache.agent_info_cache import AgentInfoCacheHolder
 from v2.nacos.ai.model.cache.mcp_server_info_cache import \
 	McpServerInfoCacheHolder
@@ -296,6 +298,18 @@ class AIGRPCClientProxy:
 			raise NacosException(SERVER_NOT_IMPLEMENTED,"Request Nacos server version is too low, not support agent registry feature.")
 		await self.agent_cache_holder.remove_agent_update_task(agent_name, version)
 
+
+	async def query_prompt(self, prompt_key: str, version: Optional[str],
+			label: Optional[str], md5_value: Optional[str]) -> Prompt:
+		request = QueryPromptRequest(
+			namespaceId=self.namespace_id,
+			promptKey=prompt_key,
+			version=version,
+			label=label,
+			md5=md5_value,
+		)
+		response = await self.request_ai_server(request, QueryPromptResponse)
+		return response.promptInfo if response.promptInfo else Prompt()
 
 	async def close_client(self):
 		self.logger.info("close Nacos python ai grpc client...")

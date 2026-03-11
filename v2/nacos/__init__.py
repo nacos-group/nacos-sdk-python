@@ -1,4 +1,4 @@
-__version__ = "3.0.4"
+__version__ = "3.2.0b1"
 
 from .common.client_config import (KMSConfig,
                                    GRPCConfig,

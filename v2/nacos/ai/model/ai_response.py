@@ -2,6 +2,7 @@ from typing import Optional
 
 from v2.nacos.ai.model.a2a.a2a import AgentCardDetailInfo
 from v2.nacos.ai.model.mcp.mcp import McpServerDetailInfo
+from v2.nacos.ai.model.prompt.prompt import Prompt
 from v2.nacos.transport.model.rpc_response import Response
 
 
@@ -57,4 +58,12 @@ class ReleaseAgentCardResponse(Response):
 	def get_response_type(self) -> str:
 		"""Returns the release agent card response type"""
 		return "ReleaseAgentCardResponse"
+
+
+class QueryPromptResponse(Response):
+	"""Response for prompt query requests"""
+	promptInfo: Optional[Prompt] = None
+
+	def get_response_type(self) -> str:
+		return "QueryPromptResponse"
 

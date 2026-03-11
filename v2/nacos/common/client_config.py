@@ -83,6 +83,8 @@ class ClientConfig:
         self.app_conn_labels = app_conn_labels
         self.async_update_service = False
         self.update_thread_num = 5
+        self.ai_transport_mode = "grpc"
+        self.ai_prompt_cache_update_interval = 10
 
     def set_log_level(self, log_level):
         self.log_level = log_level
@@ -138,4 +140,12 @@ class ClientConfig:
 
     def set_update_thread_num(self, update_thread_num: int):
         self.update_thread_num = update_thread_num
+        return self
+
+    def set_ai_transport_mode(self, ai_transport_mode: str):
+        self.ai_transport_mode = ai_transport_mode
+        return self
+
+    def set_ai_prompt_cache_update_interval(self, interval: int):
+        self.ai_prompt_cache_update_interval = interval
         return self

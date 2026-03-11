@@ -4,7 +4,7 @@ from google.protobuf.any_pb2 import Any
 
 from v2.nacos.ai.model.ai_response import QueryMcpServerResponse, \
     ReleaseMcpServerResponse, McpServerEndpointResponse, QueryAgentCardResponse, \
-    ReleaseAgentCardResponse, AgentEndpointResponse
+    ReleaseAgentCardResponse, AgentEndpointResponse, QueryPromptResponse
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR
 from v2.nacos.config.model.config_request import ConfigChangeNotifyRequest
 from v2.nacos.config.model.config_response import ConfigPublishResponse, ConfigQueryResponse, \
@@ -49,6 +49,7 @@ class GrpcUtils:
         "QueryAgentCardResponse": QueryAgentCardResponse,
         "ReleaseAgentCardResponse": ReleaseAgentCardResponse,
         "AgentEndpointResponse": AgentEndpointResponse,
+        "QueryPromptResponse": QueryPromptResponse,
     }
 
     @staticmethod

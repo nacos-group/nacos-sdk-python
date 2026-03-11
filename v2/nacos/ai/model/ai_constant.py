@@ -24,3 +24,10 @@ class AIConstants:
 	A2A_ENDPOINT_TYPE_SERVICE = "SERVICE"
 
 	A2A_ENDPOINT_DEFAULT_TRANSPORT = "JSONRPC"
+
+	# AI transport mode: "grpc" (default) or "http"
+	AI_TRANSPORT_MODE_GRPC = "grpc"
+	AI_TRANSPORT_MODE_HTTP = "http"
+
+	# Default prompt cache update interval in seconds
+	DEFAULT_PROMPT_CACHE_UPDATE_INTERVAL = 10
