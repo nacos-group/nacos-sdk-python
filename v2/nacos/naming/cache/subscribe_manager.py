@@ -12,7 +12,7 @@ class SubscribeManager:
         self.callback_func_wrapper_map: Dict[str, List[SubscribeCallbackFuncWrapper]] = {}
         self.mux = asyncio.Lock()
 
-    async def is_subscribed(self, service_name: str, clusters: str) -> bool:
+    def is_subscribed(self, service_name: str, clusters: str) -> bool:
         key = get_service_cache_key(service_name, clusters)
         return key in self.callback_func_wrapper_map
 
