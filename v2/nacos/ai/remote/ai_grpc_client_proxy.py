@@ -301,5 +301,5 @@ class AIGRPCClientProxy:
 		self.logger.info("close Nacos python ai grpc client...")
 		await self.rpc_client.shutdown()
 
-	async def is_enabled(self):
+	def is_enabled(self):
 		return self.rpc_client.is_running()

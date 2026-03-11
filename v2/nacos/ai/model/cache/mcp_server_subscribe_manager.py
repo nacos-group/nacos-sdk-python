@@ -29,7 +29,7 @@ class McpServerSubscribeManager:
 			if not self.subscribers[key]:
 				del self.subscribers[key]
 
-	async def is_subscribed(self, mcp_name:str, version:str) -> bool:
+	def is_subscribed(self, mcp_name:str, version:str) -> bool:
 		key = build_mcp_server_key(mcp_name, version)
 		if key not in self.subscribers:
 			return False
