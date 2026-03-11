@@ -31,7 +31,7 @@ class AgentSubscribeManager:
 			if not self.subscribers[key]:
 				del self.subscribers[key]
 
-	async def is_subscribed(self, agent_name:str, version:str) -> bool:
+	def is_subscribed(self, agent_name:str, version:str) -> bool:
 		key = build_agent_key(agent_name, version)
 		if key not in self.subscribers:
 			return False
