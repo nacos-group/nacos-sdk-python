@@ -135,5 +135,5 @@ class ServiceInfoCache:
     async def deregister_callback(self, service_name: str, clusters: str, callback_func_wrapper: SubscribeCallbackFuncWrapper):
         await self.sub_callback_manager.remove_callback_func(service_name, clusters, callback_func_wrapper)
 
-    async def is_subscribed(self, service_name: str, clusters: str) -> bool:
-        return await self.sub_callback_manager.is_subscribed(service_name, clusters)
+    def is_subscribed(self, service_name: str, clusters: str) -> bool:
+        return self.sub_callback_manager.is_subscribed(service_name, clusters)

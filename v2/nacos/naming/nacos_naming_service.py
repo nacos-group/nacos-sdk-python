@@ -229,7 +229,7 @@ class NacosNamingService(NacosClient):
         callback_wrapper = SubscribeCallbackFuncWrapper(cluster_selector, request.subscribe_callback)
         await self.service_info_holder.deregister_callback(get_group_name(request.service_name, request.group_name),
                                                            "", callback_wrapper)
-        if not await self.service_info_holder.is_subscribed(get_group_name(request.service_name, request.group_name), ""):
+        if not self.service_info_holder.is_subscribed(get_group_name(request.service_name, request.group_name), ""):
             await self.grpc_client_proxy.unsubscribe(request.service_name, request.group_name, "")
 
     async def server_health(self) -> bool:

@@ -33,7 +33,7 @@ class ServiceInfoUpdater:
 				# 遍历所有服务
 				for key, service in self.service_info_holder.service_info_map.items():
 					# 获取上次更新时间
-					if not await self.service_info_holder.is_subscribed(
+					if not self.service_info_holder.is_subscribed(
 							get_group_name(service.name,service.groupName),service.clusters):
 						continue
 
