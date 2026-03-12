@@ -28,10 +28,13 @@ class AuthClient:
             "username": self.username,
             "password": self.password
         }
-
+        ctx_path = self.client_config.context_path
         server_list = self.get_server_list()
         for server_address in server_list:
-            url = server_address + "/nacos/v1/auth/users/login"
+            if ctx_path == "/":
+                url = server_address + "/v1/auth/users/login"
+            else:
+                url = server_address + ctx_path + "/v1/auth/users/login"
             resp, error = await self.http_agent.request(url, "POST", None, params, None)
             if not resp or error:
                 self.logger.warning(f"[get-access-token] request {url} failed, error: {error}")
