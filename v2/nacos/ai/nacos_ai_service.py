@@ -7,7 +7,7 @@ from v2.nacos.ai.model.ai_param import GetMcpServerParam, ReleaseMcpServerParam,
 	RegisterMcpServerEndpointParam, SubscribeMcpServerParam, GetAgentCardParam, \
 	ReleaseAgentCardParam, RegisterAgentEndpointParam, \
 	DeregisterAgentEndpointParam, SubscribeAgentCardParam, \
-	GetPromptParam, SubscribePromptParam
+	GetPromptParam, SubscribePromptParam, DownloadSkillParam
 from v2.nacos.ai.model.cache.agent_info_cache import AgentInfoCacheHolder
 from v2.nacos.ai.model.cache.agent_subscribe_manager import \
 	AgentSubscribeManager
@@ -49,13 +49,15 @@ class NacosAIService(NacosClient):
 		self.agent_info_cache_holder = AgentInfoCacheHolder(
 			self.agent_subscribe_manager, self.grpc_client_proxy)
 
+		self.http_client_proxy = AiHttpClientProxy(
+			client_config, self.http_agent,
+			self.grpc_client_proxy.nacos_server_connector)
+
 		transport_mode = getattr(client_config, 'ai_transport_mode',
 			AIConstants.AI_TRANSPORT_MODE_GRPC)
 		if transport_mode == AIConstants.AI_TRANSPORT_MODE_HTTP:
 			self.logger.info("AI transport mode is HTTP, using AiHttpClientProxy.")
-			self.ai_client_proxy = AiHttpClientProxy(
-				client_config, self.http_agent,
-				self.grpc_client_proxy.nacos_server_connector)
+			self.ai_client_proxy = self.http_client_proxy
 		else:
 			self.ai_client_proxy = self.grpc_client_proxy
 
@@ -235,5 +237,14 @@ class NacosAIService(NacosClient):
 		await self.mcp_server_cache_holder.shutdown()
 		await self.agent_info_cache_holder.shutdown()
 		await self.prompt_cache_holder.shutdown()
+
+	# ==================== Skill Download Methods ====================
+
+	async def download_skill_zip(self, param: DownloadSkillParam) -> bytes:
+		"""Download skill as ZIP byte array by skill name. Defaults to latest version."""
+		if not param.skill_name or len(param.skill_name) == 0:
+			raise NacosException(INVALID_PARAM, "skillName is required")
+		return await self.http_client_proxy.download_skill_zip(
+			param.skill_name, param.version, param.label)
 
 

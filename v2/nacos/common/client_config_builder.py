@@ -27,6 +27,10 @@ class ClientConfigBuilder:
         self._config.namespace_id = namespace_id
         return self
 
+    def context_path(self, context_path: str) -> "ClientConfigBuilder":
+        self._config.context_path = ClientConfig._normalize_context_path(context_path)
+        return self
+
     def timeout_ms(self, timeout_ms) -> "ClientConfigBuilder":
         self._config.timeout_ms = timeout_ms
         return self

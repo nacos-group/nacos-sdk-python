@@ -203,7 +203,11 @@ class RpcClient(ABC):
                     await self._notify_connection_change(ConnectionStatus.CONNECTED)
 
         if connection is None:
-            raise NacosException(CLIENT_DISCONNECT, "failed to connect server")
+            self.logger.warning(
+                "failed to connect to server on startup, switch to async reconnect")
+            async with self.lock:
+                self.rpc_client_status = RpcClientStatus.UNHEALTHY
+            await self.switch_server_async(None, False)
 
     @abstractmethod
     async def connect_to_server(self, server_info: ServerInfo) -> Optional[Connection]:

@@ -117,3 +117,15 @@ class SubscribePromptParam(BaseModel):
 	label: Optional[str] = None
 	subscribe_callback: Optional[
 		Callable[[str, Prompt], Awaitable[None]]] = None
+
+
+# ==================== Skill Params ====================
+
+class DownloadSkillParam(BaseModel):
+	"""Parameter model for downloading a Skill ZIP"""
+	# Skill name (unique identifier)
+	skill_name: str
+	# Target skill version (optional, if None gets latest)
+	version: Optional[str] = None
+	# Target skill label, e.g. "latest", "stable" (optional)
+	label: Optional[str] = None
