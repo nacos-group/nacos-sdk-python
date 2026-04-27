@@ -8,10 +8,9 @@ assignees: ''
 
 ### Environment
 
-- **SDK Version**: (e.g., V2 / V3)
-- **SDK Package Version**: (e.g., 2.0.5)
+- **SDK Package Version**: (e.g., 3.2.0b1)
 - **Python Version**: (e.g., 3.10 / 3.12 / 3.13)
-- **Nacos Server Version**: (e.g., 2.4.0)
+- **Nacos Server Version**: (e.g., 3.0.3)
 - **OS**: (e.g., Ubuntu 22.04 / macOS 15 / Windows 11)
 
 ### Describe the Bug

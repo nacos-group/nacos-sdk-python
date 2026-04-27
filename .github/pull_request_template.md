@@ -19,3 +19,9 @@
 ### How has this been tested?
 
 <!-- Describe the testing you have done. -->
+
+### Checklist
+
+- [ ] Unit tests added/updated
+- [ ] Documentation updated (if needed)
+- [ ] No breaking changes (or described above)

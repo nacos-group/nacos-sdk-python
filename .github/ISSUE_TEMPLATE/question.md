@@ -6,10 +6,6 @@ labels: question
 assignees: ''
 ---
 
-### SDK Version
-
-V2 / V3
-
 ### Description
 
 A clear and concise description of your question.

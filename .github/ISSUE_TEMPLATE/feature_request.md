@@ -6,12 +6,6 @@ labels: enhancement
 assignees: ''
 ---
 
-### SDK Version
-
-- [ ] V2
-- [ ] V3
-- [ ] Both
-
 ### Description
 
 A clear and concise description of the feature you'd like.
