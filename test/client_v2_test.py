@@ -2,6 +2,8 @@ import asyncio
 import os
 import unittest
 from typing import List
+from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 from v2.nacos import ConfigParam
 from v2.nacos.common.client_config import GRPCConfig
@@ -12,6 +14,8 @@ from v2.nacos.naming.model.naming_param import RegisterInstanceParam, Deregister
 from v2.nacos.naming.nacos_naming_service import NacosNamingService
 from v2.nacos.config.nacos_config_service import NacosConfigService
 from v2.nacos.common.auth import CredentialsProvider, Credentials
+from v2.nacos.common.client_config import ClientConfig
+from v2.nacos.transport.auth_client import AuthClient
 
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
@@ -189,6 +193,90 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
         await client.shutdown()
 
+    async def test_auth_login_url_with_root_context_path(self):
+        """
+        [Issue #300] Verifies that when context_path is '/', the login URL
+        is correctly formed as '/v1/auth/users/login' without double slashes.
+        """
+
+        # 1. Setup config with root context path
+        config = ClientConfig(
+            server_addresses="http://127.0.0.1:8848",
+            username="nacos",
+            password="nacos",
+            context_path="/"
+        )
+
+        # 2. Create required mock objects
+        mock_get_server_list = MagicMock(return_value=["http://127.0.0.1:8848"])
+        mock_http_agent = MagicMock()
+        mock_logger = MagicMock()  # Mock logger
+
+        # 3. Initialize AuthClient with ALL required arguments
+        client = AuthClient(
+            client_config=config,
+            get_server_list_func=mock_get_server_list,
+            http_agent=mock_http_agent,
+            logger=mock_logger
+        )
+
+        # 4. Mock the HTTP request to capture the URL
+        mock_response = (b'{"accessToken":"mock-token", "tokenTtl":18000}', None)
+        mock_request = AsyncMock(return_value=mock_response)
+        mock_http_agent.request = mock_request
+
+        # 5. Execute login logic
+        await client.get_access_token(force_refresh=True)
+
+        # 6. Assert the generated URL
+        called_url = mock_request.call_args[0][0]
+        expected_url = "http://127.0.0.1:8848/v1/auth/users/login"
+
+        self.assertEqual(called_url, expected_url,
+                         f"URL mismatch for root context_path. Expected '{expected_url}', but got '{called_url}'")
+
+    async def test_auth_login_url_with_standard_context_path(self):
+        """
+        [Regression Test] Verifies that when context_path is '/nacos',
+        the login URL correctly includes the prefix.
+        """
+        import logging
+
+        # 1. Setup config with standard context path
+        config = ClientConfig(
+            server_addresses="http://127.0.0.1:8848",
+            username="nacos",
+            password="nacos",
+            context_path="/nacos"
+        )
+
+        # 2. Create required mock objects
+        mock_get_server_list = MagicMock(return_value=["http://127.0.0.1:8848"])
+        mock_http_agent = MagicMock()
+        mock_logger = MagicMock()  # Mock logger
+
+        # 3. Initialize AuthClient with ALL required arguments
+        client = AuthClient(
+            client_config=config,
+            get_server_list_func=mock_get_server_list,
+            http_agent=mock_http_agent,
+            logger=mock_logger
+        )
+
+        # 4. Mock the HTTP request
+        mock_response = (b'{"accessToken":"mock-token", "tokenTtl":18000}', None)
+        mock_request = AsyncMock(return_value=mock_response)
+        mock_http_agent.request = mock_request
+
+        # 5. Execute login logic
+        await client.get_access_token(force_refresh=True)
+
+        # 6. Assert the generated URL
+        called_url = mock_request.call_args[0][0]
+        expected_url = "http://127.0.0.1:8848/nacos/v1/auth/users/login"
+
+        self.assertEqual(called_url, expected_url,
+                         f"URL mismatch for standard context_path. Expected '{expected_url}', but got '{called_url}'")
 
 if __name__ == '__main__':
     unittest.main()

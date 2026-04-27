@@ -47,7 +47,7 @@ class GRPCConfig:
 
 
 class ClientConfig:
-    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path='', access_key=None,
+    def __init__(self, server_addresses=None, endpoint=None, namespace_id='', context_path=Constants.WEB_CONTEXT, access_key=None,
                  secret_key=None, username=None, password=None, app_name='', app_key='', log_dir='', log_level=None,
                  log_rotation_backup_count=None, app_conn_labels=None, credentials_provider=None):
         self.server_list = []
@@ -63,7 +63,15 @@ class ClientConfig:
         self.endpoint_query_header = None
         self.namespace_id = namespace_id
         self.credentials_provider = credentials_provider if credentials_provider else StaticCredentialsProvider(access_key, secret_key)
-        self.context_path = context_path
+        if not context_path:
+            self.context_path = Constants.WEB_CONTEXT
+        else:
+            cp = context_path
+            if not cp.startswith("/"):
+                cp = "/" + cp
+            if cp != "/" and cp.endswith("/"):
+                cp = cp[:-1]
+            self.context_path = cp
         self.username = username  # the username for nacos auth
         self.password = password  # the password for nacos auth
         self.app_name = app_name
