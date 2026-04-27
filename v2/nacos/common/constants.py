@@ -13,7 +13,7 @@ class Constants:
 
     LABEL_MODULE = "module"
 
-    CLIENT_VERSION = "Nacos-Python-Client:v3.2.0b1"
+    CLIENT_VERSION = "Nacos-Python-Client:v3.2.0"
 
     DATA_IN_BODY_VERSION = 204
 

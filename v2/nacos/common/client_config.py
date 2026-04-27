@@ -63,15 +63,7 @@ class ClientConfig:
         self.endpoint_query_header = None
         self.namespace_id = namespace_id
         self.credentials_provider = credentials_provider if credentials_provider else StaticCredentialsProvider(access_key, secret_key)
-        if not context_path:
-            self.context_path = Constants.WEB_CONTEXT
-        else:
-            cp = context_path
-            if not cp.startswith("/"):
-                cp = "/" + cp
-            if cp != "/" and cp.endswith("/"):
-                cp = cp[:-1]
-            self.context_path = cp
+        self.context_path = self._normalize_context_path(context_path)
         self.username = username  # the username for nacos auth
         self.password = password  # the password for nacos auth
         self.app_name = app_name
@@ -93,6 +85,27 @@ class ClientConfig:
         self.update_thread_num = 5
         self.ai_transport_mode = "grpc"
         self.ai_prompt_cache_update_interval = 10
+
+    @staticmethod
+    def _normalize_context_path(context_path):
+        """Normalize context path: fallback to default when empty, ensure leading
+        '/', strip trailing '/' except when the value is exactly '/'.
+        """
+        if not context_path:
+            return Constants.WEB_CONTEXT
+        cp = context_path
+        if not cp.startswith("/"):
+            cp = "/" + cp
+        if cp != "/" and cp.endswith("/"):
+            cp = cp[:-1]
+        return cp
+
+    def build_context_prefix(self):
+        """Return the context path to use as URL prefix. Returns '' when
+        context_path is '/' to avoid double slashes when concatenated with an
+        API path that already starts with '/'.
+        """
+        return "" if self.context_path == "/" else self.context_path
 
     def set_log_level(self, log_level):
         self.log_level = log_level

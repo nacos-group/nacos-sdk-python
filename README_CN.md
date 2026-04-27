@@ -31,6 +31,7 @@ Python 3.10+
 from v2.nacos import NacosNamingService, NacosConfigService, NacosAIService, ClientConfigBuilder, GRPCConfig, \
     Instance, SubscribeServiceParam, RegisterInstanceParam, DeregisterInstanceParam, \
     BatchRegisterInstanceParam, GetServiceParam, ListServiceParam, ListInstanceParam, ConfigParam
+from v2.nacos.ai.model.ai_param import GetPromptParam, SubscribePromptParam, DownloadSkillParam
     
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
@@ -544,6 +545,105 @@ await ai_client.unsubscribe_agent_card(
     )
 )
 ```
+
+### Prompt 管理
+
+Nacos 提供了 Prompt 模板管理能力，包括获取、订阅和变量替换渲染。
+
+#### 获取 Prompt
+
+```python
+from v2.nacos.ai.model.ai_param import GetPromptParam
+
+prompt = await ai_client.get_prompt(
+    GetPromptParam(prompt_key='my-prompt', version='1.0.0')
+)
+print(prompt.template)
+```
+
+* `param` *GetPromptParam* 获取 Prompt 信息的参数
+  * `prompt_key` - 要查询的 Prompt 键名（必填）
+  * `version` - Prompt 版本（可选）
+  * `label` - Prompt 标签（可选）
+* `return` 成功时返回 Prompt，失败时抛出异常
+
+#### 使用变量渲染 Prompt
+
+`Prompt` 对象支持使用 `{{variableName}}` 占位符进行模板渲染。Prompt 中定义的变量可以通过 `PromptVariable.defaultValue` 包含默认值。渲染时，先应用默认值，然后被用户提供的值覆盖。
+
+```python
+# 使用变量替换渲染 Prompt 模板
+result = prompt.render({"name": "Alice", "place": "Nacos"})
+print(result)  # e.g. "Hello Alice, welcome to Nacos!"
+
+# 如果未覆盖，将自动使用带有 defaultValue 的变量
+# 例如，如果 Prompt 有一个变量：PromptVariable(name="lang", defaultValue="en")
+# 调用 render 时不提供 "lang" 将使用 "en" 作为值
+result = prompt.render({"name": "Alice"})
+```
+
+* `param` *variables* - 变量名到值的映射字典（可选）。覆盖 `PromptVariable.defaultValue` 中定义的默认值。
+* `return` 替换所有 `{{variableName}}` 占位符后的渲染字符串。
+
+#### 订阅 Prompt
+
+```python
+from v2.nacos.ai.model.ai_param import SubscribePromptParam
+
+async def prompt_listener(prompt_key, prompt):
+    print(f"Prompt changed: {prompt_key}, version: {prompt.version}")
+
+prompt = await ai_client.subscribe_prompt(
+    SubscribePromptParam(
+        prompt_key='my-prompt',
+        version='1.0.0',
+        subscribe_callback=prompt_listener
+    )
+)
+```
+
+* `param` *SubscribePromptParam* 订阅 Prompt 变化的参数
+  * `prompt_key` - 要订阅的 Prompt 键名（必填）
+  * `version` - Prompt 版本（可选）
+  * `label` - Prompt 标签（可选）
+  * `subscribe_callback` - 处理 Prompt 变化的回调函数（必填）
+* `return` 成功时返回当前 Prompt，失败时抛出异常
+
+#### 取消订阅 Prompt
+
+```python
+await ai_client.unsubscribe_prompt(
+    SubscribePromptParam(
+        prompt_key='my-prompt',
+        version='1.0.0',
+        subscribe_callback=prompt_listener
+    )
+)
+```
+
+### 技能下载
+
+Nacos 支持以 ZIP 压缩包的形式下载技能包。
+
+#### 下载技能 ZIP
+
+```python
+from v2.nacos.ai.model.ai_param import DownloadSkillParam
+
+zip_bytes = await ai_client.download_skill_zip(
+    DownloadSkillParam(skill_name='my-skill', version='1.0.0')
+)
+
+# 保存到文件
+with open('my-skill.zip', 'wb') as f:
+    f.write(zip_bytes)
+```
+
+* `param` *DownloadSkillParam* 下载技能 ZIP 的参数
+  * `skill_name` - 技能名称（必填）
+  * `version` - 目标技能版本（可选，默认为最新版本）
+  * `label` - 目标技能标签，例如 "latest"、"stable"（可选）
+* `return` 成功时返回 ZIP 文件内容（bytes），失败时抛出异常
 
 ### 停止 AI 客户端
 

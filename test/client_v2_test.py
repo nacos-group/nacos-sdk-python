@@ -2,7 +2,6 @@ import asyncio
 import os
 import unittest
 from typing import List
-from unittest.mock import AsyncMock
 from unittest.mock import AsyncMock, MagicMock
 
 from v2.nacos import ConfigParam
@@ -240,8 +239,6 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
         [Regression Test] Verifies that when context_path is '/nacos',
         the login URL correctly includes the prefix.
         """
-        import logging
-
         # 1. Setup config with standard context path
         config = ClientConfig(
             server_addresses="http://127.0.0.1:8848",
@@ -277,6 +274,43 @@ class TestClientV2(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(called_url, expected_url,
                          f"URL mismatch for standard context_path. Expected '{expected_url}', but got '{called_url}'")
+
+
+class TestClientConfigContextPathNormalization(unittest.TestCase):
+    """Unit tests for ClientConfig.context_path normalization (Issue #300 follow-up)."""
+
+    def test_empty_string_falls_back_to_default(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="")
+        self.assertEqual(cfg.context_path, "/nacos")
+
+    def test_none_falls_back_to_default(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path=None)
+        self.assertEqual(cfg.context_path, "/nacos")
+
+    def test_default_value(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848")
+        self.assertEqual(cfg.context_path, "/nacos")
+
+    def test_missing_leading_slash_is_added(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="nacos")
+        self.assertEqual(cfg.context_path, "/nacos")
+
+    def test_trailing_slash_is_stripped(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="/nacos/")
+        self.assertEqual(cfg.context_path, "/nacos")
+
+    def test_root_is_preserved(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="/")
+        self.assertEqual(cfg.context_path, "/")
+
+    def test_build_context_prefix_for_root(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="/")
+        self.assertEqual(cfg.build_context_prefix(), "")
+
+    def test_build_context_prefix_for_standard(self):
+        cfg = ClientConfig(server_addresses="http://127.0.0.1:8848", context_path="/nacos")
+        self.assertEqual(cfg.build_context_prefix(), "/nacos")
+
 
 if __name__ == '__main__':
     unittest.main()

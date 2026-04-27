@@ -31,3 +31,6 @@ class AIConstants:
 
 	# Default prompt cache update interval in seconds
 	DEFAULT_PROMPT_CACHE_UPDATE_INTERVAL = 10
+
+	# Skill download HTTP endpoint path
+	SKILL_DOWNLOAD_PATH = "/v3/client/ai/skills"

@@ -6,7 +6,9 @@ import logging
 from random import randrange
 from typing import Optional
 
-from v2.nacos.ai.model.prompt.prompt import Prompt
+from v2.nacos.ai.model.ai_constant import AIConstants
+from v2.nacos.ai.model.prompt.prompt import Prompt, PromptVariable
+from v2.nacos.ai.util.skill_util import validate_zip_bytes, validate_zip_entry_paths, SecurityError
 from v2.nacos.common.client_config import ClientConfig
 from v2.nacos.common.constants import Constants
 from v2.nacos.common.nacos_exception import NacosException, SERVER_ERROR, NOT_MODIFIED, NOT_FOUND
@@ -63,12 +65,54 @@ class AiHttpClientProxy:
 		if data is None:
 			return Prompt()
 
+		raw_variables = data.get("variables")
+		variables = None
+		if raw_variables is not None:
+			variables = [PromptVariable(**v) for v in raw_variables]
+
 		return Prompt(
 			promptKey=data.get("promptKey"),
 			version=data.get("version"),
 			template=data.get("template"),
 			md5=data.get("md5"),
+			variables=variables,
 		)
+
+	async def download_skill_zip(self, skill_name: str,
+			version: Optional[str] = None,
+			label: Optional[str] = None) -> bytes:
+		"""Download skill as ZIP byte array via HTTP REST API.
+
+		Args:
+			skill_name: skill name (unique identifier)
+			version: explicit version (optional)
+			label: route label, e.g. latest/stable (optional)
+
+		Returns:
+			ZIP file as byte array
+		"""
+		params = {
+			"namespaceId": self.namespace_id,
+			"name": skill_name,
+		}
+		if version and len(version) > 0:
+			params["version"] = version
+		if label and len(label) > 0:
+			params["label"] = label
+
+		zip_bytes = await self._req_api_bytes(AIConstants.SKILL_DOWNLOAD_PATH, params)
+		try:
+			validate_zip_bytes(zip_bytes)
+			validate_zip_entry_paths(zip_bytes)
+		except ValueError as e:
+			raise NacosException(
+				SERVER_ERROR,
+				f"Invalid ZIP data returned from server: {e}")
+		except SecurityError as e:
+			raise NacosException(
+				SERVER_ERROR,
+				f"Downloaded ZIP contains unsafe entry paths: {e}")
+		return zip_bytes
 
 	async def _req_api(self, api: str, params: dict) -> str:
 		server_list = self.nacos_server_connector.get_server_list()
@@ -95,14 +139,40 @@ class AiHttpClientProxy:
 			SERVER_ERROR,
 			f"Failed to request API: {api} after all servers tried: {last_exception}")
 
+	async def _req_api_bytes(self, api: str, params: dict) -> bytes:
+		"""Send HTTP GET request and return raw bytes response (for binary downloads)."""
+		server_list = self.nacos_server_connector.get_server_list()
+		if not server_list:
+			raise NacosException(SERVER_ERROR, "no server available")
+
+		last_exception = None
+		index = randrange(0, len(server_list))
+
+		for i in range(max(len(server_list), MAX_RETRY)):
+			server = server_list[index % len(server_list)]
+			try:
+				return await self._call_server_bytes(api, params, server)
+			except NacosException as e:
+				last_exception = e
+				if e.error_code == NOT_MODIFIED or e.error_code == NOT_FOUND:
+					raise
+				self.logger.debug(f"Request {api} to server {server} failed: {e}")
+			index = (index + 1) % len(server_list)
+
+		self.logger.error(
+			f"Request: {api} failed, servers: {server_list}, err: {last_exception}")
+		raise NacosException(
+			SERVER_ERROR,
+			f"Failed to request API: {api} after all servers tried: {last_exception}")
+
 	async def _call_server(self, api: str, params: dict, server: str) -> str:
 		headers = await self._build_headers()
 
-		context_path = self.client_config.context_path or Constants.WEB_CONTEXT
+		context_prefix = self.client_config.build_context_prefix()
 		tls_enabled = (self.client_config.tls_config
 				and self.client_config.tls_config.enabled)
 		scheme = "https" if tls_enabled else "http"
-		url = f"{scheme}://{server}{context_path}{api}"
+		url = f"{scheme}://{server}{context_prefix}{api}"
 
 		response, err = await self.http_agent.request(
 			url, "GET", headers=headers, params=params)
@@ -119,6 +189,33 @@ class AiHttpClientProxy:
 
 		return response.decode("utf-8") if isinstance(response, bytes) else response
 
+	async def _call_server_bytes(self, api: str, params: dict, server: str) -> bytes:
+		"""Call a single server and return raw bytes response."""
+		headers = await self._build_headers()
+
+		context_prefix = self.client_config.build_context_prefix()
+		tls_enabled = (self.client_config.tls_config
+				and self.client_config.tls_config.enabled)
+		scheme = "https" if tls_enabled else "http"
+		url = f"{scheme}://{server}{context_prefix}{api}"
+
+		response, err = await self.http_agent.request(
+			url, "GET", headers=headers, params=params)
+
+		if err:
+			err_str = str(err)
+			if str(HTTP_NOT_MODIFIED) in err_str:
+				raise NacosException(NOT_MODIFIED, "not modified")
+			if str(HTTP_NOT_FOUND) in err_str:
+				raise NacosException(NOT_FOUND, "skill not found")
+			if str(HTTP_FORBIDDEN) in err_str:
+				raise NacosException(SERVER_ERROR, "forbidden")
+			raise NacosException(SERVER_ERROR, f"HTTP request failed: {err}")
+
+		if isinstance(response, bytes):
+			return response
+		return response.encode("utf-8") if isinstance(response, str) else bytes(response)
+
 	async def _build_headers(self) -> dict:
 		headers = {}
 		await self.nacos_server_connector.inject_security_info(headers)
@@ -130,6 +227,8 @@ class AiHttpClientProxy:
 			str(now) + self.client_config.app_key)
 		headers[Constants.CHARSET_KEY] = "utf-8"
 		headers['Timestamp'] = str(now)
+		headers['Client-Version'] = Constants.CLIENT_VERSION
+		headers['User-Agent'] = Constants.CLIENT_VERSION
 
 		credentials = self.client_config.credentials_provider.get_credentials()
 		if credentials.get_access_key_id() and credentials.get_access_key_secret():

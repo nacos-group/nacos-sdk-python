@@ -31,6 +31,7 @@ Supported Nacos version over 3.x
 from v2.nacos import NacosNamingService, NacosConfigService, NacosAIService, ClientConfigBuilder, GRPCConfig, \
     Instance, SubscribeServiceParam, RegisterInstanceParam, DeregisterInstanceParam, \
     BatchRegisterInstanceParam, GetServiceParam, ListServiceParam, ListInstanceParam, ConfigParam
+from v2.nacos.ai.model.ai_param import GetPromptParam, SubscribePromptParam, DownloadSkillParam
     
 client_config = (ClientConfigBuilder()
                  .access_key(os.getenv('NACOS_ACCESS_KEY'))
@@ -548,6 +549,105 @@ await ai_client.unsubscribe_agent_card(
     )
 )
 ```
+
+### Prompt Management
+
+Nacos provides prompt template management capabilities, including retrieval, subscription, and rendering with variable substitution.
+
+#### Get Prompt
+
+```python
+from v2.nacos.ai.model.ai_param import GetPromptParam
+
+prompt = await ai_client.get_prompt(
+    GetPromptParam(prompt_key='my-prompt', version='1.0.0')
+)
+print(prompt.template)
+```
+
+* `param` *GetPromptParam* Parameter for retrieving prompt information.
+  * `prompt_key` - Key of the prompt to query (required).
+  * `version` - Version of the prompt (optional).
+  * `label` - Label of the prompt (optional).
+* `return` Prompt if success or an exception will be raised.
+
+#### Render Prompt with Variables
+
+The `Prompt` object supports template rendering with `{{variableName}}` placeholders. Variables defined in the prompt may include default values via `PromptVariable.defaultValue`. When rendering, default values are applied first, then overridden by user-provided values.
+
+```python
+# Render the prompt template with variable substitution
+result = prompt.render({"name": "Alice", "place": "Nacos"})
+print(result)  # e.g. "Hello Alice, welcome to Nacos!"
+
+# Variables with defaultValue will be used automatically if not overridden
+# For example, if the prompt has a variable: PromptVariable(name="lang", defaultValue="en")
+# Calling render without providing "lang" will use "en" as the value
+result = prompt.render({"name": "Alice"})
+```
+
+* `param` *variables* - A dict of variable name to value mappings (optional). Overrides default values defined in `PromptVariable.defaultValue`.
+* `return` Rendered string with all `{{variableName}}` placeholders replaced.
+
+#### Subscribe Prompt
+
+```python
+from v2.nacos.ai.model.ai_param import SubscribePromptParam
+
+async def prompt_listener(prompt_key, prompt):
+    print(f"Prompt changed: {prompt_key}, version: {prompt.version}")
+
+prompt = await ai_client.subscribe_prompt(
+    SubscribePromptParam(
+        prompt_key='my-prompt',
+        version='1.0.0',
+        subscribe_callback=prompt_listener
+    )
+)
+```
+
+* `param` *SubscribePromptParam* Parameter for subscribing to prompt changes.
+  * `prompt_key` - Key of the prompt to subscribe to (required).
+  * `version` - Version of the prompt (optional).
+  * `label` - Label of the prompt (optional).
+  * `subscribe_callback` - Callback function to handle prompt changes (required).
+* `return` Current Prompt if success or an exception will be raised.
+
+#### Unsubscribe Prompt
+
+```python
+await ai_client.unsubscribe_prompt(
+    SubscribePromptParam(
+        prompt_key='my-prompt',
+        version='1.0.0',
+        subscribe_callback=prompt_listener
+    )
+)
+```
+
+### Skill Download
+
+Nacos supports downloading skill packages as ZIP archives.
+
+#### Download Skill ZIP
+
+```python
+from v2.nacos.ai.model.ai_param import DownloadSkillParam
+
+zip_bytes = await ai_client.download_skill_zip(
+    DownloadSkillParam(skill_name='my-skill', version='1.0.0')
+)
+
+# Save to file
+with open('my-skill.zip', 'wb') as f:
+    f.write(zip_bytes)
+```
+
+* `param` *DownloadSkillParam* Parameter for downloading a skill ZIP.
+  * `skill_name` - Name of the skill (required).
+  * `version` - Target skill version (optional, defaults to latest).
+  * `label` - Target skill label, e.g. "latest", "stable" (optional).
+* `return` ZIP file content as bytes if success or an exception will be raised.
 
 ### Stop AI Client
 

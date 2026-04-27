@@ -28,13 +28,10 @@ class AuthClient:
             "username": self.username,
             "password": self.password
         }
-        ctx_path = self.client_config.context_path
+        ctx_prefix = self.client_config.build_context_prefix()
         server_list = self.get_server_list()
         for server_address in server_list:
-            if ctx_path == "/":
-                url = server_address + "/v1/auth/users/login"
-            else:
-                url = server_address + ctx_path + "/v1/auth/users/login"
+            url = server_address + ctx_prefix + "/v1/auth/users/login"
             resp, error = await self.http_agent.request(url, "POST", None, params, None)
             if not resp or error:
                 self.logger.warning(f"[get-access-token] request {url} failed, error: {error}")
