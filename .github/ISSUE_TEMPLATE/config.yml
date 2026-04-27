@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Documentation
+    url: https://nacos.io/docs/latest/what-is-nacos/
+    about: Please check the Nacos documentation before asking a question.
