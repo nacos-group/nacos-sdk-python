@@ -320,6 +320,12 @@ client_config = (ClientConfigBuilder()
 ai_client = await NacosAIService.create_ai_service(client_config)
 ```
 
+**传输模式说明：**
+
+- **Prompt** 同时支持 gRPC 和 HTTP 两种传输模式。默认使用 gRPC。如果 gRPC 端口不可达，AI 客户端仍可正常创建（gRPC 会在后台异步重连），Prompt 操作可回退到 HTTP 模式。
+- **Skill 下载** 始终使用 HTTP，不依赖 gRPC 连接。
+- **MCP Server / Agent Card** 管理使用 gRPC。
+
 ### MCP Server 管理
 
 Nacos 提供了对 MCP (Model Context Protocol) Server 的管理能力，包括注册、发现和订阅，支持 MCP Server 的动态注册和服务发现。

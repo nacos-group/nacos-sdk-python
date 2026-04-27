@@ -324,6 +324,12 @@ client_config = (ClientConfigBuilder()
 ai_client = await NacosAIService.create_ai_service(client_config)
 ```
 
+**Transport Modes:**
+
+- **Prompt** supports both gRPC and HTTP transport. By default, gRPC is used. If the gRPC port is unreachable, the AI client will still start normally (gRPC reconnects asynchronously in the background), and Prompt operations can fall back to HTTP.
+- **Skill download** always uses HTTP, regardless of gRPC availability.
+- **MCP Server / Agent Card** management uses gRPC.
+
 ### MCP Server Management
 
 Nacos provides management capabilities for MCP (Model Context Protocol) Server, including registration, discovery, and subscription, supporting dynamic registration and service discovery of MCP servers.
