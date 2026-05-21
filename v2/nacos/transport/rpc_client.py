@@ -459,7 +459,7 @@ class ConnectResetRequestHandler(IServerRequestHandler):
             return None
 
         try:
-            with self.rpc_client.lock:
+            async with self.rpc_client.lock:
                 if self.rpc_client.is_running():
                     if request.server_ip.strip():
                         server_info = ServerInfo(request.server_ip, int(request.server_port))
