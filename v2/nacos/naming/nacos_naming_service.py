@@ -157,10 +157,11 @@ class NacosNamingService(NacosClient):
             request.group_name = Constants.DEFAULT_GROUP
 
         clusters = ",".join(request.clusters)
-        service = await self.service_info_holder.get_service_info(request.service_name, request.group_name, "")
         cluster_selector = ClusterSelector(request.clusters)
-        if not service:
-            service = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
+        service = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
+        if service is None:
+            return service
+        service = service.model_copy(deep=True)
         service.clusters = clusters
         service.hosts = cluster_selector.select_instance(service)
         return service
@@ -185,13 +186,11 @@ class NacosNamingService(NacosClient):
             request.group_name = Constants.DEFAULT_GROUP
 
         cluster_selector = ClusterSelector(request.clusters)
-        service_info = None
-        # 如果subscribe为true, 则优先从缓存中获取服务信息，并订阅该服务
         if request.subscribe:
-            service_info = await self.service_info_holder.get_service_info(request.service_name, request.group_name,
-                                                                           "")
-        if service_info is None:
             service_info = await self.grpc_client_proxy.subscribe(request.service_name, request.group_name, "")
+        else:
+            service_info = await self.grpc_client_proxy.query_instance_of_service(
+                request.service_name, request.group_name, cluster_selector.cluster_names, False)
 
         instance_list = []
         if service_info is not None and len(service_info.hosts) > 0:
