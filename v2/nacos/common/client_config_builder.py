@@ -93,6 +93,10 @@ class ClientConfigBuilder:
         self._config.load_cache_at_start = load_cache_at_start
         return self
 
+    def update_cache_when_empty(self, update_cache_when_empty: bool) -> "ClientConfigBuilder":
+        self._config.set_update_cache_when_empty(update_cache_when_empty)
+        return self
+
     def app_conn_labels(self, app_conn_labels: dict) -> "ClientConfigBuilder":
         if self._config.app_conn_labels is None:
             self._config.app_conn_labels = {}
