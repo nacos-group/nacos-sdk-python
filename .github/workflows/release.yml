@@ -1,0 +1,80 @@
+# Release automation: push a version tag (e.g. 3.2.1) to build, publish to
+# PyPI and create the GitHub Release in one go.
+#
+# PyPI auth uses Trusted Publishing (OIDC), no token stored in the repo.
+# One-time setup required by a PyPI project owner:
+#   PyPI -> nacos-sdk-python -> Publishing -> Add a new publisher (GitHub):
+#     Owner: nacos-group / Repository: nacos-sdk-python
+#     Workflow name: release.yml / Environment name: pypi
+name: Release
+
+on:
+  push:
+    tags:
+      - '[0-9]*.[0-9]*.[0-9]*'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify version consistency
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SETUP_VER=$(python3 -c "import re; print(re.search(r'version=\"([^\"]+)\"', open('setup.py').read()).group(1))")
+          CLIENT_VER=$(python3 -c "import re; print(re.search(r'CLIENT_VERSION = \"Nacos-Python-Client:v([^\"]+)\"', open('v2/nacos/common/constants.py').read()).group(1))")
+          echo "tag=${TAG} setup.py=${SETUP_VER} constants.py=${CLIENT_VER}"
+          if [ "${TAG}" != "${SETUP_VER}" ] || [ "${TAG}" != "${CLIENT_VER}" ]; then
+            echo "::error::Version mismatch: tag=${TAG}, setup.py=${SETUP_VER}, constants.py CLIENT_VERSION=${CLIENT_VER}"
+            exit 1
+          fi
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Build sdist and wheel
+        run: |
+          pip install build
+          python -m build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/nacos-sdk-python/${{ github.ref_name }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          ARGS=(--title "${TAG}" --generate-notes)
+          if echo "${TAG}" | grep -qE '(a|b|rc)[0-9]*$'; then
+            ARGS+=(--prerelease)
+          fi
+          gh release create "${TAG}" "${ARGS[@]}"
