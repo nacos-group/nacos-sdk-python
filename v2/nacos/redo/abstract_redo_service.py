@@ -22,6 +22,7 @@ class AbstractRedoService(ConnectionEventListener,ABC):
 
 	async def on_connected(self) -> None:
 		self._connected = True
+		await self.start_redo_task()
 
 	async def on_disconnect(self) -> None:
 		self._connected = False
