@@ -136,7 +136,11 @@ class NacosAIService(NacosClient):
 	async def get_agent_card(self, param: GetAgentCardParam) -> AgentCardDetailInfo:
 		if not param.agent_name or len(param.agent_name) == 0:
 			raise NacosException(INVALID_PARAM, "agentName is required")
-		return await self.grpc_client_proxy.get_agent_card(param.agent_name, param.registration_type, param.version)
+		return await self.grpc_client_proxy.get_agent_card(
+			agent_name=param.agent_name,
+			version=param.version,
+			registration_type=param.registration_type,
+		)
 
 	async def release_agent_card(self, param: ReleaseAgentCardParam):
 		if not param.agent_card:
