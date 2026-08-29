@@ -25,7 +25,8 @@ from v2.nacos.ai.model.mcp.mcp import McpServerBasicInfo, McpToolSpecification, 
 	McpEndpointSpec, McpServerDetailInfo
 from v2.nacos.ai.redo.ai_grpc_redo_service import AIGrpcRedoService
 from v2.nacos.common.constants import Constants
-from v2.nacos.common.nacos_exception import SERVER_ERROR, SERVER_NOT_IMPLEMENTED
+from v2.nacos.common.nacos_exception import NOT_FOUND, NOT_MODIFIED, \
+	SERVER_ERROR, SERVER_NOT_IMPLEMENTED
 from v2.nacos.transport.ability import AbilityKey, AbilityStatus
 from v2.nacos.transport.http_agent import HttpAgent
 from v2.nacos.transport.nacos_server_connector import NacosServerConnector
@@ -122,6 +123,8 @@ class AIGRPCClientProxy:
 				raise NacosException(SERVER_ERROR,
 									 " Server return invalid response")
 		except NacosException as e:
+			if e.error_code == NOT_MODIFIED or e.error_code == NOT_FOUND:
+				raise
 			self.logger.error(
 				"failed to invoke nacos config server : " + str(e))
 			raise e
