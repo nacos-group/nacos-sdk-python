@@ -2,7 +2,7 @@ import asyncio
 
 import grpc
 
-from v2.nacos.common.nacos_exception import NacosException
+from v2.nacos.common.nacos_exception import NacosException, CLIENT_DISCONNECT
 from v2.nacos.transport.connection import Connection
 from v2.nacos.transport.grpc_util import GrpcUtils
 from v2.nacos.transport.grpcauto.nacos_grpc_service_pb2 import Payload
@@ -21,7 +21,15 @@ class GrpcConnection(Connection):
 
     async def request(self, request: Request, timeout_millis) -> Response:
         payload = GrpcUtils.convert_request_to_payload(request)
-        response_payload = await self.client.request(payload, timeout=timeout_millis / 1000.0)
+        try:
+            response_payload = await self.client.request(payload, timeout=timeout_millis / 1000.0)
+        except asyncio.CancelledError:
+            current_task = asyncio.current_task()
+            if current_task is not None:
+                cancelling = getattr(current_task, 'cancelling', None)
+                if callable(cancelling) and cancelling() > 0:
+                    raise
+            raise NacosException(CLIENT_DISCONNECT, 'in-flight rpc cancelled by connection close') from None
         return GrpcUtils.parse(response_payload)
 
     def set_channel(self, channel: grpc.Channel) -> None:

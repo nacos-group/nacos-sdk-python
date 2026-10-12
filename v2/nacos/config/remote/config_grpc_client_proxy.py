@@ -28,6 +28,14 @@ from v2.nacos.transport.rpc_client_factory import RpcClientFactory
 from v2.nacos.utils.common_util import get_current_time_millis
 from v2.nacos.utils.md5_util import md5
 
+# Minimum interval between immediate re-listens after changed configs.
+# If changes never settle (server keeps reporting them or the follow-up query keeps
+# failing), an unfloored immediate re-listen degenerates into a request storm.
+# The interval backs off exponentially (100ms up to a 5s cap) so the degraded rate
+# converges to the normal heartbeat cadence.
+MIN_LISTEN_RPC_INTERVAL_MILLIS = 100
+MAX_LISTEN_RPC_INTERVAL_MILLIS = 5000
+
 
 class ConfigGRPCClientProxy:
     def __init__(self,
@@ -47,6 +55,8 @@ class ConfigGRPCClientProxy:
         self.stop_event = asyncio.Event()
         self.listen_task = asyncio.create_task(self._execute_config_listen_task())
         self.last_all_sync_time = get_current_time_millis()
+        self.last_listen_rpc_time = 0
+        self.listen_backoff_level = 0
         self.config_subscribe_manager = ConfigSubscribeManager(self.logger, config_info_cache,
                                                                self.namespace_id,
                                                                config_filter_chain_manager,
@@ -197,53 +207,77 @@ class ConfigGRPCClientProxy:
                 self.logger.debug("Timeout occurred")
             except asyncio.CancelledError:
                 return
-            
-            has_changed_keys = False
-            is_sync_all = (get_current_time_millis() - self.last_all_sync_time) >= 5 * 60 * 1000
-            listen_task_map = await self.config_subscribe_manager.execute_listener_and_build_tasks(is_sync_all)
-            if len(listen_task_map) == 0:
+
+            try:
+                await self._execute_listen_round()
+            except asyncio.CancelledError:
+                # spurious cancellations are translated to NacosException at the
+                # transport layer, so this is always a genuine cancellation
+                self.logger.info("config listen task cancelled, stop listening")
+                return
+            except Exception as e:
+                self.logger.exception("config listen round failed, error: %s", e)
+
+    async def _execute_listen_round(self):
+        has_changed_keys = False
+        is_sync_all = (get_current_time_millis() - self.last_all_sync_time) >= 5 * 60 * 1000
+        listen_task_map = await self.config_subscribe_manager.execute_listener_and_build_tasks(is_sync_all)
+        if len(listen_task_map) == 0:
+            return
+
+        for task_id, cache_data_list in listen_task_map.items():
+            if len(cache_data_list) == 0:
+                continue
+            request = ConfigBatchListenRequest(group='', dataId='', tenant='')
+            for cache_data in cache_data_list:
+                config_listen_context = ConfigListenContext(group=cache_data.group,
+                                                            md5=cache_data.md5,
+                                                            dataId=cache_data.data_id,
+                                                            tenant=cache_data.tenant)
+                request.configListenContexts.append(config_listen_context)
+            try:
+                rpc_client = await self.fetch_rpc_client(task_id)
+                await self._pace_listen_rpc()
+                response: ConfigChangeBatchListenResponse = await self.request_config_server(
+                    rpc_client, request, ConfigChangeBatchListenResponse)
+
+                if len(response.changedConfigs) > 0:
+                    has_changed_keys = True
+
+                for config_ctx in response.changedConfigs:
+                    change_key = get_config_cache_key(config_ctx.dataId, config_ctx.group, config_ctx.tenant)
+                    try:
+                        content, encrypted_data_key = await self.query_config(config_ctx.dataId,
+                                                                              config_ctx.group)
+                        await self.config_subscribe_manager.update_subscribe_cache(config_ctx.dataId,
+                                                                                   config_ctx.group,
+                                                                                   self.namespace_id,
+                                                                                   content,
+                                                                                   encrypted_data_key)
+                    except Exception as e:
+                        self.logger.error(f"failed to refresh config:{change_key},error:{str(e)}")
+                        continue
+            except Exception as e:
+                self.logger.error(f"failed to batch listen config ,error:{str(e)}")
                 continue
 
-            for task_id, cache_data_list in listen_task_map.items():
-                if len(cache_data_list) == 0:
-                    continue
-                request = ConfigBatchListenRequest(group='', dataId='', tenant='')
-                for cache_data in cache_data_list:
-                    config_listen_context = ConfigListenContext(group=cache_data.group,
-                                                                md5=cache_data.md5,
-                                                                dataId=cache_data.data_id,
-                                                                tenant=cache_data.tenant)
-                    request.configListenContexts.append(config_listen_context)
-                try:
-                    rpc_client = await self.fetch_rpc_client(task_id)
-                    response: ConfigChangeBatchListenResponse = await self.request_config_server(
-                        rpc_client, request, ConfigChangeBatchListenResponse)
+        if is_sync_all:
+            self.last_all_sync_time = get_current_time_millis()
 
-                    if len(response.changedConfigs) > 0:
-                        has_changed_keys = True
+        if has_changed_keys:
+            self.listen_backoff_level = min(self.listen_backoff_level + 1, 6)
+            await self.execute_config_listen_channel.put(None)
+        else:
+            self.listen_backoff_level = 0
 
-                    for config_ctx in response.changedConfigs:
-                        change_key = get_config_cache_key(config_ctx.dataId, config_ctx.group, config_ctx.tenant)
-                        try:
-                            content, encrypted_data_key = await self.query_config(config_ctx.dataId,
-                                                                                  config_ctx.group)
-                            await self.config_subscribe_manager.update_subscribe_cache(config_ctx.dataId,
-                                                                                       config_ctx.group,
-                                                                                       self.namespace_id,
-                                                                                       content,
-                                                                                       encrypted_data_key)
-                        except Exception as e:
-                            self.logger.error(f"failed to refresh config:{change_key},error:{str(e)}")
-                            continue
-                except Exception as e:
-                    self.logger.error(f"failed to batch listen config ,error:{str(e)}")
-                    continue
-
-            if is_sync_all:
-                self.last_all_sync_time = get_current_time_millis()
-
-            if has_changed_keys:
-                await self.execute_config_listen_channel.put(None)
+    async def _pace_listen_rpc(self):
+        interval = min(MIN_LISTEN_RPC_INTERVAL_MILLIS * (2 ** self.listen_backoff_level),
+                       MAX_LISTEN_RPC_INTERVAL_MILLIS)
+        now = get_current_time_millis()
+        elapsed = now - self.last_listen_rpc_time
+        if elapsed < interval:
+            await asyncio.sleep((interval - elapsed) / 1000)
+        self.last_listen_rpc_time = get_current_time_millis()
 
     async def server_health(self):
         return (await self.fetch_rpc_client()).is_running()
@@ -251,5 +285,12 @@ class ConfigGRPCClientProxy:
     async def close_client(self):
         self.logger.info("close Nacos python config grpc client...")
         self.stop_event.set()
-        await self.listen_task
+        try:
+            await self.listen_task
+        except asyncio.CancelledError:
+            # the listen task died before shutdown: config listening has stopped
+            # working silently; log it loudly and continue resource cleanup
+            self.logger.error("config listen task was cancelled before shutdown, config listening is not working")
+        except Exception as e:
+            self.logger.error("config listen task died before shutdown, error:%s", str(e))
         await self.rpc_client_manager.shutdown_all_clients()
